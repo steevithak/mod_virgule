@@ -1059,6 +1059,30 @@ virgule_rfc3339_to_time_t (VirguleReq *vr, const char *time_string)
 
 
 /**
+ * virgule_virgule_to_time_t: Translates an old-style mod_virgule encoded
+ * time string into a Unix time_t value. This could probably replace the
+ * older function, virgule_iso_to_time_t(). Unlike the older function,
+ * this would should return a valid time_t value provided the system time
+ * zone setting has not changed since the time string was created.
+ **/
+time_t
+virgule_virgule_to_time_t (VirguleReq *vr, const char *time_string)
+{
+  time_t t;
+  struct tm tm;
+
+  if(time_string == NULL)
+    return -1;
+
+  memset(&tm, 0, sizeof(struct tm));
+  strptime(time_string, "%F %T", &tm);
+  t = timegm(&tm);
+
+  return t - vr->priv->utc_offset;
+}
+
+
+/**
  * iso_to_time_t: Compute Unix time from ISO date string.
  * @iso: String in ISO format (usually from iso_now).
  *

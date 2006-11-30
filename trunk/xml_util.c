@@ -74,6 +74,33 @@ virgule_xml_get_string_contents (xmlNode *n)
 }
 
 
+/**
+ * virgule_xml_del_string_contents - remove any text or CDATA child nodes
+ * while leaving other nodes intact.
+ **/
+void
+virgule_xml_del_string_contents (xmlNode *n)
+{
+  xmlNode *child = n->children;
+  xmlNode *tmp;
+
+  while (child)
+    {
+      if(child->type == XML_TEXT_NODE || child->type == XML_CDATA_SECTION_NODE)
+      {
+        tmp = child;
+        child = tmp->next;
+        xmlUnlinkNode(tmp);
+        xmlFreeNode(tmp);
+      }
+      else
+        child = child->next;
+    }
+}
+
+
+
+
 /* xmlGetProp with Apache-friendly allocation */
 char *
 virgule_xml_get_prop (apr_pool_t *p, xmlNodePtr node, const xmlChar *name)
