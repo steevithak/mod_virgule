@@ -39,7 +39,7 @@ hash_func (const char *string)
 }
 
 HashTable *
-hash_table_new (apr_pool_t *p)
+virgule_hash_table_new (apr_pool_t *p)
 {
   HashTable *result;
   result = (HashTable *)apr_palloc (p, sizeof(HashTable));
@@ -54,7 +54,7 @@ hash_table_new (apr_pool_t *p)
 }
 
 void *
-hash_table_get (const HashTable *ht, const char *key)
+virgule_hash_table_get (const HashTable *ht, const char *key)
 {
   unsigned int hash;
 
@@ -71,7 +71,7 @@ hash_table_get (const HashTable *ht, const char *key)
 
 static void
 hash_table_insert_bucket (apr_pool_t *p, HashBucket **buckets, int n_max,
-		    HashBucket *bucket)
+		     HashBucket *bucket)
 {
   unsigned int hash;
 
@@ -96,7 +96,7 @@ hash_table_insert (apr_pool_t *p, HashBucket **buckets, int n_max,
 }
 
 void
-hash_table_set (apr_pool_t *p, HashTable *ht, const char *key, void *val)
+virgule_hash_table_set (apr_pool_t *p, HashTable *ht, const char *key, void *val)
 {
   unsigned int hash;
   int n_max;
@@ -145,7 +145,7 @@ hash_table_set (apr_pool_t *p, HashTable *ht, const char *key, void *val)
 }
 
 HashTableIter *
-hash_table_iter (apr_pool_t *p, const HashTable *ht)
+virgule_hash_table_iter (apr_pool_t *p, const HashTable *ht)
 {
   HashTableIter *result;
   result = (HashTableIter *)apr_palloc (p, sizeof(HashTableIter));
@@ -157,7 +157,7 @@ hash_table_iter (apr_pool_t *p, const HashTable *ht)
 }
 
 int
-hash_table_iter_get (HashTableIter *iter, const char **pkey, void **pval)
+virgule_hash_table_iter_get (HashTableIter *iter, const char **pkey, void **pval)
 {
   const HashTable *ht = iter->ht;
 
@@ -175,7 +175,7 @@ hash_table_iter_get (HashTableIter *iter, const char **pkey, void **pval)
 }
 
 void
-hash_table_iter_next (HashTableIter *iter)
+virgule_hash_table_iter_next (HashTableIter *iter)
 {
   iter->index++;
 }

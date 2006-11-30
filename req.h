@@ -18,22 +18,22 @@ struct _VirguleReq {
 };
 
 int
-send_response (VirguleReq *vr);
+virgule_send_response (VirguleReq *vr);
 
 apr_table_t *
-get_args_table (VirguleReq *vr);
+virgule_get_args_table (VirguleReq *vr);
 
 char *
-req_get_tmetric (VirguleReq *vr);
+virgule_req_get_tmetric (VirguleReq *vr);
 
 const char *
-req_get_tmetric_level (VirguleReq *vr, const char *u);
+virgule_req_get_tmetric_level (VirguleReq *vr, const char *u);
 
 int
-req_ok_to_post (VirguleReq *vr);
+virgule_req_ok_to_post (VirguleReq *vr);
 
 int
-req_ok_to_reply (VirguleReq *vr);
+virgule_req_ok_to_reply (VirguleReq *vr);
 
 int
-req_ok_to_create_project (VirguleReq *vr);
+virgule_req_ok_to_create_project (VirguleReq *vr);

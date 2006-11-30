@@ -5,7 +5,7 @@
 
 
 int
-add_recent (apr_pool_t *p, Db *db, const char *key, const char *val, int n_max, int dup);
+virgule_add_recent (apr_pool_t *p, Db *db, const char *key, const char *val, int n_max, int dup);
 
 
 /* Relations */
@@ -39,8 +39,9 @@ struct _DbRelation {
 };
 
 int
-db_relation_put (apr_pool_t *p, Db *db, const DbRelation *rel, const char **values);
+virgule_db_relation_put (apr_pool_t *p, Db *db, const DbRelation *rel, const char **values);
 
+/*
 int
 db_relation_get (apr_pool_t *p, Db *db, const DbRelation *rel, char **values);
 
@@ -49,3 +50,4 @@ db_relation_select (apr_pool_t *p, Db *db, const DbRelation *rel, char **values)
 
 int
 db_relation_select_next (DbSelect *dbs, char **values);
+*/

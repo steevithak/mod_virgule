@@ -1,3 +1,159 @@
+2006-10-29 R. Steven Rainwater <steve@ncc.com>
+
+	* proj.c: Now has even more horrible hacks scattered through it than
+	before to render three "styles" of project pages: RAPH, NICK, and
+	STEVE. The project style can be set in the config file, so provided
+	you can use one of the three existing options, no code changes will be
+	needed to customize mod_virgule for your use. RAPH style projects match
+	the software projects of Advogato. STEVE style is identical except for 
+	one field name change that makes project more generic and matches the
+	use on robots.net. NICK style converts the project area into a sort of
+	makeshift discussion forum. This whole file is a disaster and needs to
+	be re-written to use an external schema or replaced with a general 
+	purpose XML object handler.
+
+	* schema.c:  Added virgule_ prefix to non-static functions.
+	* site.c:  Added virgule_ prefix to non-static functions.
+	* style.c:  Added virgule_ prefix to non-static functions.
+	* tmetric.c:  Added virgule_ prefix to non-static functions.
+	* util.c:  Added virgule_ prefix to non-static functions.
+	* wiki.c:  Added virgule_ prefix to non-static functions.
+	* xml_util.c:  Added virgule_ prefix to non-static functions.
+	* xmlrpc.c:  Added virgule_ prefix to non-static functions.
+
+2006-10-28 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (virgule_read_site_config): Added code support for
+	three settings to determine the features available at particular
+	certification levels including <articlepost>, <articlereply>, and
+	<projectcreate>. 
+
+	* req.c (req_ok_to_post, req_ok_to_reply, req_ok_to_create_project):
+	These functions now return TRUE or FALSE based on the cert levels
+	set in the config.xml file.
+
+	* article.c (article_render_from_xml): Fix to account for special
+	users in CSS setting of article headers (to match original Advogato
+	functionality).
+	
+	* style.c (render_sitemap): Anchor tags are supressed on the sitemap
+	map link if the target URI matches the URI of the current page. 
+
+	* req.c:  Added virgule_ prefix to non-static functions.
+	* rss_export.c:  Added virgule_ prefix to non-static functions.
+
+2006-10-23 R. Steven Rainwater <steve@ncc.com>
+
+	* general: Replaced "weblog" with "blog". Robots.net used "weblog"
+	and Advogato used "diary". After discussing with Raph, we decided
+	"blog" was the most recognizable choice.
+
+	* hashtable.c: Added virgule_ prefix to non-static functions.
+	* net_flow.c: Added virgule_ prefix to non-static functions.
+	* proj.c:  Added virgule_ prefix to non-static functions.
+	* rating.c:  Added virgule_ prefix to non-static functions.
+
+2006-10-21 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (virgule_read_site_config): Added code support for
+	<accountextendedcharset> tag in config.xml. When set to "on", this 
+	will allow new account name to use a slightly more premissive set of
+	characters including -,_,., and spaces in their names. When set
+	to "off" it uses the original mod_virgule/Advogato charset.
+
+	* acct_maint.c (virgule_validate_username): The allowed character
+	set for new user names is determined by a config.xml setting.
+
+	* eigen.c: Added virgule_ prefix to non-static functions.
+
+
+2006-10-20 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (set_virgule_db): Stats the provided path to verify
+	that it exists and that it's a directory. Returns error message to
+	Apache if path is invalid.
+
+	* mod_virgule.c (virgule_read_site_config): Added code support for
+	<articletitlelinks> tag in config.xml. When set to "on", this will
+	turn article titles into links to the article detail page. When set
+	to "off" it uses the original mod_virgule/Advogato style of titles.
+	
+	* article.c (article_render_from_xml): Article title link is now
+	dependent on config.xml setting. Article header white space and
+	width behavior is now set in CSS rather than hardcoded HTML.
+
+	* style.c (render_header): Isolated a nasty chunk of hardcoded
+	HTML and created a generic version that will be used on all sites
+	except robots.net. This is a particulary nasty hack and will be 
+	replaced by something cleaner later.
+	
+	* diary.c: Added virgule_ prefix to non-static functions.
+
+2006-10-18 R. Steven Rainwater <steve@ncc.com>
+
+	* db.c: Added virgule_ prefix to non-static functions.
+	* db_obs.c: Added virgule_ prefix to non-static functions.
+	* db_xml.c: Added virgule_ prefix to non-static functions.
+
+2006-07-07 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c: Added virgule_ prefix to non-static functions.
+	* apache_util.c: Added virgule_ prefix to non-static functions.
+	* article.c: Added virgule_ prefix to non-static functions.
+	* auth.c:  Added virgule_ prefix to non-static functions.
+	* buffer.c:  Added virgule_ prefix to non-static functions.
+	* certs.c:  Added virgule_ prefix to non-static functions.
+
+2006-06-13 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (b64enc): Added static to function definition.
+	* util.c (rand_cookie): Renamed virgule_rand_cookie.
+	* util.c (add_topic): Renamed virgule_add_topic.
+	* util.c (match_preifx): Renamed virgule_match_prefix.
+	* diary.c (diary_serve): Renamed virgule_diary_serve.
+	* mod_virgule.c (read_site_config): Renamed virgule_read_site_config.
+	* proj.c (proj_serve): Renamed virgule_proj_serve.
+	* rating.c (rating_serve): Renamed virgule_rating_serve.
+	* rss_export.c (rss_serve): Renamed virgule_rss_serve.
+
+2006-03-14 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_num_serve): Rewrote to use a user editable
+	XML template populated by site_render_page() instead of a
+	hard-coded page. All article non-form pages are now fully user 
+	configurable.
+	
+2006-02-23 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_num_serve): Removed some debugging cruft
+	
+	* site.c (_RenderCtx): Added variables to hold a tag string and
+	buffer string. This will allow site_render to populate rendered XML
+	templates with contents rendered by other mod_virgule functions. 
+	
+	* site.c (site_render_page): Added tag and buffer string args that
+	are passed to site_render via the ctx variable. This function can 
+	now be called directly from anywhere in mod_virgule to render a 
+	template and optionally populate it with locally rendered content.
+
+2006-02-17 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (register_hooks): Renamed to virgule_register_hooks
+	to comply with Apache module definition standards.
+	
+	* mod_virgule.c (create_virgule_dir_conf): Renamed to
+	virgule_create_dir_config to comply with Apache module definition
+	standards.
+
+	* mod_virgule.c (read_site_config): Added additional memory allocation
+	safety checks.
+
+	* acct_maint.c (acct_person_serve): Added last login date to the info
+	displayed on the account page.
+	
+	* db_ops.c (add_recent, db_relation_put_field): Added additional null
+	pointer checks.
+
 2005-08-29 R. Steven Rainwater <steve@ncc.com>
 
 	* site.c (site_render, site_render_cronbox, site_render_recent_bots):

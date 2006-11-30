@@ -35,7 +35,7 @@ struct _Buffer {
 };
 
 Buffer *
-buffer_new (apr_pool_t *p)
+virgule_buffer_new (apr_pool_t *p)
 {
   Buffer *result = apr_palloc (p, sizeof(Buffer));
   BufferChunk *chunk = apr_palloc (p, sizeof(BufferChunk));
@@ -56,7 +56,7 @@ buffer_new (apr_pool_t *p)
 }
 
 void
-buffer_set_translations (Buffer *b, const char **translations)
+virgule_buffer_set_translations (Buffer *b, const char **translations)
 {
   b->trans = translations;
 }
@@ -115,7 +115,7 @@ trans_buffer_write (Buffer *b, const char *data, int size)
 }
 
 void
-buffer_write (Buffer *b, const char *data, int size)
+virgule_buffer_write (Buffer *b, const char *data, int size)
 {
   if (!b->trans) {
     real_buffer_write (b, data, size);
@@ -154,7 +154,7 @@ buffer_write (Buffer *b, const char *data, int size)
 }
 
 void
-buffer_printf (Buffer *b, const char *fmt, ...)
+virgule_buffer_printf (Buffer *b, const char *fmt, ...)
 {
   /* It might be worth fiddling with this so that it doesn't copy
      quite so much. */
@@ -164,31 +164,31 @@ buffer_printf (Buffer *b, const char *fmt, ...)
   va_start (ap, fmt);
   str = apr_pvsprintf (b->p, fmt, ap);
   va_end (ap);
-  buffer_write (b, str, strlen (str));
+  virgule_buffer_write (b, str, strlen (str));
 }
 
 void
-buffer_puts (Buffer *b, const char *str)
+virgule_buffer_puts (Buffer *b, const char *str)
 {
-  buffer_write (b, str, strlen (str));
+  virgule_buffer_write (b, str, strlen (str));
 }
 
 void
-buffer_append (Buffer *b, const char *str1, ...)
+virgule_buffer_append (Buffer *b, const char *str1, ...)
 {
   va_list args;
   char *s;
 
-  buffer_puts (b, str1);
+  virgule_buffer_puts (b, str1);
   va_start (args, str1);
   while ((s = va_arg (args, char *)) != NULL)
-    buffer_puts (b, s);
+    virgule_buffer_puts (b, s);
   va_end (args);
 }
 
 /* Send http header and buffer */
 int
-buffer_send_response (request_rec *r, Buffer *b)
+virgule_buffer_send_response (request_rec *r, Buffer *b)
 {
   BufferChunk *chunk;
   char *md5, *etag;
@@ -218,7 +218,7 @@ buffer_send_response (request_rec *r, Buffer *b)
  * Return value: A null-terminated string corresponding to the buffer.
  **/
 char *
-buffer_extract (Buffer *b)
+virgule_buffer_extract (Buffer *b)
 {
   char *result;
   BufferChunk *chunk;

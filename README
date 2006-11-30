@@ -12,6 +12,7 @@ modifications to the source code.
 So what does my version do that the original doesn't?
 
 Features of my fork that have not been integrated into official code yet:
+-Function names now follows Apache module guidelines
 -Compiles against Apache 2.0 (roughly based on James Henstridge's patch)
 -User list is configurable, paged, and sorted by cert level
 -Article index page is a configurable template

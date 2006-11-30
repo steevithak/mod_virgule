@@ -27,7 +27,7 @@ static const char UTF8length[256] = {
 static const char basis_64[] = 
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; 
 
-char *
+static char *
 b64enc (apr_pool_t *p, const char *data, int size)
 {
   char *result;
@@ -52,7 +52,7 @@ b64enc (apr_pool_t *p, const char *data, int size)
 }
 
 /**
- * rand_cookie: Create a new, random cookie.
+ * virgule_rand_cookie: Create a new, random cookie.
  * @p: pool in which to allocate.
  *
  * Creates a new, base-64 encoded random cookie. The cookie has 120
@@ -62,7 +62,7 @@ b64enc (apr_pool_t *p, const char *data, int size)
  * Return value: The random cookie.
  **/
 char *
-rand_cookie (apr_pool_t *p)
+virgule_rand_cookie (apr_pool_t *p)
 {
   apr_file_t *fd;
   apr_size_t bytes_read;
@@ -83,7 +83,7 @@ rand_cookie (apr_pool_t *p)
 }
 
 const char *
-match_prefix (const char *url, const char *prefix)
+virgule_match_prefix (const char *url, const char *prefix)
 {
   int len;
   len = strlen (prefix);
@@ -237,7 +237,7 @@ nice_text_helper (const char *raw, char *buf)
  * Return value: HTML formatted text.
  **/
 char *
-nice_text (apr_pool_t *p, const char *raw)
+virgule_nice_text (apr_pool_t *p, const char *raw)
 {
   char *result;
   int size;
@@ -288,7 +288,7 @@ struct _Topic {
  * multiple requests so it uses the thread private pool.
  */
 const Topic *
-add_topic (VirguleReq *vr, const char *desc, const char *url)
+virgule_add_topic (VirguleReq *vr, const char *desc, const char *url)
 {
   Topic *topic;
   topic = apr_palloc (vr->priv->pool, sizeof(Topic));
@@ -310,7 +310,7 @@ struct _NavOption {
  * multiple requests so it uses the thread private pool.
  */
 const NavOption *
-add_nav_option (VirguleReq *vr, const char *label, const char *url)
+virgule_add_nav_option (VirguleReq *vr, const char *label, const char *url)
 {
   NavOption *option;
   option = apr_palloc (vr->priv->pool, sizeof(NavOption));
@@ -330,7 +330,7 @@ static AllowedTag special_allowed_tags[] = {
   { "person", 0, nice_person_link },
   { "proj", 0, nice_proj_link },
   { "project", 0, nice_proj_link },
-  { "wiki", 0, wiki_link }
+  { "wiki", 0, virgule_wiki_link }
 };
 
 
@@ -340,7 +340,7 @@ static AllowedTag special_allowed_tags[] = {
  * multiple requests so it uses the thread private pool.
  */
 const AllowedTag *
-add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
+virgule_add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
 {
   AllowedTag *tag;
   int i, n = sizeof (special_allowed_tags) / sizeof (special_allowed_tags[0]);
@@ -359,17 +359,17 @@ add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
 }
 
 int
-render_acceptable_html (VirguleReq *vr)
+virgule_render_acceptable_html (VirguleReq *vr)
 {
   const AllowedTag **tag;
 
-  buffer_printf (vr->b, "<p> The following <a href=\"%s/html.html\">HTML</a> "
+  virgule_buffer_printf (vr->b, "<p> The following <a href=\"%s/html.html\">HTML</a> "
 		 "is accepted: ", vr->prefix);
 
   for (tag = vr->priv->allowed_tags; *tag; tag++)
-    buffer_printf (vr->b, "&lt;%s&gt; ", (*tag)->tagname);
+    virgule_buffer_printf (vr->b, "&lt;%s&gt; ", (*tag)->tagname);
 
-  buffer_puts (vr->b, "</p>\n");
+  virgule_buffer_puts (vr->b, "</p>\n");
 
   return 0;
 }
@@ -427,6 +427,38 @@ find_end_tag (const char *str, const char *tag, const char **after)
   return NULL;
 }
 
+
+/**
+ * strip_a: Remove any anchor tags found in the string
+ */
+char *
+virgule_strip_a (VirguleReq *vr, const char *raw)
+{
+  /* strip anchor tags */
+  char *clean = apr_pstrdup (vr->r->pool, raw);
+  char *tmp1 = (char *)raw;
+  char *tmp2 = clean;
+  while(*tmp1!=0)
+    {
+      if(strncasecmp(tmp1,"<a",2)==0)
+        {
+	  while(*tmp1!=0&&*tmp1!='>')
+	    tmp1++;
+	  if(*tmp1!=0)
+            tmp1++;
+        }
+      if(strncasecmp(tmp1,"</a>",4)==0)
+        tmp1+=4;
+      *tmp2 = *tmp1;
+      tmp1++;
+      tmp2++;
+    }
+  *tmp2=0;
+
+  return clean;
+}
+
+
 /**
  * nice_htext: Convert raw html'ish text into nice HTML.
  * @raw: Raw text.
@@ -435,10 +467,10 @@ find_end_tag (const char *str, const char *tag, const char **after)
  * Return value: HTML formatted text.
  **/
 char *
-nice_htext (VirguleReq *vr, const char *raw, char **p_error)
+virgule_nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = buffer_new (p);
+  Buffer *b = virgule_buffer_new (p);
   apr_array_header_t *tag_stack;
   int i, end;
   char c;
@@ -448,7 +480,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
   *p_error = NULL;
 #if 0
   /* revert to old nicetext behavior */
-  return nice_text (p, raw);
+  return virgule_nice_text (p, raw);
 #endif
   tag_stack = apr_array_make (p, 16, sizeof (char *));
   for (i = 0; raw[i]; i = end)
@@ -460,11 +492,11 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
       if (end > i + 1 || raw[i] != '\r')
 	{
 	  if (nl_state == 2)
-	    buffer_puts (b, "<p> ");
+	    virgule_buffer_puts (b, "<p> ");
 	  nl_state = 3;
 	}
       if (end > i)
-	buffer_write (b, raw + i, end - i);
+	virgule_buffer_write (b, raw + i, end - i);
       i = end;
       if (c == '&')
 	{
@@ -500,11 +532,11 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 	  if (end > i + 1 && raw[end] == ';')
 	    {	
 	      end++;
-	      buffer_write (b, raw + i, end - i);
+	      virgule_buffer_write (b, raw + i, end - i);
 	      continue;
 	    }
 	  end = i + 1;
-	  buffer_puts (b, "&amp;");
+	  virgule_buffer_puts (b, "&amp;");
 	}
       else if (c == '<')
 	{
@@ -542,7 +574,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 
 		  if (tail != NULL && *tail == '>')
 		    {
-		      buffer_printf (b, "</%s>", tos);
+		      virgule_buffer_printf (b, "</%s>", tos);
 		      tag_stack->nelts--;
 		      end = tail - raw + 1;
 		      continue;
@@ -590,9 +622,9 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 			  memcpy (body, raw + end, body_size);
 			  body[body_size] = 0;
 #if 1
-			  buffer_puts (b, (*tag)->handler (vr, body));
+			  virgule_buffer_puts (b, (*tag)->handler (vr, body));
 #else
-			  buffer_printf (b, "[body = %s, %d]", body, body_size);
+			  virgule_buffer_printf (b, "[body = %s, %d]", body, body_size);
 #endif
 			  end = after - raw;
 			  continue;
@@ -601,7 +633,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 		      else
 			{
 #if 0
-			  buffer_printf (b, "[body_end = NULL]");
+			  virgule_buffer_printf (b, "[body_end = NULL]");
 #endif
 			}
 		    }
@@ -609,12 +641,12 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 		    {
 		      if (in_quote)
 			{
-			  buffer_write (b, raw + i, end - i - 2);
-			  buffer_puts (b, "\">");
+			  virgule_buffer_write (b, raw + i, end - i - 2);
+			  virgule_buffer_puts (b, "\">");
 			  *p_error = "Unterminated quote in tag";
 			}
 		      else
-			buffer_write (b, raw + i, end - i);
+			virgule_buffer_write (b, raw + i, end - i);
 		      if (!(*tag)->empty)
 			{
 			  char **p_stack;
@@ -628,17 +660,17 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 	      end = i + 1;
 	    }
 	  /* tag not matched, escape the html */
-	  buffer_puts (b, "&lt;");
+	  virgule_buffer_puts (b, "&lt;");
 	}
       else if (c == '>')
 	{
 	  end++;
-	  buffer_puts (b, "&gt;");
+	  virgule_buffer_puts (b, "&gt;");
 	}
       else if (c == '\n')
 	{
 	  end++;
-	  buffer_puts (b, "\n");
+	  virgule_buffer_puts (b, "\n");
 
 	  if (nl_state == 3)
 	    nl_state = 1;
@@ -651,9 +683,9 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 	  end++;
 	  replacement = escape_noniso_char (c);
 	  if (replacement == NULL)
-	    buffer_write (b, raw + i, end - i);
+	    virgule_buffer_write (b, raw + i, end - i);
 	  else
-	    buffer_puts (b, replacement);
+	    virgule_buffer_puts (b, replacement);
 	}
     }
 
@@ -665,12 +697,12 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 
       tos_idx = --tag_stack->nelts;
       tos = ((char **)(tag_stack->elts))[tos_idx];
-      buffer_printf (b, "</%s>", tos);
+      virgule_buffer_printf (b, "</%s>", tos);
       if (*p_error == NULL)
 	*p_error = apr_psprintf (p, "Unclosed tag %s", tos);
     }
 
-  return buffer_extract (b);
+  return virgule_buffer_extract (b);
 }
 
 /**
@@ -680,7 +712,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
  * Note: we should at least be adding a timezone.
  **/
 char *
-iso_now (apr_pool_t *p)
+virgule_iso_now (apr_pool_t *p)
 {
   return ap_ht_time (p, (apr_time_t) (time (NULL)) * 1000000,
                      "%Y-%m-%d %H:%M:%S", 0);
@@ -695,7 +727,7 @@ iso_now (apr_pool_t *p)
  * Note: we should recognize and parse timezone code also.
  **/
 time_t
-iso_to_time_t (const char *iso)
+virgule_iso_to_time_t (const char *iso)
 {
   int year, month, day;
   int monthday[] = { 0, 31, 61, 92, 122, 153,
@@ -740,7 +772,7 @@ iso_to_time_t (const char *iso)
  * Return value: The resulting string.
  **/
 char *
-str_subst (apr_pool_t *p, const char *str, const char *pattern, const char *repl)
+virgule_str_subst (apr_pool_t *p, const char *str, const char *pattern, const char *repl)
 {
   int size, idx;
   int i, j;
@@ -797,12 +829,12 @@ str_subst (apr_pool_t *p, const char *str, const char *pattern, const char *repl
  * Return value: the escaped string.
  **/
 char *
-escape_uri_arg (apr_pool_t *p, const char *str)
+virgule_escape_uri_arg (apr_pool_t *p, const char *str)
 {
   char *tmp = ap_os_escape_path (p, str, 1);
-  tmp = str_subst (p, tmp, "&", "%26");
-  tmp = str_subst (p, tmp, "'", "%27");
-  return str_subst (p, tmp, "+", "%2b");
+  tmp = virgule_str_subst (p, tmp, "&", "%26");
+  tmp = virgule_str_subst (p, tmp, "'", "%27");
+  return virgule_str_subst (p, tmp, "+", "%2b");
 }
 
 static int
@@ -843,7 +875,7 @@ escape_attr_helper (const char *raw, char *buf)
  * Return value: the escaped string.
  **/
 char *
-escape_html_attr (apr_pool_t *p, const char *raw)
+virgule_escape_html_attr (apr_pool_t *p, const char *raw)
 {
   char *result;
   int size;
@@ -868,7 +900,7 @@ escape_html_attr (apr_pool_t *p, const char *raw)
  * Return value: the link.
  **/
 char *
-render_url (apr_pool_t *p, const char *prefix, const char *url)
+virgule_render_url (apr_pool_t *p, const char *prefix, const char *url)
 {
   const char *url2;
   char *colon;
@@ -879,35 +911,7 @@ render_url (apr_pool_t *p, const char *prefix, const char *url)
     url2 = apr_pstrcat (p, "http://", url, NULL);
   return apr_psprintf (p, "<p>%s<a href=\"%s\">%s</a> </p>\n",
 		     prefix,
-		     ap_os_escape_path (p, url2, 1), nice_text (p, url));
-}
-
-
-/**
- * in_input_valid: Checks a null-terminated char string to see if there
- * are any invalid UTF-8 byte sequences or illegal XML characters.
- *
- * Returns: TRUE if string is valid, FALSE otherwise
- **/
-int is_input_valid(const char *val)
-{
-  unsigned char *c;
-  c = (unsigned char *)val;
-
-
-return TRUE;
-  
-  while(c) {
-    if(!is_legal_XML(c)) return FALSE;
-    
-//    return send_error_page (vr,
-//			    "Passwords must match",
-//			    "The passwords must match. Have a cup of coffee and try again.");
-    
-    if(!is_legal_UTF8(c,UTF8length[*c])) return FALSE;
-    c+= UTF8length[*c];
-  }
-  return TRUE;
+		     ap_os_escape_path (p, url2, 1), virgule_nice_text (p, url));
 }
 
 
@@ -918,7 +922,8 @@ return TRUE;
  *
  * Return value: TRUE if legal XML char, FALSE otherwise
  **/
-int is_legal_XML(unsigned char *c)
+static int
+is_legal_XML(unsigned char *c)
 {
   if(*c <= 0x08) return FALSE;
   if(*c == 0x0b) return FALSE;
@@ -934,7 +939,8 @@ int is_legal_XML(unsigned char *c)
  *
  * Return value: TRUE if sequence is valid UTF-8, FALSE otherwise
  **/
-int is_legal_UTF8(unsigned char *source, char length)
+static int
+is_legal_UTF8(unsigned char *source, char length)
 {
   unsigned char a;
   unsigned char *srcptr = source+length;
@@ -953,6 +959,29 @@ int is_legal_UTF8(unsigned char *source, char length)
             }
     case 1: if (*source >= 0x80 && *source < 0xC2) return FALSE;
             if (*source > 0xF4) return FALSE;
+  }
+  return TRUE;
+}
+
+
+/**
+ * in_input_valid: Checks a null-terminated char string to see if there
+ * are any invalid UTF-8 byte sequences or illegal XML characters.
+ *
+ * Returns: TRUE if string is valid, FALSE otherwise
+ **/
+int
+virgule_is_input_valid(const char *val)
+{
+  unsigned char *c;
+  c = (unsigned char *)val;
+
+return TRUE;
+  
+  while(c) {
+    if(!is_legal_XML(c)) return FALSE;
+    if(!is_legal_UTF8(c,UTF8length[*c])) return FALSE;
+    c+= UTF8length[*c];
   }
   return TRUE;
 }

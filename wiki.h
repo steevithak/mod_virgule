@@ -1,4 +1,4 @@
 /* Rendering of InterWiki links. */
 
 char *
-wiki_link (VirguleReq *vr, const char *link);
+virgule_wiki_link (VirguleReq *vr, const char *link);

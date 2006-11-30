@@ -23,7 +23,7 @@ wiki_get_intermap (VirguleReq *vr)
   if (result != NULL)
     return result;
 
-  result = db_get (vr->db, "data/intermap.txt", &intermap_size);
+  result = virgule_db_get (vr->db, "data/intermap.txt", &intermap_size);
   if (result == NULL)
     result = "";
 
@@ -63,7 +63,7 @@ wiki_lookup_intermap (VirguleReq *vr, const char *wikiname)
 }
 
 char *
-wiki_link (VirguleReq *vr, const char *link)
+virgule_wiki_link (VirguleReq *vr, const char *link)
 {
   apr_pool_t *p = vr->r->pool;
   int i;

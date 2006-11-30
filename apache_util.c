@@ -47,7 +47,7 @@ read_post_data (request_rec *r)
  * Return value: The args, or NULL if error.
  **/
 char *
-get_args (request_rec *r)
+virgule_get_args (request_rec *r)
 {
   if (r->method_number == M_GET)
     return r->args;
@@ -66,7 +66,7 @@ get_args (request_rec *r)
  * unescaped string in-place in @s.
  **/
 void
-unescape_url_info (char *s)
+virgule_unescape_url_info (char *s)
 {
   int i, len;
 

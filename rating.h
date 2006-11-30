@@ -1,5 +1,5 @@
 void
-rating_diary_form (VirguleReq *vr, const char *u);
+virgule_rating_diary_form (VirguleReq *vr, const char *u);
 
 int
-rating_serve (VirguleReq *vr);
+virgule_rating_serve (VirguleReq *vr);

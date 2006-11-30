@@ -17,31 +17,31 @@ struct _NetFlow {
 };
 
 NetFlow *
-net_flow_new (void);
+virgule_net_flow_new (void);
 
 void
-net_flow_free (NetFlow *self);
+virgule_net_flow_free (NetFlow *self);
 
 gint
-net_flow_find_node (NetFlow *self, const char *name);
+virgule_net_flow_find_node (NetFlow *self, const char *name);
 
 char *
-net_flow_node_name (NetFlow *self, int node);
+virgule_net_flow_node_name (NetFlow *self, int node);
 
 void
-net_flow_add_edge (NetFlow *self, const char *src, const char *dst);
+virgule_net_flow_add_edge (NetFlow *self, const char *src, const char *dst);
 
 int *
-net_flow_assign_tree (NetFlow *self, gint seed, const int *caps, int n_caps);
+virgule_net_flow_assign_tree (NetFlow *self, gint seed, const int *caps, int n_caps);
 
 int
-net_flow_sanity_check_tree (NetFlow *self, int seed, int *pred);
+virgule_net_flow_sanity_check_tree (NetFlow *self, int seed, int *pred);
 
 void
-net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps);
+virgule_net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps);
 
 int
-net_flow_sanity_check (NetFlow *self, gint seed);
+virgule_net_flow_sanity_check (NetFlow *self, gint seed);
 
 int *
-net_flow_extract (NetFlow *self);
+virgule_net_flow_extract (NetFlow *self);

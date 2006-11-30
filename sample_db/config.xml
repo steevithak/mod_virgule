@@ -1,22 +1,23 @@
 <?xml version="1.0"?>
 <config>
-  <name>Advogato</name>
-  <baseuri>http://www.advogato.org/</baseuri>
-  <adminemail>webmaster@advogato.org</adminemail>
+  <name>Example mod_virgule Sitename</name>
+  <baseuri>http://www.yourdomain.com/</baseuri>
+  <adminemail>webmaster@yourdomain.com</adminemail>
   <diaryrating>off</diaryrating>
   <accountcreation>on</accountcreation>
   <recentlogstyle>Unique</recentlogstyle>
-  
+  <articlepostbyseedsonly>off</articlepostbyseedsonly>
+  <articletitlelinks>off</articletitlelinks>
+
   <articletopics>off</articletopics>
   <topics>
     <topic url="/path/to/default/image1.png">Description 1</topic>
     <topic url="/path/to/default/image2.png">Description 2</topic>
   </topics>
-  
 
   <sitemap>
     <option url="/">Home</option>
-    <option url="/article/index.html">Articles</option>
+    <option url="/article/">Articles</option>
     <option url="/acct/">Account</option>
     <option url="/person/">People</option>
     <option url="/proj/">Projects</option>
@@ -28,6 +29,10 @@
     <level>Journeyer</level>
     <level>Master</level>
   </levels>
+
+  <articlepost>Apprentice</articlepost>
+  <articlereply>Apprentice</articlereply>
+  <projectcreate>Apprentice</projectcreate>
 
   <seeds>
     <seed>miguel</seed>

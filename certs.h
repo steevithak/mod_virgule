@@ -9,25 +9,25 @@ typedef int CertLevel;
 typedef const char * CertStyle;
 
 int
-cert_num_levels (VirguleReq *vr);
+virgule_cert_num_levels (VirguleReq *vr);
 
 CertLevel
-cert_level_from_name (VirguleReq *vr, const char *name);
+virgule_cert_level_from_name (VirguleReq *vr, const char *name);
 
 const char *
-cert_level_to_name (VirguleReq *vr, CertLevel level);
+virgule_cert_level_to_name (VirguleReq *vr, CertLevel level);
 
 CertLevel
-cert_get (VirguleReq *vr, const char *issuer, const char *subject);
+virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject);
 
 int
-cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level);
+virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level);
 
 void
-render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs);
+virgule_render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs);
 
 void
-render_cert_level_end (VirguleReq *vr, CertStyle cs);
+virgule_render_cert_level_end (VirguleReq *vr, CertStyle cs);
 
 void
-render_cert_level_text (VirguleReq *vr, const char *user);
+virgule_render_cert_level_text (VirguleReq *vr, const char *user);
