@@ -45,16 +45,6 @@ following: </p>
   acceptable.</dd>
 </dl>
 
-<h2>Obtaining Certs</h2>
-
-<dl>
-  <dt><tt>int exists = user.exists(string user)</tt></dt>
-  <dd>Returns zero if user does not exist, or one if user does exist.</dd>
-
-  <dt><tt>string level = cert.get(string user)</tt></dt>
-  <dd>Returns the certification level of the requested user.</dd>
-</dl>
-
 <h2>Test functions</h2>
 
 <dl>

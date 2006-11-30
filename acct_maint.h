@@ -22,3 +22,6 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
 
 int
 acct_maint_serve (VirguleReq *vr);
+
+void
+acct_touch(VirguleReq *vr, const char *u);

@@ -4,7 +4,7 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -19,6 +19,27 @@
 
 #include "article.h"
 
+/**
+ * Render an img tag for the topic icon based on the passed topic name
+ **/
+static void
+article_render_topic (VirguleReq *vr, char *topic)
+{
+  int i;
+  
+  if (!vr->topics || !topic) return;
+  
+  for (i=0; i < vr->topics->nelts; i++)
+    if (!strcmp ( ((ArticleTopic *)(vr->topics->elts))[i].name, topic) )
+      break;
+      
+  if (i < vr->topics->nelts)
+    buffer_printf (vr->b, "<img height=50 width=50 src=\"%s\" alt=\"*\" title=\"%s\">",
+		   ((ArticleTopic *)(vr->topics->elts))[i].iconURL,
+		   ((ArticleTopic *)(vr->topics->elts))[i].name);
+}
+
+
 static void
 article_render_reply (VirguleReq *vr, int art_num, int reply_num)
 {
@@ -32,7 +53,7 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
   doc = db_xml_get (p, vr->db, key);
   if (doc != NULL)
     {
-      xmlNode *root = doc->root;
+      xmlNode *root = doc->xmlRootNode;
       char *author;
       char *title;
       char *body;
@@ -45,7 +66,7 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
 
       render_cert_level_begin (vr, author, CERT_STYLE_MEDIUM);
       buffer_printf (b, "<a name=\"%u\"><b>%s</b></a>, posted %s by <a href=\"%s/person/%s/\">%s</a> <a href=\"#%u\" style=\"text-decoration: none\">&raquo;</a>\n",
-		     reply_num, title, render_date (vr, date), vr->prefix, author, author, reply_num);
+		     reply_num, title, render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author, reply_num);		     
       render_cert_level_text (vr, author);
       render_cert_level_end (vr, CERT_STYLE_MEDIUM);
       buffer_printf (b, "<blockquote>\n%s\n</blockquote>\n", body);
@@ -84,33 +105,58 @@ article_render_replies (VirguleReq *vr, int art_num)
   acct_set_lastread(vr, "articles", ap_psprintf(p, "%d", art_num), n_art - 1);
 }
 
-
+/**
+ * Renders an article from the provided XML document
+ **/
 static void
 article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRenderStyle style)
 {
   Buffer *b = vr->b;
-  xmlNode *root = doc->root;
+  xmlNode *root = doc->xmlRootNode;
   char *date;
   char *author;
+  char *topic;
   char *title;
   char *lead;
   char *lead_tag;
+  char *lead_a_open = "";
+  char *lead_a_close = "";
   int n_replies;
   char *article_dir;
 
+  topic = xml_find_child_string (root, "topic", "(no topic)");
   title = xml_find_child_string (root, "title", "(no title)");
   date = xml_find_child_string (root, "date", "(no date)");
   author = xml_find_child_string (root, "author", "(no author)");
   lead = xml_find_child_string (root, "lead", "(no lead)");
-
   lead_tag = (style == ARTICLE_RENDER_LEAD) ? "blockquote" : "p";
 
+#ifndef STYLE
   render_cert_level_begin (vr, author, CERT_STYLE_LARGE);
   buffer_puts (b, title);
   render_cert_level_end (vr, CERT_STYLE_LARGE);
   buffer_printf (b, "<b>Posted %s by <a href=\"%s/person/%s/\">%s</a></b>",
-		 render_date (vr, date), vr->prefix, author, author);
-  render_cert_level_text (vr, author);
+#else
+  buffer_puts (b, "<table border=0 cellspacing=0 width=\"85%\"><tr><td rowspan=\"2\" class=\"article-topic\">");
+  article_render_topic (vr, topic);
+
+  buffer_printf (b, "</td><td nowrap width=\"100\%\" class=\"level%i\">",
+      cert_level_from_name (vr, req_get_tmetric_level (vr, author)));
+
+  if (style == ARTICLE_RENDER_LEAD)
+    {
+      lead_a_open = ap_psprintf (vr->r->pool,"<a href=\"%s/article/%d.html\">",vr->prefix,art_num);
+      lead_a_close = "</a>";
+    }
+  
+  buffer_printf (b, "<span class=\"article-title\">%s%s%s</span>",
+                 lead_a_open, title, lead_a_close);
+
+  buffer_printf (b, "</td></tr><tr><td nowrap class=\"article-author\">Posted %s by "
+		 "<a href=\"%s/person/%s/\">%s</a></td></tr></table>\n",
+#endif
+		 render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author);
+
   buffer_printf (b, "<%s>\n"
 		 "%s\n", lead_tag, lead);
   article_dir = ap_psprintf (vr->r->pool, "articles/_%d", art_num);
@@ -122,24 +168,14 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
       if (body)
 	  buffer_printf (b, "<p> %s\n", body);
 
+      if (req_ok_to_reply (vr))
+	buffer_printf (b, "<p> <a href=\"reply.html?art_num=%d\">Reply...</a> (%d repl%s) </p>\n",
+		       art_num, n_replies, n_replies == 1 ? "y" : "ies");
       article_render_replies (vr, art_num);
 
-      if (req_ok_to_post (vr))
-	{
-	  buffer_printf (b, "<hr> <p> Post a reply to <x>article</x>: %s. </p>\n"
-		 "<form method=\"POST\" action=\"replysubmit.html\">\n"
-		 " <p> Reply title: <br>\n"
-		 " <input type=\"text\" name=\"title\" size=50> </p>\n"
-		 " <p> Body of reply: <br>\n"
-		 " <textarea name=\"body\" cols=72 rows=16 wrap=soft>"
-		 "</textarea> </p>\n"
-		 " <input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
-		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
-		 "</form>\n", title, art_num);
-
-	  render_acceptable_html (vr);
-	}
+      if (n_replies && req_ok_to_reply (vr))
+	buffer_printf (b, "<p> <a href=\"reply.html?art_num=%d\">Reply...</a> </p>\n",
+		       art_num);
     }
   else if (style == ARTICLE_RENDER_LEAD)
     {
@@ -160,12 +196,13 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 		     vr->prefix,
 		     art_num, n_replies, n_replies == 1 ? "y" : "ies");
       if (n_new > 0)
-	buffer_printf (b, "(<a href=\"%s/article/%d.html#lastread\">%d new</a>) ",
+        buffer_printf (b, "(<a href=\"%s/article/%d.html#lastread\">%d new</a>) ",
 		       vr->prefix, art_num, n_new);
       buffer_puts (b, "</p> \n");
     }
   buffer_printf (b, "</%s>\n", lead_tag);
 }
+
 
 /* Render the article to buffer. Need to be auth'd if FULL style. */
 static void
@@ -192,9 +229,13 @@ article_render (VirguleReq *vr, int art_num, int render_body)
     }
 }
 
+
 static int
 article_form_serve (VirguleReq *vr)
 {
+#ifdef STYLE
+  int i;
+#endif
   Buffer *b = vr->b;
 
   auth_user (vr);
@@ -205,20 +246,33 @@ article_form_serve (VirguleReq *vr)
   if (!req_ok_to_post (vr))
     return send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
-  render_header (vr, "Post a new <x>article</x>");
+  render_header (vr, "Post a new <x>article</x>", NULL);
 
-  buffer_puts (b, "<p> Post a new <x>article</x>. </p>\n"
-	       "<form method=\"POST\" action=\"postsubmit.html\">\n"
-	       " <p> <x>Article</x> title: <br>\n"
-	       " <input type=\"text\" name=\"title\" size=50> </p>\n"
-	       " <p> <x>Article</x> lead: <br>\n"
-	       " <textarea name=\"lead\" cols=72 rows=4 wrap=soft>"
+  buffer_puts (b, "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n"
+#ifdef STYLE
+	       " <p><b><x>Article</x> topic</b>:<br>\n"
+	       " <select name=\"topic\">\n");
+	       
+  for (i=0; i < vr->topics->nelts; i++)
+    buffer_printf (b, "<option>%s</option>\n",
+		   ((ArticleTopic *)(vr->topics->elts))[i].name);
+  buffer_puts (b,
+               " </select></p>\n"
+#endif
+	       " <p><b><x>Article</x> title</b>:<br>\n"
+	       " <input type=\"text\" name=\"title\" size=40 maxlength=40></p>\n"
+	       " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
+	       "of the news story complete with links to the original "
+	       "sources when appropriate.<br>"
+	       " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>"
 	       "</textarea> </p>\n"
-	       " <p> Body of <x>article</x>: <br>\n"
-	       " <textarea name=\"body\" cols=72 rows=16 wrap=soft>"
+	       " <p><b><x>Article</x> Body</b>. This portion of the form should be left "
+	       "empty unless this is an original story. A good rule of thumb "
+	       "is to leave the body blank unless the body would be at least "
+	       "twice as large at the summary in the lead box above.<br>"
+	       " <textarea name=\"body\" cols=72 rows=16 wrap=hard>"
 	       "</textarea> </p>\n"
-	       " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-	       " <input type=\"submit\" name=preview value=\"Preview\">\n"
+	       " <p><input type=\"submit\" name=preview value=\"Preview\">\n"
 	       "</form>\n");
 
   render_acceptable_html (vr);
@@ -243,6 +297,9 @@ article_form_serve (VirguleReq *vr)
  **/
 static int
 article_generic_submit_serve (VirguleReq *vr,
+#ifdef STYLE
+			      const char *topic,
+#endif
 			      const char *title, const char *lead, const char *body,
 			      const char *submit_type,
 			      const char *key_base, const char *key_suffix,
@@ -261,13 +318,16 @@ article_generic_submit_serve (VirguleReq *vr,
   char *nice_title;
   char *nice_lead;
   char *nice_body;
+#ifdef STYLE
+  int i;
+#endif
 
   db_lock_upgrade(vr->lock);
   auth_user (vr);
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
 
-  if (!req_ok_to_post (vr))
+  if (!req_ok_to_reply (vr))
     return send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   date = iso_now (p);
@@ -288,24 +348,24 @@ article_generic_submit_serve (VirguleReq *vr,
       /* render a preview */
       if (!strcmp (submit_type, "reply"))
 	{
-	  render_header (vr, "Reply preview");
+	  render_header (vr, "Reply preview", NULL);
 	  render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
-	  buffer_puts (b, nice_title);
+	  buffer_printf (b, "<font size=+2><b>%s</b></font> <br>\n", nice_title);
 	  render_cert_level_end (vr, CERT_STYLE_MEDIUM);
 	  buffer_printf (b, "<p> %s </p>\n", nice_body);
 	  buffer_puts (b, "<hr>\n");
 	  buffer_printf (b, "<p> Edit your reply: </p>\n"
-			 "<form method=\"POST\" action=\"replysubmit.html\">\n"
+			 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
 			 " <p> <x>Article</x> title: <br>\n"
-			 " <input type=\"text\" name=\"title\" value=\"%s\" size=50> </p>\n"
+			 " <input type=\"text\" name=\"title\" value=\"%s\" size=40 maxlength=40> </p>\n"
 			 " <p> Body of <x>article</x>: <br>\n"
-			 " <textarea name=\"body\" cols=72 rows=16 wrap=soft>%s"
+			 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
 			 "</textarea> </p>\n"
 			 " <input type=\"hidden\" name=\"art_num\" value=\"%s\">\n"
 			 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
 			 " <input type=\"submit\" name=preview value=\"Preview\">\n"
 			 "</form>\n",
-			 escape_html_attr (p, title),
+			 str_subst (p, title, "\"", "&quot;"),
 			 ap_escape_html (p, body),
 			 art_num_str);
 	  
@@ -313,28 +373,61 @@ article_generic_submit_serve (VirguleReq *vr,
 	}
       else if (!strcmp (submit_type, "article"))
 	{
-	  render_header (vr, "<x>Article</x> preview");
+	  render_header (vr, "<x>Article</x> preview", NULL);
+
+#ifdef STYLE
+	  buffer_puts (b, "<table><tr><td>");
+	  article_render_topic (vr, (char *)topic);
+	  buffer_puts (b, "</td><td>");
 	  render_cert_level_begin (vr, vr->u, CERT_STYLE_LARGE);
-	  buffer_puts (b, nice_title);
+	  buffer_printf (b, "<span class=\"article-title\">%s</span>",nice_title);
 	  render_cert_level_end (vr, CERT_STYLE_LARGE);
+	  buffer_puts (b, "</td></tr></table>\n");
+#else
+	  render_cert_level_begin (vr, vr->u, CERT_STYLE_LARGE);
+	  buffer_printf (b, "<font size=+2><b>%s</b></font> <br>\n", nice_title);
+	  render_cert_level_end (vr, CERT_STYLE_LARGE);
+#endif
+
 	  buffer_printf (b, "<p>\n%s\n", nice_lead);
 	  buffer_printf (b, "<p> %s </p>\n", nice_body);
 	  buffer_puts (b, "<hr>\n");
 	  buffer_printf (b, "<p> Edit your <x>article</x>: </p>\n"
-			 "<form method=\"POST\" action=\"postsubmit.html\">\n"
-			 " <p> <x>Article</x> title: <br>\n"
-			 " <input type=\"text\" name=\"title\" value=\"%s\" size=50> </p>\n"
-			 " <p> <x>Article</x> lead: <br>\n"
-			 " <textarea name=\"lead\" cols=72 rows=4 wrap=soft>%s"
+			 "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n"
+#ifdef STYLE
+			 " <p><b><x>Article</x> topic</b>:<br>\n"
+			 " <select name=\"topic\">\n",NULL);
+
+	  for (i=0; i < vr->topics->nelts; i++)
+	    buffer_printf (b, "<option%s>%s</option>\n",
+	      strcmp(((ArticleTopic *)(vr->topics->elts))[i].name,topic) ? "" : " selected",
+	      ((ArticleTopic *)(vr->topics->elts))[i].name);
+	  buffer_printf (b,
+			 " </select></p>\n"
+#endif
+			 " <p><b><x>Article</x> title</b>:<br>\n"
+			 " <input type=\"text\" name=\"title\" value=\"%s\" size=40 maxlength=40> </p>\n"
+	        	 " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
+	    		 "of the news story complete with links to the original "
+	    		 "sources when appropriate.<br>"			 
+			 " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>%s"
 			 "</textarea> </p>\n",
-			 escape_html_attr (p, title),
+			 str_subst (p, title, "\"", "&quot;"),
 			 ap_escape_html (p, lead));
 	  if (lead_error != NULL)
 	    buffer_printf (b, "<p> <b>Warning:</b> %s </p>\n", lead_error);
 
-	  buffer_printf (b, " <p> Body of <x>article</x>: <br>\n"
-			 " <textarea name=\"body\" cols=72 rows=16 wrap=soft>%s"
+	  buffer_printf (b," <p><b><x>Article</x> Body</b>. This portion of the form should be left "
+	    		 "empty unless this is an original story. A good rule of thumb "
+	    		 "is to leave the body blank unless the body would be at least "
+	    		 "twice as large at the summary in the lead box above.<br>"
+			 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
 			 "</textarea> </p>\n"
+			 " <p><b>Warning:</b> Please proof read your article "
+			 "and verify spelling and any html markup before posting. "
+			 "Click the <b>Preview</b> button to see changes. Once "
+			 "you click the <b>Post</b> button your article will be "
+			 "posted and changes are no longer possible."
 			 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
 			 " <input type=\"submit\" name=preview value=\"Preview\">\n"
 			 "</form>\n",
@@ -355,14 +448,17 @@ article_generic_submit_serve (VirguleReq *vr,
 
   doc = db_xml_doc_new (p);
   root = xmlNewDocNode (doc, NULL, "article", NULL);
-  doc->root = root;
+  doc->xmlRootNode = root;
 
   tree = xmlNewChild (root, NULL, "date", date);
   tree = xmlNewChild (root, NULL, "author", vr->u);
 
   tree = xmlNewChild (root, NULL, "title", NULL);
   xmlAddChild (tree, xmlNewDocText (doc, nice_title));
-
+#ifdef STYLE
+  tree = xmlNewChild (root, NULL, "topic", NULL);
+  xmlAddChild (tree, xmlNewDocText (doc, topic));
+#endif  
   if (lead && lead[0])
   {
     tree = xmlNewChild (root, NULL, "lead", NULL);
@@ -404,11 +500,17 @@ article_submit_serve (VirguleReq *vr)
 
   table *args;
   const char *title, *lead, *body;
+#ifdef STYLE
+  const char *topic;
+#endif
 
   args = get_args_table (vr);
   if (args == NULL)
     return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
+#ifdef STYLE
+  topic = ap_table_get (args, "topic");
+#endif
   title = ap_table_get (args, "title");
   lead = ap_table_get (args, "lead");
   body = ap_table_get (args, "body");
@@ -423,16 +525,21 @@ article_submit_serve (VirguleReq *vr)
     {
       key = ap_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
       doc = db_xml_get (vr->r->pool, vr->db, key);
-      old_title = xml_find_child_string (doc->root, "title", "(no title)");
-      old_author = xml_find_child_string (doc->root, "author", "(no author)");
+      old_title = xml_find_child_string (doc->xmlRootNode, "title", "(no title)");
+      old_author = xml_find_child_string (doc->xmlRootNode, "author", "(no author)");
       if(strcmp (old_author, vr->u) == 0 && strcmp (old_title, title) == 0)
 	  return send_error_page (vr, "Duplicate <x>Article</x>", "Please post your <x>article</x> only once.");
     }
 
+#ifdef STYLE
+  return article_generic_submit_serve (vr, topic, title, lead, body,
+#else  
   return article_generic_submit_serve (vr, title, lead, body,
+#endif  
 				       "article",
 				       "articles", "/article.xml", NULL);
 }
+
 
 static int
 article_reply_form_serve (VirguleReq *vr)
@@ -452,7 +559,7 @@ article_reply_form_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't post a reply because you're not logged in.");
 
-  if (!req_ok_to_post (vr))
+  if (!req_ok_to_reply (vr))
     return send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   args = get_args_table (vr);
@@ -466,21 +573,21 @@ article_reply_form_serve (VirguleReq *vr)
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", art_num);
-  root = doc->root;
+  root = doc->xmlRootNode;
   tree = xml_find_child (root, "title");
   if (tree)
     title = xml_get_string_contents (tree);
   else
     title = "(no title)";
 
-  render_header (vr, "Post a reply");
+  render_header (vr, "Post a reply", NULL);
 
   buffer_printf (b, "<p> Post a reply to <x>article</x>: %s. </p>\n"
-		 "<form method=\"POST\" action=\"replysubmit.html\">\n"
+		 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		 " <p> Reply title: <br>\n"
-		 " <input type=\"text\" name=\"title\" size=50> </p>\n"
+		 " <input type=\"text\" name=\"title\" size=50 maxlength=50> </p>\n"
 		 " <p> Body of reply: <br>\n"
-		 " <textarea name=\"body\" cols=72 rows=16 wrap=soft>"
+		 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>"
 		 "</textarea> </p>\n"
 		 " <input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
 		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
@@ -513,7 +620,11 @@ article_reply_submit_serve (VirguleReq *vr)
 
   key_base = ap_psprintf (p, "articles/_%d", atoi (art_num_str));
 
+#ifdef STYLE
+  return article_generic_submit_serve (vr, NULL, title, NULL, body,
+#else
   return article_generic_submit_serve (vr, title, NULL, body,
+#endif  
 				       "reply",
 				       key_base, "/reply.xml", art_num_str);
 }
@@ -560,6 +671,8 @@ article_recent_render (VirguleReq *vr, int n_arts_max, int start)
 
   if (req_ok_to_post (vr))
     buffer_printf (b, "<p> <a href=\"%s/article/post.html\">Post</a> a new <x>article</x>... </p>\n", vr->prefix);
+  else 
+    buffer_puts (b, "<p> <a href=\"mailto:editor@robots.net?subject=robots.net story suggestion\">Suggest a story</a>\n");
 
   return 0;
 }
@@ -571,7 +684,7 @@ article_index_serve (VirguleReq *vr)
 
   auth_user (vr);
 
-  render_header (vr, "Recent <x>articles</x>");
+  render_header (vr, "Recent <x>articles</x>", NULL);
 
   render_sitemap (vr, 1);
 
@@ -597,7 +710,7 @@ article_older_serve (VirguleReq *vr)
 
   auth_user (vr);
 
-  render_header (vr, "Older <x>articles</x>");
+  render_header (vr, "Older <x>articles</x>", NULL);
 
   render_sitemap (vr, 1);
 
@@ -632,11 +745,11 @@ article_num_serve (VirguleReq *vr, const char *t)
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", n);
-  root = doc->root;
+  root = doc->xmlRootNode;
   title = xml_find_child_string (root, "title", "(no title)");
 
 
-  render_header_raw (vr, title);
+  render_header (vr, title, NULL);
   buffer_puts (b, "<blockquote>\n");
 
   article_render_from_xml (vr, n, doc, ARTICLE_RENDER_FULL);

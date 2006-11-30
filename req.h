@@ -1,4 +1,5 @@
 typedef struct _AllowedTag AllowedTag;
+typedef struct _NavOption NavOption;
 
 /* A data structure that persists across requests. */
 
@@ -18,10 +19,11 @@ struct _VirguleReq {
   const char **seeds;
   const int *caps;
   const char **special_users;
-  int render_diaryratings;
   int allow_account_creation;
+  int render_diaryratings;
   int recentlog_as_posted;
   const AllowedTag **allowed_tags;
+  const NavOption **nav_options;
   char *uri;
   const char *u; /* authenticated username */
   char *args;
@@ -31,6 +33,7 @@ struct _VirguleReq {
   char *tmetric;
   char *prefix; /* Prefix of <Location> directive, to be added to links */
   table *render_data;
+  array_header *topics; /* array of topic info */
 };
 
 int
@@ -47,3 +50,9 @@ req_get_tmetric_level (VirguleReq *vr, const char *u);
 
 int
 req_ok_to_post (VirguleReq *vr);
+
+int
+req_ok_to_reply (VirguleReq *vr);
+
+int
+req_ok_to_create_project (VirguleReq *vr);

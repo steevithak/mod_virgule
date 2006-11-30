@@ -1,750 +1,623 @@
-2004-08-11  Gary Benson  <gary@inauspicious.org>
+2004-08-19 R. Steven Rainwater <steve@ncc.com>
 
-	* db.c (db_put_p): Fail gracefully if disk space is exhausted.
+	* db.c (db_put_p): Reverted Gary's disk space patch due to problems
+	with posting.
 
-2004-02-23  Gary Benson  <gary@inauspicious.org>
+2004-08-19 R. Steven Rainwater <steve@ncc.com>
 
-	* acct_maint.c (acct_person_serve, acct_certify_serve): Add an
-	anchor just above users' certifications lists, and bounce to it
-	after certifying the user in question.
+	* db.c (db_put_p): Added Gary Benson's patch to allow graceful 
+	failure in case disk space is exhausted.
 
-	* acct_maint.c (acct_update_serve): Bounce back to your publically
-	accessible page after modifying your account.
+	* rec.h (_VirguleRec): Added nav_options, a pointer to a list of
+	navigation options from which the sitemap can be constructed.
 
-2004-02-17  Gary Benson  <gary@inauspicious.org>
-
-	* site.c (site_render_recent_changelog): Add permalinks and edit
-	buttons to the recentlog.
-
-	* article.c (article_render_reply), proj.c (proj_render_reply):
-	Add permalinks to articles and Nick-style projects too.
-
-2004-02-12  Gary Benson  <gary@inauspicious.org>
-
-	* req.h, mod_virgule.c (read_site_config):
-	* acct_maint.c (acct_newsub_serve): Allow account creation to be
-	blocked with a config.xml parameter.
-
-	* site.c (site_render): Add some new tags to conditionally render
-	text depending upon whether account creation is enabled or not.
-
-	* xmlrpc-methods.c (check_cookie): Add a new XML-RPC method to
-	check whether a cookie is valid.  Handy for inserting CGIs and
-	whatnot into the virgule URL space using VirgulePass.
-
-2003-07-23  James Henstridge  <james@daa.com.au>
-
-	* diary.c (diary_rss_export): fix up the permalinks.
-
-2003-07-21  James Henstridge  <james@daa.com.au>
-
-	* diary.c (diary_rss_export): add title elements to items.  Uses
-	the entry date, as that is the closest thing to a date.
-
-2003-07-13  coderman  <coderman@mindspring.com>
-
-	* xmlrpc-methods.c (user_exists, cert_get): Add two new XML-RPC
-	methods for remote reading of user cert data.
-
-2003-07-12  Raph Levien  <raph@pixel.artofcode.com>
-
-	* acct_maint.c (acct_person_serve): Add an RSS link on the
-	main diary page, complete with orange RSS logo (to be found
-	in sample_db/images/rss.png).
-
-2003-07-07  James Henstridge  <james at daa.com.au>
-
-	* diary.c (diary_rss_export): add a <link> element to the items in
-	the RSS feed.
-
-2003-04-11  Raph Levien  <raph@pixel.artofcode.com>
-
-	* xmlrpc.c (xmlrpc_response): Add "value" element around array,
-	for compliance with the spec.
-
-2003-04-10  Raph Levien  <raph@pixel.artofcode.com>
-
-	* diary.c (diary_rss_export): Adds diary RSS export functionality.
-
-	* rss_export.c (rss_render_from_xml): Use rss_massage_text
-	for better quoting and handling of relative URL's.
-	(rss_massage_text): New function for massaging text for
-	RSS export.
-
-	* util.c (iso_to_time_t): New function to convert ISO times
-	into Unix times, for reformatting to RFC 822.
-
-2003-04-05  Raph Levien  <raph@pixel.artofcode.com>
-
-	* proj.c (proj_proj_serve): Fix quoting bug caused by using
-	unsafe strings as arg to printf (changed to puts). Thanks
-	Jonathan Wakely.
-
-2003-01-20  Gary Benson  <gary@inauspicious.org>
-
-	* mod_virgule.c (read_site_config): Correct bug whereby not
-	specifying a <recentlogstyle> would cause an error.
-
-	* diary.h, diary.c (diary_latest_render): Add a parameter to
-	select the number of the entry to display.  Also fixes bug whereby
-	auth_user() would be called for every entry in the recentlog.
-
-	* site.c (site_render_recent_changelog): Cope with the above.
-
-2003-01-18  Gary Benson  <gary@inauspicious.org>
-
-	* req.h, mod_virgule.c (read_site_config): Read whether or not
-	multiple diary entries from the same user will appear in the
-	recentlog
-
-	* db_ops.h, db_ops.c (add_recent): Add an extra parameter which
-	controls whether the items in the list may be duplicated.
-
-	* diary.c (diary_store_entry):
-	* acct_maint.c (acct_newsub_serve):
-	* proj.c (proj_newsub_serve, proj_editsub_serve,
-	proj_reply_submit_serve): Add extra parameter to calls to
-	add_recent().
-
-2002-10-07  Raph Levien  <raph@gimp.org>
-
-	* acct_maint.c (acct_person_serve): Close a cross-site scripting
-	hole found by Steve Kemp.
-
-2002-09-29  Raph Levien  <raph@gimp.org>
-
-	* eigen.c (eigen_report): Quote rating keys in the report page.
-
-2002-09-25  Raph Levien  <raph@spectre.artofcode.com>
-
-	* site.c (site_render_recent_changelog): Add threshold
-	argument, add coloring by confidence value.
-
-2002-09-25  Raph Levien  <raph@spectre.artofcode.com>
-
-	* acct_maint.c (acct_dbkey): Refactor validity checking into
-	separate validate_username() function.
-
-	* acct_maint.h: New validate_username() function for common
-	checking of username.
-
-	* rating.c (rating_crank):
-	(rating_report): Do validity check on usernames.
-
-	* acct_maint.c (acct_person_serve): Sanitycheck username.
-
-2002-09-24  Raph Levien  <raph@spectre.artofcode.com>
-
-	* acct_maint.c: Patches to avoid segfaults when form arguments
-	are missing. Thanks to Jonathan Wakely.
-
-2002-09-24  Raph Levien  <raph@spectre.artofcode.com>
+	* util.c (add_nav_option): Added a utility function to create
+	sitemap navigation option structures.
 	
-	* util.c (render_url): Add general routine to render arbitrary
-	URL's.
-	(escape_html_attr): Add routine to escape strings used as
-	HTML attributes.
+	* mod_virgule.c (read_site_config): Added code to read the sitemap
+	navigation options from the XML config file.
 
-	* proj.c: A bunch of new fixes to prevent arbitrary HTML from
-	passing through.
-
-	* article.c (article_generic_submit_serve): Better quoting of
-	article titles.
-
-	Thanks to Lincoln Yeoh for discovering some problems.
-
-2002-09-21  Raph Levien  <raph@spectre.artofcode.com>
-
-	* acct_maint.c (acct_person_serve, acct_person_index_serve): 
-	* tmetric.c (tmetric_index_serve): Run names through nice_text
-	to close security hole.
-
-2002-08-11  Gary Benson  <gary@inauspicious.org>
-
-	* site.c (site_render):
-	* article.c (article_render_from_xml):
-	* proj.c (proj_proj_serve, proj_reply_submit_serve,
-	proj_reply_form_serve): Changed wrap=hard to wrap=soft for all
-	remaining textareas.
-
-	* diary.c, diary.h: add code to save backup diary entries.
-
-	* diary.c (diary_preview_serve, diary_post_serve): store backups.
-
-	* diary.c (diary_index_serve):
-	* site.c (site_render): retrieve backups.
-
-2002-07-11  Gary Benson  <gary@inauspicious.org>
-
-	* site.c (site_render): Add acctname tag that got lost in tree
-	merge.
-
-2002-06-30  Gary Benson  <gary@inauspicious.org>
-
-	* req.h, mod_virgule.c (read_site_config): read the project style.
-
-	* acct_maint.c, acct_maint.h: add acct_get_num_old.
-	* acct_maint.c (acct_index_serve): conditionally display box for
-	number of old messages.
-
-	* site.c (site_render_recent_proj): conditionally render recent
-	projects in BBS style.
-
-	* proj.c (proj_proj_serve): conditionally display either staff
-	relationships or project replies.
-
-	* proj.c: handle reply posting.
-
-	* proj.c: add next room with new messages stuff.
-
-	* acct_maint.c (acct_index_serve):
-	* proj.c: add mark all (project) messages as read stuff.
-
-	* proj.c (proj_url, proj_index_serve, proj_proj_serve,
-	proj_new_serve, proj_edit_serve, proj_editsub_serve): cope with
-	schema changes and display pages differently according to project
-	style.
-
-	* proj.c (proj_newsub_serve, proj_editsub_serve): Never delete
-	from recently modified projects if running in BBS style.
-
-2002-06-29  Gary Benson  <gary@inauspicious.org>
-
-	* site.c (site_render): add isloggedin, notloggedin, canpost and
-	diarybox tags.
-
-	* style.c, style.h, util.c, util.h: moved render_acceptable_html
-	to util.c
-	* req.h:
-	* mod_virgule.c (read_site_config): store allowed tags in the
-	VirguleReq, and read them from config.xml.
-	* util.c (render_acceptable_html, nice_htext): get allowed tags
-	from the list in the VirguleReq.
-
-	* article.c (article_render_from_xml): add a reply box to the
-	article page itself.
-
-	* acct_maint.c, acct_maint.h: add message pointers code.
-
-	* article.c (article_render_replies, article_render_from_xml,
-	article_generic_submit_serve): use message pointers.
-
-2002-06-27  Gary Benson  <gary@inauspicious.org>
-
-	* db_ops.c (add_recent): make it an error to try and add a NULL or
-	empty value.
-
-	* util.c (escape_uri_arg): urlencode apostrophes too.
-
-	* article.c (article_generic_submit_serve):
-	* diary.c (diary_post_serve): Bounce back to the article/recentlog
-	after posting a reply/diary entry.
-
-	* article.c (article_generic_submit_serve): Bounce to newly
-	created articles too.
-
-2002-06-29  R. Steven Rainwater <steve@ncc.com>
-
-	* mod_virgule.c (read_site_config): Status of the DiaryRating 
-	setting is read and used to set the render_diaryratings variable.
-
-	* mod_virgule.c (test_page): Status of render_diaryratings is shown.
-
-	* mod_virgule.c (virgule_handler): Rating handler not used if 
-	render_diaryratings is FALSE. Fixed a segfault on the /foo.html 
-	diagnostics page caused by the new locking code.
-
-	* site.c (site_render_recent_changelog): Rendering of rating now
-	depends on render_diaryratings.
-
-	* acct_maint.c (acct_person_serve): Rendering of the diary rating
-	form now depends on render_diaryratings.
+	* style.c (render_sitemap): Sitemap dynamically renders menu from
+	the navigation options specified in the XML config file rather than
+	using hardcoded values.
 	
-2002-06-27  Raph Levien  <raph@spectre.artofcode.com>
-
-	* site.c (site_render_recent_changelog): Add rendering of
-	rating. It needs to be configurable, but at least there's
-	a single variable to switch it on or off.
-
-2002-06-27  Raph Levien  <raph@spectre.artofcode.com>
-
-	* mod_virgule.c (test_page): Add pool argument to db_mk_filename()
-	call.
-
-	* rating.c (rating_crank_all): Allocate temporary subpools
-	for eigen_crank() computations.
-
-	* eigen.c: Add explicit pool argument to most functions, for
-	finer-grained memory allocation.
-
-	* db_xml.c (db_xml_get): Change it to use db_get_p variant
-	for finer-grained memory allocation.
-
-	* db.h: db.c: Add db_get_p and db_put_p variants with explicit
-	pool specification.
-
-	* eigen.c (eigen_vec_store): Improve precision of stored
-	ratings; I underestimated the need for it.
-	(eigen_report): Hack to avoid NaN's in variance report.
-
-	* rating.c (rating_rate_diary): Fixed typo in range check,
-	thanks to Chia Tee Kiah for spotting it.
-
-2002-06-26  Raph Levien  <raph@spectre.artofcode.com>
-
-	* eigen.c: eigen.h: An implementation of the eigenvector
-	based generic metadata ideas.
-
-	* rating.c: rating.h: A simple interface to use the eigenvector
-	engine to rate diary entries.
-
-	* hashtable.c: hashtable.h: A reasonably efficient generic
-	hashtable, used by the eigenvector trust stuff.
+	* style.c (render_site_link): Removed this function. It is no longer
+	needed now that relative paths for the sitemap options may be 
+	specified directly in the XML config file.
 	
-	* Makefile: Add hashtable, eigen, rating files. Also change the
-	default path for APXS to /usr/bin/apxs, which is convenient for
-	Debian users.
+2004-07-09 R. Steven Rainwater <steve@ncc.com>
 
-	* mod_virgule.c: Added rating_serve() to list of serve handlers.
-	Also added simple unit test for hashtable.
-
-	* acct_maint.c (acct_person_serve): Added call to
-	rating_diary_form(), so that rating interface is on Web interface.
-
-2002-06-21  Raph Levien  <raph@gimp.org>
-
-	* acct_maint.c: article.c: diary.c: post.c: schema.c:
-	Changed wrap=hard to wrap=soft for all textareas.
-
-	* acct_maint.c: Changed graph.dot threshold from 2 to 0,
-	so it now reports all edges in the graph.
-
-2002-06-14  Raph Levien  <raph@spectre.artofcode.com>
-
-	* mod_virgule.c (test_serve): Moved lock upgrade so it
-	wouldn't trigger on 404's.
-
-	* db.c (db_lock_upgrade): Make locks read-only by default,
-	and provide explicit method to upgrade to read/write. This
-	should improve lock contention delays significantly.
-
-	* db.h: Add public prototype for db_lock_upgrade().
-
-	* acct_maint.c: article.c: diary.c: mod_virgule.c: post.c:
-	proj.c: tmetric.c: add db_lock_upgrade() calls as needed when
-	writing into the database.
-
-2002-04-24  Gary Benson  <gary@inauspicious.org>
-
-	* acct_maint.c (acct_index_serve):
-	* article.c (article_render_reply, article_render,
-	article_form_serve, article_generic_submit_serve,
-	article_submit_serve, article_reply_form_serve,
-	article_reply_submit_serve, article_recent_render,
-	article_index_serve, article_older_serve, article_num_serve):
-	* post.c (post_form_serve, post_submit_serve):
-	* rss_export.c (rss_index_serve):
-	* style.c (render_sitemap): Mark up "article", "articles",
-	"Article" and "Articles" for translation.
-
-	* acct_maint.c (acct_index_serve, acct_person_index_serve):
-	* article.c (article_form_serve, article_generic_submit_serve,
-	article_submit_serve, article_reply_submit_serve):
-	* post.c (post_form_serve, post_submit_serve):
-	* proj.c (proj_newsub_serve): Suck indefinite articles into
-	translation blocks, so we now have translations for "a person", "a
-	project" and "an article" as well as the rest.
-
-	* proj.c (proj_new_serve, proj_newsub_serve, proj_index_serve,
-	proj_edit_serve, proj_editsub_serve, proj_relsub_serve): Change
-	"project page" to "project".
-
-2002-04-15  Gary Benson  <gary@inauspicious.org>
-
-	* req.h:
-	* mod_virgule.c (virgule_handler, test_page): Add configuration
-	fields for the site's name and base uri.
-
-	* rss_export.c (rss_render_from_xml, rss_render, rss_index_serve):
-	Use configured site name and uri instead of hardwired one.
-
-	* mod_virgule.c (read_site_config, virgule_handler): Load
-	configuration from file.
-
-	* sample_db/config.xml: Imported configuration file.
-
-2002-04-14  Gary Benson  <gary@inauspicious.org>
-
-	* buffer.h:
-	* buffer.c: Add translation functionality to buffers.
-
-	* mod_virgule.c: Set no translations (which is different to "don't
-	translate anything").
-
-	* acct_maint.c (acct_index_serve, acct_person_index_serve,
-	acct_person_serve, act_certify_serve):
-	* proj.c (proj_relsub_serve):
-	* style.c (render_sitemap): Mark up "person", "people", "Person"
-	and "People" for translation.
-
-	* acct_maint.c (acct_person_serve):
-	* proj.c (proj_new_serve, proj_newsub_serve, proj_index_serve,
-	proj_proj_serve, proj_edit_serve, proj_editsub_serve,
-	proj_relsub_serve):
-	* style.c (render_sitemap): Mark up "project", "projects",
-	"Project" and "Projects" for translation.
-
-	* mod_virgule.c (test_page): Add the various configuration items
-	to the test page.
-
-2002-04-13  Gary Benson  <gary@inauspicious.org>
-
-	* req.h:
-	* certs.c (render_cert_level_begin): Move the names of special
-	users into the VirguleReq.
-
-	* mod_virgule.c (virgule_handler): Set the special users when
-	initialising the VirguleReq.
-
-2002-04-12  Gary Benson  <gary@inauspicious.org>
-
-	* certs.h:
-	* certs.c (cert_num_levels):
-	* tmetric.h:
-	* tmetric.c (tmetric_serve, tmetric_run): 
-	* acct_maint.c (acct_person_serve): Remove the global variable
-	cert_level_n. Note that tmetric_run is now a static function,
-	although this could be worked around if necessary.
-
-	* req.h:
-	* certs.h:
-	* certs.c (cert_num_levels, cert_level_from_name,
-	cert_level_to_name):  Move the level names into the VirguleReq.
-
-	* mod_virgule.c (virgule_handler): Set the level names when
-	initialising the VirguleReq.
-
-	* acct_maint.c (acct_person_serve): Remove the final couple of
-	hardwired cert names.
-
-	* req.h:
-	* tmetric.c (tmetric_index_serve): Move the seeds and capacities
-	into the VirguleReq.
-
-	* mod_virgule.c (virgule_handler): Set the seeds and capacities
-	when initialising the VirguleReq.
-
-2002-04-10  Gary Benson  <gary@inauspicious.org>
-
-	* certs.h
-	* certs.c (cert_level_from_name, cert_level_to_name, cert_get,
-	cert_set): Pass the VirguleReq to cert_* functions.
-
-	* acct_maint.c (acct_index_serve, acct_person_graph_serve,
-	acct_person_serve, acct_certify_serve):
-	* certs.c (render_cert_level_begin):
-	* proj.c (proj_ok_to_edit, proj_edit_serve, proj_editsub_serve,
-	proj_relsub_serve):
-	* req.c (req_get_tmetric_level, req_ok_to_post):
-	* tmetric.c (tmetric_run, tmetric_index_serve): Respect new
-	semantics of cert_* functions.
-
-2002-04-22  R. Steven Rainwater  <steve@ncc.com>
-
-	* mod_virgule.c (virgule_handler): Fixed a prefix but that
-	prevented the foo.html diagnostics page from being displayed if
-	the configured Location was different than the DocumentRoot.
-
-	* site.c (site_serve): Fixed a prefix bug that caused a root URI
-	with no trailing slash to redirect to the DocumentRoot rather than
-	to the Location. Thanks to Jeff Macdonald for noticing the
-	problem.
-
-2002-04-22  Gary Benson  <gary@inauspicious.org>
-
-	* auth.c (auth_user_with_cookie): Filter names less harshly.
-	Thanks to R. Steven Rainwater for the patch.
-
-2002-04-13  Raph Levien  <raph@pixel.artofcode.com>
-
-	* xmlrpc.c (xmlrpc_value_datetime): Increase correctness
-	for older dates in database lacing hh:mm:ss.
-
-	* diary.c (diary_serve): Add "/diary" -> "/diary/" redirect.
-
-2002-04-13  Gary Benson  <gary@inauspicious.org>
-
-	* Makefile: Add make dep rule (which runs makedepend) from Neale.
-
-2002-04-11  R. Steven Rainwater  <steve@ncc.com>
-
-	* xml_util.h:
-	* xml_util.c (xml_put_prop): removed this function which provided
-	backward compatibilty with a very old version of libxml1.
-
-	* acct_maint.c (acct_newsub_serve, acct_update_serve): 
-	* db_ops.c (add_recent, db_relation_put_field):
-	* proj.c (proj_newsub_serve, proj_editsub_serve):
-	* schema.c (schema_put_field):
-	Replaced xml_put_prop with direct call to xmlSetProp.
-
-2002-04-12  Gary Benson  <gary@inauspicious.org>
-
-	* xmlrpc.c:
-	* xmlrpc-methods.c: Remove header included for debugging.
-
-2002-04-09  R. Steven Rainwater  <steve@ncc.com>
-
-	* acct_maint.c (acct_loginsub_serve):
-	* mod_virgule.c (test_page):
-	* site.c (site_serve, site_render): 
-	* style.c (render_header_raw):
-
-	* tmetric.c (tmetric_test_serve): Add HTML 4.01 Transitional
-	DOCTYPE and specify ISO-8859-1 encoding.
-
-	* site.c (site_serve, site_render): Fix rendering of <img> tags
-	and removed spurious linefeeds in HTML output.
-
-2002-04-09  Gary Benson  <gary@inauspicious.org>
-
-	* acct_maint.c (acct_index_serve):
-	* proj.c (proj_edit_serve, proj_editsub_serve, proj_relsub_serve):
-	Remove some hardwired cert names.
-
-	* acct_maint.c (acct_person_graph_serve): Quote usernames to stop
-	graphviz choking on usernames that don't begin with letters.
-	Thanks to Chad Miller for the patch.
-
-2002-04-09  R. Steven Rainwater  <steve@ncc.com>
-
-	* auth.c (auth_user_with_cookie): Added code to add the name of
-	authorized users to the Apache request record. This will allow
-	Apache to log user authorization normally and make user login info
-	available through log statistics programs such as Webalizer.
-	Modified by Gary Benson so it a) does not trample on usernames put
-	there by Apache, and b) filters names more harshly.
-
-2002-04-08  Gary Benson  <gary@inauspicious.org>
-
-	* db_ops.c:
-	* proj.c (proj_relsub_serve): Bye bye compiler warnings.
-
-2002-04-06  R. Steven Rainwater  <steve@ncc.com>
-
-	* mod_virgule.c (virgule_handler): Removed reference to main_page().
-
-	* Makefile: Removed reference to main_page.c.
-
-	* main_page.c:
-	* main_page.h: Removed these unused files.
-
-2002-04-06  Gary Benson  <gary@inauspicious.org>
-
-	* buffer.h:
-	* buffer.c (buffer_new, buffer_write, buffer_send_response):
-	Generate and handle ETags.  Note that the calling semantics of
-	buffer_send_response have been changed. Also generates a
-	Content-MD5 tag, since it costs nothing.
-
-	* req.c (send_response):
-	* acct_maint.c (acct_login): respect new semantics of
-	buffer_send_response.
-
-2002-04-05  Gary Benson  <gary@inauspicious.org>
-
-	* mod_virgule.c (set_virgule_pass, xlat_handler): Add VirgulePass
-	directive in place of hardwired list of URL exceptions. Thanks to
-	R. Steven Rainwater for the patch.
-
-2002-04-04  Gary Benson  <gary@inauspicious.org>
-
-	* xmlrpc.c (xmlrpc_value_string): Use xmlNewTextChild rather than
-	xmlNewChild, so escaping is now correct (Spotted by Chad Miller
-	and Chris Vaughan).
-
-	* article.c (article_submit_serve): Detect and reject duplicate
-	article postings. Thanks to R. Steven Rainwater for the patch.
-
-	* mod_virgule.c: Add a version number. Thanks to R. Steven
-	Rainwater for the patch.
+	* tmetric.c (tmetric_set_name): Fixed segfault that occured if
+	tmetric_find_node() was unable to find a user name.
 	
-	* xmlrpc.c (xmlrpc_value_datetime, xmlrpc_response):
-	* xmlrpc-methods.c (diary_get_dates): Add a marshaller for the
-	dateTime.iso8601 datatype, and a new XML-RPC method to get the
-	creation and modification dates of a diary entry. Thanks to Sam
-	Phillips for the Patch.
+	* acct_maint.c (acct_update_serve, acct_person_server,
+	acct_certify_serve): Added Gary Benson's page refresh patches.
 
-	* sample_db/site/xmlrpc.xml: Document the above.
+2004-06-23 R. Steven Rainwater <steve@ncc.com>
 
-2002-04-03  Gary Benson  <gary@inauspicious.org>
-
-	* mod_virgule.c (xlat_handler): Add url exception for robots.txt.
-
-2002-03-31  Gary Benson  <gary@inauspicious.org>
-
-	* acct_maint.c (acct_index_serve): Remove a couple of superfluous
-	hardwired references to Advogato.
-
-	* certs.h:
-	* certs.c: Add new function render_cert_level_text, which renders
-	a textual representation of the cert level that will be hidden in
-	graphical browsers.
-
-	* article.c (article_render_reply, article_render_from_xml):
-	* site.c (site_render_recent_acct, site_render_recent_changelog):
-	Use the above.
-
-2002-03-30  Gary Benson  <gary@inauspicious.org>
-
-	* sample_db/site/certs.xml:
-	* sample_db/site/code.xml:
-	* sample_db/site/index.xml:
-	* sample_db/site/mission.xml:
-	* sample_db/site/recentlog.xml:
-	* sample_db/site/syndicate.xml:
-	* sample_db/site/trust-metric.html: Synchronize sample_db with
-	live site's database.
-
-	* mod_virgule.c: add url prefix exception for stylesheet dir.
-
-	* sample_db/css/global.css:
-	* sample_db/css/notns4.css: Imported stylesheets.
+	* acct_maint.c (acct_index_serve): Added missing vr->prefix to the
+	"edit your existing projects" link, pointed out by Seth Cohn.
 	
-	* style.c (render_header_raw): reference external stylesheets
-	rather than embedding one.
+2004-04-18 R. Steven Rainwater <steve@ncc.com>
 
-	* style.c: #define STYLE turned on.
-
-	* certs.h:
-	* certs.c (render_cert_level_begin, render_cert_level_end): Remove
-	nested tables and replace with CSS magic. Note that the calling
-	semantics of the functions have been transparently changed.
-
-	* tmetric.c (tmetric_index_serve): Replaced hardwired colours with
-	equally hardwired references to CSS classes.
-
-	* acct_maint.c (acct_person_index_serve):
-	* article.c (article_render_from_xml, article_generic_submit_serve):
-	* site.c (site_render_recent_acct, site_render_recent_changelog,
-	site_render_recent_proj, site_render):
-	* sample_db/site/index.xml:
-	* sample_db/site/proj.xml:
-	* sample_db/site/recentlog.xml: Remove all spacers and font tags
-	since they are now unneeded.
-
-	* certs.h: add another cert style: CERT_STYLE_MEDIUM.
-
-	* article.c (article_render_reply, article_generic_submit_serve):
-	* site.c: (site_render_recent_changelog): Use CERT_STYLE_MEDIUM
-	for replies to articles and recentlog entries.
-
-2002-03-27  Gary Benson  <gary@inauspicious.org>
-
-	* sample_db/site/index.xml: Add a link to the XML-RPC page from
-	the front page, as requested by Barry Pederson and Paulo Andre
-	amongst others.
-
-2002-03-23  Gary Benson  <gary@inauspicious.org>
-
-	* xmlrpc.c (xmlrpc_response): Fix bug that causes functions that
-	return multiple values to have a mangled response (fix courtesy of
-	Raph Levien).
-
-	* xmlrpc.c (xmlrpc_response): Fix a memory leak (admittedly one
-	that wouldn't happen unless there was a programmer error in the
-	method being served).
-
-	* xmlrpc.c (xmlrpc_fault, xmlrpc_serve): Fix bug that causes
-	multiple responses under fault conditions (spotted by Mark
-	Hershberger and Dave Winer).
-
-	* xmlrpc.c (xmlrpc_unmarshal_params): Fix bug whereby parameters
-	of unspecified type were reported as errors (spotted by Dave
-	Winer).
-
-	* xmlrpc.c (xmlrpc_unmarshal_params): When reporting parameter
-	type errors, index the parameters as base-1 rather than base-0.
-
-2002-02-16  Gary Benson  <gary@inauspicious.org>
-
-	* diary.h:
-	* diary.c (diary_post_serve): Move entry storage code into new
-	function, diary_store_entry().
-
-	* xmlrpc-methods.c:
-	* sample_db/site/xmlrpc.xml: Add new XML-RPC methods diary.len(),
-	diary.get() and diary.set().
-
-2002-02-16  Gary Benson  <gary@inauspicious.org>
-
-	* acct_maint.h:
-	* acct_maint.c (acct_loginsub_serve): Move bulk of
-	acct_loginsub_serve() into new function acct_login().
-
-	* xmlrpc-methods.c:
-	* sample_db/site/xmlrpc.xml: Add new XML-RPC method authenticate()
-	which wraps acct_login().
+	* (general): Merged changes from latest version of Raph's mod_virgule
+	(which is still going by v1.41) including the new account creation
+	switch, the XML-RPC check cookie method, recentlog permalinks, article
+	permalinks, project permalinks, and recentlog edit links.
 	
-2002-02-16  Gary Benson  <gary@inauspicious.org>
+	* acct_maint.c (acct_index_server, acct_newsub_serve): Added "forgot 
+	password" checkbox and instructions to login form. Added forgotten
+	password handler to newsub_serve.
+	
+	* acct_maint.c (send_email): Added send email function to support the
+	"forgot password" feature. This function and the other modifications
+	related to the forgotten password feature are based on a patch by
+	Steve Kemp <steve@steve.org.uk>. The send_email function has a 
+	hard-coded path to sendmail and a hard-coded "from:" value that will
+	need to be changed to match the site owners email address. The -f
+	flag is used on sendmail, so you'll want to make apache a trusted
+	user to avoid authentication warnings in the emails.
 
-	* auth.h:	
-	* auth.c (auth_user): Move bulk of auth_user() into new function
-	auth_user_with_cookie().
+	
+2003-11-14 R. Steven Rainwater <steve@ncc.com>
 
-	* xmlrpc-methods.h:
-	* xmlrpc.h:
-	* xmlrpc.c: created new function xmlrpc_auth_user() which wraps
-	auth_user_with_cookie().
+	* acct_maint.c (acct_person_index_serve): Corrupt profile.xml files
+	should now be silently skipped rather than segfaulting Apache.
+	
+2003-11-02 R. Steven Rainwater <steve@ncc.com>
 
-2002-02-15  Gary Benson  <gary@inauspicious.org>
+	* (general): Changed encoding type from ISO-8859-1 to UTF-8 throughout
+	code. This may eliminate some case of browsers submitting forms in
+	the wrong encoding.
 
-	* Makefile:
-	* mod_virgule.c (virgule_handler):
-	* xmlrpc.c, xmlrpc.h:
-	* xmlrpc-methods.c, xmlrpc-methods.h:
-	* sample_db/site/xmlrpc.xml: Add XML-RPC API.
+	* tmetric.c (tmetric_run): Added error checking to prevent attempted
+	dereferencing of a null pointer that occured when reading a corrupt
+	profile.xml file. Corrupt files are now silently skipped instead of
+	causing Apache to segfault.
+	
+2003-10-19 R. Steven Rainwater <steve@ncc.com>
 
-2002-03-20  Raph Levien  <raph@pixel.artofcode.com>
+	* rss_export.c (rss_index_server): Applied James Henstridge's patch
+	to add missing content type to the returned document.
 
-	* mod_virgule.c (xlat_handler): Adds list of "exceptions" url
-	prefixes, good for serving images and other static files.
+	* (general): Applied James Henstridge's patch that ads a link element
+	for auto-discovery of the diary RSS feeds. This changes the number
+	of arguments passed to render_header_raw() and render_header() in
+	style.c and affect all calls to those functions throughout the code.
 
-2002-03-19  Raph Levien  <raph@pixel.artofcode.com>
+	* style.c (render_header_raw): Added link element for favicon. It's
+	hardcoded to be /images/favicon.ico. Probably should make it a
+	configuration option later on.
 
-	* acct_maint.c (acct_person_diary_xml_serve):
-	* rss_export.c (rss_index_serve): Fix memory leak. Thanks to
-	Gary Benson for the patch.
+	* db_xml.c (db_xml_put): Added xmlIndentTreeOutput flag to make sure
+	libxml2 was indenting and adding newlines to output. This is another
+	compatibility behavior and can be removed in the future if newlines
+	are added to the xml trees.
 
-	* tmetric.c (tmetric_index_serve): Reduces time spent holding
-	global db lock when writing tmetric cache.
+2003-10-04 R. Steven Rainwater <steve@ncc.com>
 
-2002-03-18  Raph Levien  <raph@pixel.artofcode.com>
+	* acct_maint.c (acct_person_diary_???_server): Replaced 
+	xmlDocDumpMemory() with xmlDocDumpFormatMemory() to provide 
+	newlines and indenting in output. This simulates the behavior of
+	libxml with respect to whitespace. Ideally these calls should
+	eventually be replaced with nodes that implement the desired
+	newlines and indentation directly.
 
-	* db.c (db_dir_max_in_level): Fixes embarrassing bug that
-	miscounts numeric directories when the _00.._99 entries follow
+	* db_xml.c (db_xml_out): Replaced xmlDocDumpMemory() with
+	xmlDocDumpFormatMemory() to provide newlines and indenting in output.
+
+	* rss_export.c (rss_index_serve): Replaced xmlDocDumpMemory() with
+	xmlDocDumpFormatMemory() to provide newlines and indenting in output.
+
+	* xmlrpc.c (xmlrpc_create_response): Replaced xmlDocDumpMemory() with
+	xmlDocDumpFormatMemory() to provide newlines and indenting in output.
+
+2003-10-03 R. Steven Rainwater <steve@ncc.com>
+
+	* db.c (db_is_dir): Removed superfluous strlen() call.
+	
+2003-10-01 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (virgule_handler): Added xmlKeepBlanksDefault(0) to
+	force libxml2 to supress blank nodes. This allows the existing
+	mod_virgule XML code to function properly with libxml2 until it
+	can be updated. This can be removed once all xml code is adjusted
+	to handle blank nodes correctly.
+	
+	* (general): Merged changes from latest version of Raph's mod_virgule
+	(which is still going by v1.41) including James Henstridge's diary
+	patches and coderman's XML-RPC patches.
+
+	* (general): Merged Martijn van Beers <martijn@eekeek.org> libxml2 
+	patch to bring mod_virgule up to the current XML library version.
+
+	* style.c (render_header_raw, render_footer): Removed code that added
+	redundent copy of page title on every page.
+
+2003-04-21 R. Steven Rainwater <steve@ncc.com>
+
+	* (general): Merged changes from official mod_virgule versions
+	1.38 through 1.41
+	
+2002-09-14 R. Steven Rainwater <steve@ncc.com>
+
+	* style.c (render_sitemap): Added "About" to site menu. This is
+	temporary until a configurable menu is available.
+
+2002-04-29 R. Steven Rainwater <steve@ncc.com>
+
+	* (general): Merged changes from official mod_virgule version 1.36
+	and 1.37.
+
+2002-04-26 R. Steven Rainwater <steve@ncc.com>
+
+	* (general): Merged changes from official mod_virgule version 1.33,
+	1.34, and 1.35. 
+
+2002-04-06 R. Steven Rainwater <steve@ncc.com>
+
+	* buffer.c/h (buffer_new, buffer_write, buffer_send_response):
+	Modified functions to send ETags. Note that the calling semantics of
+	buffer_send_response have changed. Also generates a Content-MD5 tag,
+	since it costs nothing.
+
+	* certs.c/h (render_cert_level_text): Added new function to render
+	the certification level as hidden text which shows up in text mode
+	browsers but is hidden in graphic browsers.
+
+	* acct_maint.c (acct_login): respects new semantics of the
+	modified buffer_send_response function.
+	
+	* article.c (article_render_reply): Added call to the new
+	render_cert_level_text functions.
+	
+	* mod_virgule (virgule_init_handler): Added version number and an
+	init_handler to pass it back to Apache.
+	
+	* req.c (send_response): respects new semantics of the
+	modified buffer_send_response function.
+	
+	* sites.c (site_render_recent_acct, site_render_recent_changelog):
+	Added calls to new render_cert_level_text function.
+
+	* xmlrpc.c/h, xmlrpc-methods.c/h: Brought all XML-RPC functions up
+	to mod_virgule 1.31 level.
+
+2002-03-26 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_form_serve, article_generic_submit_serve):
+	Changed height of lead box to 6 rows from 4. Added link to a
+	posting guidelines page.
+	
+2002-03-24 R. Steven Rainwater <steve@ncc.com>
+
+	* tmetric.c (tmetric_index_serve): Escapes space chars in username 
+	before writing the default cert file. This particular bug has been 
+	around a long time but only surfaces if there are two users with 
+	similar names such as "Joe" and "Joe Smith" in which case, the 
+	wrong cert if found.
+	* req.c (req_get_tmetric_level): Escapes space chars in username.
+	
+2002-03-22 R. Steven Rainwater <steve@ncc.com>
+
+	* Merged all changes from Raph's mod_virgule through 2.27 except
+	hardcoded directory exception (we already have configurable ones).
+	
+	* xmlrpc-methods.c/h, xmlrpc.c/h: Added Gary Benson's XML-RPC API.
+	
+	* auth.c/h (auth_user): Gary Benson's XML-RPC API. Moved bulk of 
+	auth_user() into new function auth_user_with_cookie().
+
+	* acct_maint.c (acct_loginsub_serve): Gary Benson's XML-RPC API.
+	Moved bulk of acct_loginsub_serve() into new function acct_login().
+
+	* db.c (db_dir_max_in_level): Added Raph's fix for a bug that caused
+	miscounting of numeric directories when the _00.._99 entries follow
 	_a.._d in the readdir() order.
 
-2001-05-13  Raph Levien  <raph@acm.org>
+	* diary.c/h (diary_post_serve): Gary Benson's XML-RPC API. Moved
+	bulk of entry storage code into new function, diary_store_entry().
 
-	* tmetric.c (tmetric_index_serve): Fixes tmetric cache so that
-	the existence of a name preceding "-" won't break things. Thanks
-	to Neale Pickett for the patch.
+	* mod_virgule.c (virgule_handler): Gary Benson's XML-RPC API. Added
+	handler for xmlrpc stuff.
+	
+	* tmetric.c (tmetric_index_serve): Added Raph's fix to reduced time 
+	spent holding global db lock when writing tmetric cache.
 
-2001-02-22  Raph Levien  <raph@acm.org>
+2002-03-18 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_kill): Added acct_kill() functio to totally
+	remove a user account. The removal procedure will remove all certs
+	to and from the user, remove all diary entries, and remove all the
+	user's project relations. Projects themselves are not removed (even
+	if the user being removed created a project, it may be in use by
+	others) so there is a possibility of orphaned projects. I haven't
+	decided on the best way to deal with this but it's a small price
+	to pay to finally be able to delete user accounts.
+
+	* cert.c (cert_set): Modified to actually remove certs if they are
+	set to CERT_LEVEL_NONE instead of just rendering them invisible.
+	
+	* db.c (db_del): Added db_del() function to remove database records
+	by key (i.e., it deletes the associated files). This is the missing
+	link that should allow us to eventually add functions that delete 
+	user accounts, certs, projects, etc. If removal of the key leaves
+	the directory it was residing in empty, the directory is removed too.
+	
+	* proj.c (proj_set_relation): Added proj_set_relation() function to
+	allow procedural changes to a user's relation to a project. This was
+	previously possible only through the web interface. This function
+	also deletes the relation entirely if it is set to "None" rather than
+	just hiding the stale data as the previous implementation.
+	
+	* proj.c (proj_relsub_serve): Now calls the new proj_set_relation()
+	function rather than directly calling db_relation_put().
+	
+2002-02-17 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_diary_xml_serve): Added patch from Gary
+	Benson to fix memory leak in XML code.
+	
+	* rss_export.c (rss_index_serve): Added patch from Gary Benson to
+	fix memory leak in XML code.
+	
+2002-02-04 R. Steven Rainwater <steve@ncc.com>
+
+	* rss_export.c (rss_index_serve): Adjust URL and increased number
+	of exported articles to 15 from 10.
+
+2002-02-01 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_submit_serve): Added code to authorize user and
+	check for duplicate postings (due to user error or browser problems).
+
+2001-08-11 R. Steven Rainwater <steve@ncc.com>
+
+	* style.c (render_header_raw): Added a hard-coded keyword meta tag
+	for robots.net.
+	
+2001-07-18 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render_banner_ad): Rewrote banner ad code to use the
+	XML database. Banner ads are randomly selected from /ads/adlist.xml
+	and page view counts are decremented with each viewing of the ad.
+	When view count reaches zero, ads are removed from rotation.
+
+	* site.c (site_send_banner_ad): A wrapper for site_render_banner_ad
+	that allows banner ad requests used as an SSI within an HTML page.
+
+	* mod_virgule.c (virgule_handler): Added code to handle requests
+	for '/cgi-bin/ad' by calling site_send_banner_ad.
+	
+2001-06-15 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_touch): New function. Touches a <lastlogin>
+	tag in the profile that can be used by an external account reaper
+	to remove unused/unwanted accounts. When I get around to adding
+	an internal account reaper, it will also use this function.
+
+	* auth.c (auth_user): Added a call to acct_touch().
+
+	* article.c (article_form_serve): Removed redundant "Post a new
+	article" text from Posting page.
+	
+2001-05-21 R. Steven Rainwater <steve@ncc.com>
+
+	* tmetric.c (tmetric_index_serve): Added changes from  Raph's 1.22
+	version of mod_virgule. Neale Pickett's fix was added to the tmetric 
+	cache for names preceding the "-".
+	
+2001-04-27 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render): Added a tag to for the loginbox.
+	
+	* site.c (site_render_loginbox): Added this function to display a 
+	login box for users who are not logged in or a welcome message for 
+	those who are.
+	
+2001-04-23 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_submit_serve): Added maxlength attributes to
+	article submission form to enforce length limits on article titles.
+	
+	* article.c (article_generic_submit_serve): Added maxlength attributes.
+	
+2001-04-12 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_recent_render): Added a link for users who can't
+	post that allows them to email story suggestions
+	
+2001-04-11 R. Steven Rainwater <steve@ncc.com>
+
+	* style.c (render_header_raw): Added a line of javascript to prevent
+	pages from being displayed inside other sites framesets - this can
+	happen from bad HTML on other websites or intentionally to wrap 
+	banner ads around someone elses sites.
+	
+2001-04-06 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (xlat_handler): Added a new handler to accept a
+	list of directories in httpd.conf that will be passed through to
+	Apache to be handled normally.
+	
+	* mod_virgule.c (test_page): Added a dump of any VirgulePass values
+	
+	* mod_virgule.c (set_virgule_pass): New function that stores the
+	VirgulePass values in an array.
+	
+	* mod_virgule.c (set_virgule_dir_conf): Added initializer for the
+	new pass_dirs element.
+
+	* site.c (site_render_recent_bots): Added a function to display
+	recently added robots on the robomenu from an xml file created by
+	the Perl administration program. 
+	
+	* site.c (site_render): Added check for the <recentbots/> tag.
+
+	* style.c (render_sitemap): Added link to robomenu and changed the
+	"person" menu to read "humans".
+	
+2001-04-03 R. Steven Rainwater <steve@ncc.com>
+
+	* auth.c (auth_user): Tweaked the Apache user name data to remove
+	spaces. This appears to be perfectly legal as far as the common log
+	format and Apache are concerned but webalizer gags on names with
+	spaces for some reason.
+
+2001-03-22 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_form_serve): Removed Post button. User is now
+	required to use the Preview button before posting. Added more
+	descriptive comments about the use of the posting form (hard-coded
+	for robots.net).
+	
+	* article.c (article_generic_submit_serve): Added more descriptive
+	comments about the use of the article preview form (hard-coded for
+	robots.net).
+
+2001-03-16 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_render_topic): Added "alt" attributes to topic 
+	icons for HTML compliance.
+
+	* site.c (site_render): Fixed bug that was putting illegal </img>
+	tags into the XML-generated HTML output. These tags were causing
+	rendering problems on some older browsers. Also fixed a number of
+	case-sensitivities that were screwing up XML->HTML parsing.
+
+2001-03-15 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_render_from_xml): Article titles on lead stories
+	are now links to the story.
+
+	* util.c (render_date): Added optional date render format which
+	includes hours, minutes, and time zone information. A new arg was
+	added to select the desired render format and render_date() calls
+	throughout mod_virgule were modified to use the new calling style.
+
+2001-03-09 R. Steven Rainwater <steve@ncc.com>
+
+        * rss_export.c (rss_render_from_xml): Added some code to strip HTML
+	anchor tags from the exported story descriptions. Whiles these 
+	appear to be legal in RSS, they are annoying.
+
+2001-03-07 R. Steven Rainwtaer <steve@ncc.com>
+
+	* mod_virgule.c (test_serve): #ifdef'd out this function since it 
+	seems to not be needed or useful.
+
+	* proj.c (various): Change hard-coded values used by Advogato into
+	hard-code values for robots.net. These really need to be read from
+	XML rather than hard-code...
+
+	* site.c (site_serve): If a request for a URI ending in .html cannot
+	be filled by an XML document, an attempt is made to find a static
+	HTML file before declining the request.
+
+2001-03-02 R. Steven Rainwtaer <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Cert selector is not
+	displayed for users when looking at their own page.
+
+	* article.c (all): Changed calls to ok_to_post() in cases where
+	ok_to_reply() was more appropriate.
+
+	* article.c (article_form_server): Changed maximum article title 
+	size from 50 to 40 characters.
+
+	* article.c (article_generic_submit_serve): Changed maximum article
+	title size from 50 to 40 characters. Fixed bug that caused loss of
+	article topic when previewed.
+	
+	* auth.c (auth_user): Authenticated user name from cookie is set in
+	the Apache request_rec->conn_rec->user field so it can be logged.
+
+	* proj.c (proj_newsub_serve,proj_editsub_serve): Now uses the
+	ok_to_create_project() function instead of ok_to_post(). Reduced
+	project name size from 30 to 25 characters.
+
+	* req.c/h (ok_to_post): User must have journeyer or higher cert to
+	post an article.
+	
+	* req.c/h (ok_to_relpy): New function. User must have apprentice or
+	higher cert to post a reply to article.
+	
+	* req.c/h (ok_to_create_project): New function. User must have 
+	apprentice or higher cert to create a project.
+
+	* rss.c (rss_index_server, rss_render_from_xml): Replaced hard-coded
+	references to Advogato with hard-coded references to robots.net.
+
+
+2001-03-01 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_certify_serve): Users are now unable to
+	issue meaningless self-certifications.
+
+	* site.c (site_render_banner_ad): Kluge to display some random
+	hard-coded banner ads. This will be replaced by real code later.
+	
+2001-02-27 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_render_from_xml): Slight fixes to article
+	header code to achieve a uniform header size and preven wrapping
+	in the header.
+	
+2001-02-26  R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_index_server): Removed hard-coded reference
+	to Advogato.org from descriptive text on user account page.
+
+	* certs.c (render_cert_level_begin): Removed hard-coded reference
+	to advogato. The code is uneeded as the admin user name and cert
+	level may be set in the httpd.conf file.
+
+2001-02-25  R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule (set_virgule_css): Added this function to read the
+	location of the mod_virgule style sheet from the Apache config file.
+	
+	* mod_virgule (create_virgule_dir_conf, test_page, virgule_handler):
+	Added code to support reading the location of the style sheet using
+	set_virgule_css().
+	
+	* req.h (_VirguleReq): Added pointer to CSS location
+	
+	* site.c (site_render): Removed code that was inserting spurious
+	newlines into HTML rendered from the XML files. This fixes many
+	of the HTML table rendering problems with older Netscape versions.
+	
+	* style.c (render_header_raw): Style sheet location loaded from
+	Apache config rather than a static one is now inserted into raw
+	pages.
+
+2001-02-23  R. Steven Rainwater <steve@ncc.com>
+
+	* util.c, site.c: Merged mod_virgule 1.21 changes. Only additional
+	functionality over my existing changes is the use of <project> as
+	an alternate to <proj>.
+
+2001-02-22 Raph Levien <raph@acm.org>
 
 	* db_ops.c (add_recent): Uses xmlNewTextChild rather than
 	xmlNewChild, so escaping is now correct.
-
-	* util.c: Added <proj> tag and renderer.
-
+	
+	* util.c Added <proj> tag and renderer.
+	
 	* style.c (render_acceptable_html): Added <proj> to list.
-
-	* site.c (site_render_recent_proj): Changed to use
+	
+	* site.c (site_render_recent_proj): Changed to use 
 	render_proj_name (which escapes the URL correctly) rather than
 	hand-rolled HTML.
-
+	
 	Thanks to R. Steven Rainwater and Matt McClanahan for patches.
+	
+2001-02-22  R. Steven Rainwater <steve@ncc.com>
+
+	* everything : Updated user name support to allow names with spaces,
+	dashes, underscores, and dots. All relevant functions throughout
+	mod_virgule were updated to work with the new name format.
+
+2001-02-21  R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (all): Modified all function using cert levels to 
+	work with the changes made in certs.c (see below).
+
+	* article.c (article_render_from_xml): Replaced spacer tags with
+	legal HTML alternative. Assorted other HTML fixes. If STYLE is
+	defined in style.h, the article title attributes are taken from the
+	external CSS.
+	
+	* article.c (article_render_from_xml): Rewrote code that renders
+	article headers. A header table is generated that includes a cell
+	for an icon representing the article topic. The styles for the
+	topic and author cells are drawn from CSS. All these change take
+	effect when STYLE is defined.
+
+	* article.c (article_form_serve): Added topic selector input to
+	the article posting form.
+	
+	* article.c (article_submit_serve): Added support for article topics.
+	
+	* article.c (article_generic_submit_serve): Added support for article
+	topics.
+	
+	* article.h: added ArticleTopic struct.
+
+	* certs.c/h: Major changes to reconcile an off-by-one error between
+	CERT_NONE (was 0) and the lowest cert level (was 1). The 0th cert
+	level is now considered the default and used in place of both. This
+	simplifies many of the functions, structures, and cert calculations.
+	Replaced the hard-coded cert levels created for Advogato with user
+	configurable ones that may be set in the httpd.conf file.
+
+	* mod_virgule (command_rec): Added new command records for 
+	VirguleCerts, VirguleAdmin, VirguleSeeds, and VirguleTopic. New
+	Apache option handler functions were added for each of these.
+	
+	* mod_virgule (test_page): Now renders seeds, cert levels and admin
+	values that were read from httpd.conf.
+
+	* mod_virgule (create_virgule_dir_conf): Seed, cert, admin, and
+	topic pointers are now initialized.
+	
+	* mod_virgule (virgule_handler): Pointers to seed, cert, admin, and 
+	topic data is now passed to the VirguleReq struct.
+	
+	* req.c (all): Various changes to work with new cert level code.
+	
+	* req.h: Added pointers in _VirguleReq for cert_level array, seed
+	array, topic array, and admin name.
+
+	* tmetric.c/.h: Various changes to remove hard coded seed values.
+	No changes to trust metric calculation were made.
+
+2001-02-20  R. Steven Rainwater <steve@ncc.com>
+
+	* certs.c (render_cert_level_[begin|end]): If STYLE is defined in 
+	style.h, the cert level style is taken from the external CSS rather
+	than hard-coded.
+	
+	* db_ops.c (db_relation_get): Added return value to suppress compiler
+	warnings. Not sure why this function exists?
+	
+	* main_page.c/.h: removed these unused files
+	
+	* mod_virgule.c (virgule_handler): Removed unecessary reference to
+	main_page.c function. Fixed prefix bug that affected the foo.html
+	diagnostics page. Added explanatory comments to some functions.
+	Removed assorted cruft that appeared to have been used by Raph only
+	for initial testing.
+	
+	* proj.c (proj_index_serv): qsort() is now used to alphabetize the
+	project list. An assciated compare function, proj_index_sort() was
+	added. Removed unused variables to eliminate compiler warnings.
+
+	* site.c (site_render_recent_acct): Replaced spacer tags with table
+	tags for HTML compliance. 
+	
+	* site.c (site_render_recent_changelog): Replaced spacer tags with
+	break tags for HTML compliance.
+
+	* site.c (site_render_recent_proj): Replaced spacer tags with table
+	tags for HTML compliance.
+
+	* site.c (site_render): Removed some dead code.  Added #ifdefs to
+	exclude calls to render_table_[open|close] when CSS extensions are
+	compiled in.
+				
+	* style.c (render_sitemap): If STYLE is defined, sitemap attributes
+	are taken from external CSS rather than hard-coded valueds.
+	
+	* style.c (render_table_[open|close]): Enclosed in #ifdef to exclude
+	these functions when CSS extensions are compiled in.
+
+2001-02-20  R. Steven Rainwater <steve@ncc.com>
+
+	* style.c (render_header_raw): Added support for an external style
+	sheet named /mod_virgule.css to make life easier when customizing 
+	a mod_virgule site.
+
 
 2001-01-24  Raph Levien  <raph@acm.org>
 

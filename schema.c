@@ -3,7 +3,7 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "xml_util.h"
@@ -27,7 +27,7 @@ schema_render_input (pool *p, Buffer *b, SchemaField *sf, xmlNode *tree)
     value = xml_get_prop (p, tree, sf->name);
   buffer_printf (b, "<p> %s: <br>\n", sf->description);
   if (sf->flags & SCHEMA_TEXTAREA)
-    buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=soft>%s</textarea> </p>\n",
+    buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
 		   sf->name,
 		   sf->size / 1000,
 		   sf->size % 1000,

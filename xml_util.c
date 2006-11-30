@@ -1,8 +1,8 @@
 #include <httpd.h>
 
-#include <tree.h>
-#include <entities.h>
-#include <xmlmemory.h>
+#include <libxml/tree.h>
+#include <libxml/entities.h>
+#include <libxml/xmlmemory.h>
 
 #include "xml_util.h"
 
@@ -22,7 +22,7 @@ xml_find_child (xmlNode *n, const char *tag)
 
   if (n == NULL)
     return NULL;
-  for (child = n->childs; child != NULL; child = child->next)
+  for (child = n->children; child != NULL; child = child->next)
     if (!strcmp (child->name, tag))
       return child;
   return NULL;
@@ -43,7 +43,7 @@ xml_ensure_child (xmlNode *n, const char *tag)
 {
   xmlNode *child;
 
-  for (child = n->childs; child != NULL; child = child->next)
+  for (child = n->children; child != NULL; child = child->next)
     if (!strcmp (child->name, tag))
       return child;
   return xmlNewChild (n, NULL, tag, NULL);
@@ -52,7 +52,7 @@ xml_ensure_child (xmlNode *n, const char *tag)
 char *
 xml_get_string_contents (xmlNode *n)
 {
-  xmlNode *child = n->childs;
+  xmlNode *child = n->children;
 
   while (child && child->type != XML_TEXT_NODE)
     child = child->next;

@@ -94,6 +94,7 @@ const char *
 req_get_tmetric_level (VirguleReq *vr, const char *u)
 {
   char *result;
+  char *user = ap_escape_uri(vr->r->pool,u);
   char *tmetric = req_get_tmetric (vr);
   int i, j;
 
@@ -104,10 +105,10 @@ req_get_tmetric_level (VirguleReq *vr, const char *u)
      At some point, we may want to use a real binary tree. */
   for (i = 0; tmetric[i];)
     {
-      for (j = 0; u[j]; j++)
-	if (tmetric[i++] != u[j])
+      for (j = 0; user[j]; j++)
+	if (tmetric[i++] != user[j])
 	  break;
-      if (u[j] == 0 && tmetric[i++] == ' ')
+      if (user[j] == 0 && tmetric[i++] == ' ')
 	{
 	  /* found */
 	  for (j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++);
@@ -145,6 +146,42 @@ req_ok_to_post (VirguleReq *vr)
 
   if (vr->u == NULL)
     return 0;
-  return (strcmp (req_get_tmetric_level (vr, vr->u),
-		  cert_level_to_name (vr, CERT_LEVEL_NONE)));
+
+  if (*vr->seeds)
+    {
+      const char **s;
+      for (s = vr->seeds; *s; s++)
+	if(strcmp(vr->u,*s) == 0)
+	  return 1;
+    }
+
+  return 0;
+}
+
+int
+req_ok_to_reply (VirguleReq *vr)
+{
+  auth_user (vr);
+
+  if (vr->u == NULL)
+    return 0;
+
+  if (cert_level_from_name(vr, req_get_tmetric_level (vr, vr->u)) > 0)   /* 0 == observer */
+    return 1;
+
+  return 0;
+}
+
+int
+req_ok_to_create_project (VirguleReq *vr)
+{
+  auth_user (vr);
+
+  if (vr->u == NULL)
+    return 0;
+
+  if (cert_level_from_name(vr, req_get_tmetric_level (vr, vr->u)) > 0)  /* 0 == observer */
+    return 1;
+
+  return 0;
 }

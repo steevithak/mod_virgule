@@ -1,8 +1,8 @@
 #include "httpd.h"
 
-#include <tree.h>
-#include <parser.h>
-#include <xmlmemory.h>
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/xmlmemory.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -83,8 +83,8 @@ static xmlNode *
 xmlrpc_create_response (VirguleReq *vr)
 {
   xmlDoc *r = xmlNewDoc ("1.0");
-  r->root = xmlNewDocNode (r, NULL, "methodResponse", NULL);
-  return r->root->doc == r ? r->root : NULL;
+  r->xmlRootNode = xmlNewDocNode (r, NULL, "methodResponse", NULL);
+  return r->xmlRootNode->doc == r ? r->xmlRootNode : NULL;
 }
 
 static int
@@ -93,7 +93,7 @@ xmlrpc_send_response (VirguleReq *vr, xmlNode *r)
   xmlChar *mem;
   int size;
 
-  xmlDocDumpMemory (r->doc, &mem, &size);
+  xmlDocDumpFormatMemory (r->doc, &mem, &size, 1);
   buffer_write (vr->b, mem, size);
   xmlFree (mem);
   xmlFreeDoc (r->doc);
@@ -213,7 +213,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
         return xmlrpc_fault (vr, 1, "expecting <params>, got <%s>",
                              params->name);  
 
-      for (param = params->childs; param; param = param->next)
+      for (param = params->children; param; param = param->next)
         {
           if (xmlIsBlankNode (param))
             continue;
@@ -232,7 +232,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
     }
 
   /* unmarshal the parameters */
-  param = params->childs;
+  param = params->children;
   va_start (va, types);
   for (i=0; i<argc; i++)
     {
@@ -241,11 +241,11 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
       while (xmlIsBlankNode (param))
         param = param->next;
 
-      value = param->childs;
+      value = param->children;
       while (xmlIsBlankNode (value))
         value = value->next;
 
-      value = value->childs;
+      value = value->children;
       while (xmlIsBlankNode (value))
         value = value->next;
 	
@@ -256,7 +256,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
 	    {
               char *val;
 		
-              val = xmlNodeListGetString (value->doc, value->childs, 1);
+              val = xmlNodeListGetString (value->doc, value->children, 1);
               *va_arg (va, int *) = atoi (val);
               xmlFree (val);
 	    }
@@ -282,7 +282,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
             {
               char *val;
 		
-              val = xmlNodeListGetString (value->doc, value->childs, 1);
+              val = xmlNodeListGetString (value->doc, value->children, 1);
               *va_arg (va, char **) = ap_pstrdup (vr->r->pool, val);
               xmlFree (val);
             }
@@ -332,14 +332,14 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
     return xmlrpc_fault (vr, 1, "expecting <methodCall>, got <%s>", xr->name);
     
   /* first element of methodCall should be a <methodName> */
-  n = xr->childs;
+  n = xr->children;
   while (n && xmlIsBlankNode (n))
     n = n->next;
 
   if (!n || strcmp (n->name, "methodName"))
     return xmlrpc_fault (vr, 1, "expecting <methodName>, got <%s>", n->name);
 
-  tmp = xmlNodeListGetString (n->doc, n->childs, 1);
+  tmp = xmlNodeListGetString (n->doc, n->children, 1);
   name = ap_pstrdup (vr->r->pool, tmp);
   xmlFree (tmp);
 
@@ -377,7 +377,7 @@ xmlrpc_serve (VirguleReq *vr)
   request = xmlParseMemory (vr->args, vr->r->read_length);
   if (request)
     {
-      ret = xmlrpc_unmarshal_request (vr, request->root);
+      ret = xmlrpc_unmarshal_request (vr, request->xmlRootNode);
       xmlFreeDoc (request);
     }
   else

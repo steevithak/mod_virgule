@@ -4,7 +4,7 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -27,17 +27,17 @@ post_form_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
 
-  render_header (vr, "Post a new <x>article</x>");
+  render_header (vr, "Post a new <x>article</x>", NULL);
 
   buffer_puts (b, "<p> Post a new <x>article</x>. </p>\n"
-	       "<form method=\"POST\" action=\"postsubmit.html\">\n"
+	       "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n"
 	       " <p> <x>Article</x> title: <br>\n"
 	       " <input type=\"text\" name=\"title\" size=50> </p>\n"
 	       " <p> <x>Article</x> lead: <br>\n"
-	       " <textarea name=\"lead\" cols=72 rows=4 wrap=soft>"
+	       " <textarea name=\"lead\" cols=72 rows=4 wrap=hard>"
 	       "</textarea> </p>\n"
 	       " <p> Body of <x>article</x>: <br>\n"
-	       " <textarea name=\"body\" cols=72 rows=16 wrap=soft>"
+	       " <textarea name=\"body\" cols=72 rows=16 wrap=hard>"
 	       "</textarea> </p>\n"
 	       " <p> <input type=\"submit\" value=\"Post\">\n"
 	       "</form>\n");
@@ -81,7 +81,7 @@ post_submit_serve (VirguleReq *vr)
 
   doc = db_xml_doc_new (p);
   root = xmlNewDocNode (doc, NULL, "article", NULL);
-  doc->root = root;
+  doc->xmlRootNode = root;
 
   tree = xmlNewChild (root, NULL, "date", date);
   tree = xmlNewChild (root, NULL, "author", vr->u);

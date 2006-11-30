@@ -22,6 +22,9 @@ int
 db_put (Db *db, const char *key, const char *val, int size);
 
 int
+db_del (Db *db, const char *key);
+
+int
 db_is_dir (Db *db, const char *key);
 
 DbCursor *

@@ -2,14 +2,15 @@
    stylesheet. */
 
 #include "httpd.h"
+#include "http_core.h"
 #include "http_config.h"
 #include "http_protocol.h"
 #include "ap_config.h"
 
 #include <stdlib.h> /* for atof */
 
-#include <tree.h>
-#include <parser.h>
+#include <libxml/tree.h>
+#include <libxml/parser.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -19,13 +20,13 @@
 #include "xml_util.h"
 #include "article.h"
 #include "certs.h"
+#include "auth.h"
 #include "diary.h"
 #include "proj.h"
 #include "wiki.h"
 #include "auth.h"
 #include "acct_maint.h"
 
-#include "auth.h"
 #include "hashtable.h"
 #include "eigen.h"
 
@@ -39,15 +40,23 @@ struct _RenderCtx {
   char *title;
 };
 
-static void site_render (RenderCtx *ctx, xmlNode *node);
+typedef struct _AdInfo AdInfo;
 
+struct _AdInfo {
+  const char *img;
+  const char *url;
+  const char *imp;
+  const char *max;
+};
+
+static void site_render (RenderCtx *ctx, xmlNode *node);
 
 static void
 site_render_children (RenderCtx *ctx, xmlNode *node)
 {
   xmlNode *child;
 
-  for (child = node->childs; child != NULL; child = child->next)
+  for (child = node->children; child != NULL; child = child->next)
     site_render (ctx, child);
 }
 
@@ -62,8 +71,76 @@ static void
 site_render_person_link (VirguleReq *vr, const char *name)
 {
   buffer_printf (vr->b, "<a href=\"%s/person/%s/\" style=\"text-decoration: none\">%s</a>\n",
-		 vr->prefix, name, name);
+		 vr->prefix, ap_escape_uri(vr->r->pool, name), name);
 }
+
+/**
+ * Reads banner ad information from the XML database. A random banner ad is
+ # selected and displayed. Banner ads with 0 remaining impressions are 
+ # removed from database. 
+ **/
+void
+site_render_banner_ad (VirguleReq *vr)
+{
+  pool *p = vr->r->pool;
+  const char *imp, *img, *url;
+  xmlDoc *adlist;
+  xmlNode *ad;
+  char new_imp[12];
+  char *ad_key = "ads/adlist.xml";
+  int impressions, i, sel;
+
+  /* Read and parse the adlist.xml document */
+  adlist = db_xml_get (p, vr->db, ad_key);
+  if (adlist == NULL) 
+    return;
+
+  /* Find available ads */
+  for (i = 0, ad = adlist->xmlRootNode->children; ad != NULL; ad = ad->next)
+    if(!xmlIsBlankNode(ad))
+      i++;
+
+  if (i <= 0)
+    return;
+    
+  /* Randomly select ad to be displayed */
+  sel = (int) (rand() / (RAND_MAX / i + 1));
+
+  /* Find the selected ad */
+  for (i = 0, ad = adlist->xmlRootNode->children; i != sel && ad != NULL; ad = ad->next)
+    if(!xmlIsBlankNode(ad))
+      i++;
+
+  // adjust impresion value
+  imp = xml_get_prop (p, ad, "imp");
+  impressions = atoi (imp);
+  if (impressions <= 0)
+  {
+    xmlUnlinkNode (ad);
+    xmlFreeNode (ad);
+  }
+  else
+  {
+    impressions--;
+    snprintf (new_imp, sizeof new_imp, "%d", impressions);
+    xmlSetProp (ad, "imp", new_imp);
+  }
+  db_xml_put (p, vr->db, ad_key, adlist);
+    
+  img = xml_get_prop (p, ad, "img");
+  url = xml_get_prop (p, ad, "url");
+  
+  buffer_printf(vr->b, "<a href=\"%s\"><img src=\"%s?%ld\" width=\"468\" height=\"60\" vspace=\"4\" border=\"0\"></a>", url, img, (long)time(NULL) );
+}
+
+
+int
+site_send_banner_ad (VirguleReq *vr)
+{
+  site_render_banner_ad (vr);
+  return send_response (vr);
+}
+
 
 static void
 site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
@@ -78,14 +155,14 @@ site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return;
-  root = doc->root;
+  root = doc->xmlRootNode;
   n = 0;
   for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
     {
       char *name = xml_get_string_contents (tree);
       char *date = xml_get_prop (p, tree, "date");
       render_cert_level_begin (vr, name, CERT_STYLE_SMALL);
-      buffer_printf (vr->b, " %s ", render_date (vr, date));
+      buffer_printf (vr->b, " %s ", render_date (vr, date, 0));
       site_render_person_link (vr, name);
       render_cert_level_text (vr, name);
       render_cert_level_end (vr, CERT_STYLE_SMALL);
@@ -128,34 +205,33 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
   if (doc == NULL)
     return;
 
-  auth_user (vr);
-
   args = get_args_table (vr);
   if (args && (thresh_str = ap_table_get (args, "thresh")))
     {
       thresh = atof (thresh_str);
     }
 
-  if (vr->render_diaryratings)
+  auth_user (vr);
+  if (vr->render_diaryratings && vr->u)
     {
-      if (vr->u)
-	{
-	  char *eigen_key = ap_pstrcat (p, "eigen/vec/", vr->u, NULL);
-	  ev = eigen_vec_load (p, vr, eigen_key);
-	}
+        char *eigen_key = ap_pstrcat (p, "eigen/vec/", vr->u, NULL);
+	ev = eigen_vec_load (p, vr, eigen_key);
     }
 
   if (vr->recentlog_as_posted)
     entries = ap_make_table (p, 4);
 
-  root = doc->root;
+  root = doc->xmlRootNode;
   n = 0;
   for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
     {
       char *name = xml_get_string_contents (tree);
-      char *date;
+      char *date = xml_get_prop (p, tree, "date");
       EigenVecEl *eve = NULL;
       int entry;
+
+      if (xmlIsBlankNode(tree))
+        continue;
 
       if (ev)
 	{
@@ -170,8 +246,9 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 	}
 
       date = xml_get_prop (p, tree, "date");
+      buffer_puts (vr->b, "<br>");
       render_cert_level_begin (vr, name, CERT_STYLE_MEDIUM);
-      buffer_printf (vr->b, " %s ", render_date (vr, date));
+      buffer_printf (vr->b, " %s ", render_date (vr, date, 0));
       site_render_person_link (vr, name);
       if (eve)
 	{
@@ -182,7 +259,6 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 			 gray, gray, gray,
 			 eve->rating);
 	}
-      render_cert_level_text (vr, name);
 
       if (vr->recentlog_as_posted)
 	{
@@ -201,9 +277,10 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 		     vr->prefix, name, entry);
 
       if (vr->u && strcmp(vr->u, name) == 0)
-	buffer_printf (vr->b, " &nbsp; <a href=\"%s/diary/edit.html?key=%u\" style=\"text-decoration: none\">[Edit]</a>",
+	buffer_printf (vr->b, " &nbsp; <a href=\"%s/diary/edit.html?key=%u\" style=\"text-decoration: none\">[ Edit ]</a>",
 		       vr->prefix, entry);
 
+      render_cert_level_text (vr, name);
       render_cert_level_end (vr, CERT_STYLE_MEDIUM);
 
       if (entry >= 0)
@@ -233,17 +310,17 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return;
-  root = doc->root;
+  root = doc->xmlRootNode;
   n = 0;
   for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
     {
       char *name = xml_get_string_contents (tree);
       char *date = xml_get_prop (p, tree, "date");
-
+      
       if (vr->projstyle == PROJSTYLE_RAPH)
-	{
-	  buffer_printf (vr->b, " %s %s\n",
-			 render_date (vr, date), render_proj_name (vr, name));
+        {
+	  buffer_printf (vr->b, "<div class=\"recentproj\"> %s %s</div>\n",
+			 render_date (vr, date, 0), render_proj_name (vr, name));
 	}
       else
 	{
@@ -260,7 +337,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
 	    continue;
 	  }
   
-	  proj_tree = xml_find_child (proj_doc->root, "info");
+	  proj_tree = xml_find_child (proj_doc->xmlRootNode, "info");
 	  if (proj_tree != NULL) {
 	    creator = xml_get_prop (p, proj_tree, "creator");
 	  } else {
@@ -275,15 +352,72 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
 	      newmarker = " &raquo; ";
 	  render_cert_level_begin (vr, creator, CERT_STYLE_SMALL);
 	  buffer_printf (vr->b, " %s %s %s\n",
-			 newmarker, render_date (vr, date), 
+			 newmarker, render_date (vr, date, 0), 
 			 render_proj_name (vr, name));
 	  render_cert_level_text (vr, creator);
 	  render_cert_level_end (vr, CERT_STYLE_SMALL);
 	  db_xml_free (p, vr->db, proj_doc);
-	}
+	}        
       n++;
     }
 }
+
+static void
+site_render_recent_bots (VirguleReq *vr, int n_max)
+{
+  pool *p = vr->r->pool;
+  xmlDoc *doc;
+  xmlNode *root, *tree;
+  int n;
+
+  doc = db_xml_get (p, vr->db, "recent/robots.xml");
+  if (doc == NULL)
+    return;
+  root = doc->xmlRootNode;
+  n = 0;
+  buffer_puts (vr->b, "<table cellpadding=\"0\" cellspacing=\"1\">\n");
+  for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
+    {
+      char *name = xml_get_string_contents (tree);
+      char *date = xml_get_prop (p, tree, "date");
+      char *id  = xml_get_prop (p, tree, "id");
+      buffer_printf (vr->b, "<tr><td class=\"recentproj\"> %s <a href=\"/robomenu/%s.html\">%s</a></td></tr>\n",
+                     render_date (vr, date, 0), id, name);
+      n++;
+    }
+  buffer_puts (vr->b, "</table>\n");
+}
+
+
+static void
+site_render_cronbox (VirguleReq *vr)
+{
+  pool *p = vr->r->pool;
+  xmlDoc *doc;
+  xmlNode *root, *tree;
+  char *title, *link, *img, *credit, *author;
+
+  doc = db_xml_get (p, vr->db, "recent/cronbox.xml");
+  if (doc == NULL)
+    return;
+  root = doc->xmlRootNode;
+
+  tree = xml_find_child(root, "title");
+  title = xml_get_string_contents (tree);
+  tree = xml_find_child(root, "link");
+  link = xml_get_string_contents (tree);
+  tree = xml_find_child(root, "img");
+  img = xml_get_string_contents (tree);
+  tree = xml_find_child(root, "credit");
+  credit = xml_get_string_contents (tree);
+  tree = xml_find_child(root, "author");
+  author = xml_get_string_contents (tree);
+
+  buffer_printf (vr->b, "<table width=\"90%\" class=\"cronbox\"><tr>\n"
+                "<td align=\"center\">%s<br>%s<br>%s<br>%s<br>%s</td></tr></table>\n",
+                 title, link, img, credit, author);
+}
+
 
 static void
 site_render (RenderCtx *ctx, xmlNode *node)
@@ -356,6 +490,18 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	    nmax = 10;
 	  site_render_recent_proj (vr, list, nmax);
 	}
+      else if (!strcmp (node->name, "recentbots"))
+        {
+	  char *nmax_str;
+	  int nmax;
+	  
+	  nmax_str = xml_get_prop (p, node, "nmax");
+	  if (nmax_str)
+	    nmax = atoi (nmax_str);
+	  else
+	    nmax = 10;
+	  site_render_recent_bots (vr, nmax);
+	}
       else if (!strcmp (node->name, "articles"))
 	{
 	  char *list, *nmax_str;
@@ -394,14 +540,14 @@ site_render (RenderCtx *ctx, xmlNode *node)
 		site_render_children (ctx, node);
 	}
       else if (!strcmp (node->name, "newaccountsallowed"))
-	{
+        {
 	    if (vr->allow_account_creation)
-		site_render_children (ctx, node);
+	        site_render_children (ctx, node);
 	}
       else if (!strcmp (node->name, "nonewaccountsallowed"))
-	{
+        {
 	    if (!vr->allow_account_creation)
-		site_render_children (ctx, node);
+	        site_render_children (ctx, node);
 	}
       else if (!strcmp (node->name, "canpost"))
 	{
@@ -425,10 +571,18 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	}
 #if 0
       else if (!strcmp (node->name, "wiki"))
-	{
+        {
 	  buffer_puts (b, wiki_link (vr, xml_get_string_contents (node)));
 	}
 #endif
+      else if (!strcmp (node->name, "bannerad"))
+        {
+	  site_render_banner_ad (vr);
+	}
+      else if (!strcmp (node->name, "cronbox"))
+        {
+	  site_render_cronbox (vr);
+	}
       else
 	{
 	  xmlAttr *a;
@@ -437,17 +591,21 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  for (a = node->properties; a != NULL; a = a->next)
 	    {
 	      buffer_append (b, " ", a->name, "=\"", NULL);
-	      site_render (ctx, a->val);
+	      site_render (ctx, a->children);
 	      buffer_puts (b, "\"");
 	    }
 	  buffer_puts (b, ">");
+#ifdef noSTYLE	  
 	  if (!strcmp (node->name, "td"))
 	    render_table_open (vr);
+#endif
 	  site_render_children (ctx, node);
+#ifdef noSTYLE	  
 	  if (!strcmp (node->name, "td"))
 	    render_table_close (vr);
+#endif
 	  if (strcmp (node->name, "input") && strcmp (node->name, "img"))
-	    buffer_append (b, "</", node->name, ">\n", NULL);
+	    buffer_append (b, "</", node->name, ">", NULL);
 	}
     }
 }
@@ -471,15 +629,19 @@ site_render_page (VirguleReq *vr, xmlNode *node)
   ctx.title = title;
   raw = xml_get_prop (vr->r->pool, node, "raw");
   if (raw)
-    render_header_raw (vr, title);
+    render_header_raw (vr, title, NULL);
   else
-    render_header (vr, title);
+    render_header (vr, title, NULL);
   site_render (&ctx, node);
 
   return render_footer_send (vr);
 }
 
-/* Return Apache error code. */
+/**
+* Attempts to match the URI in the request to an XML document in the site
+* directory. If a match is found, the XML file is parsed and rendered.
+* If no match is found, an Apache error code should be returned.
+**/
 int
 site_serve (VirguleReq *vr)
 {
@@ -503,7 +665,7 @@ site_serve (VirguleReq *vr)
     uri = ap_pstrcat (r->pool, uri, "index.html", NULL);
 
 #if 0
-  r->content_type = "text/plain; charset=ISO-8859-1";
+  r->content_type = "text/plain; charset=UTF-8";
   buffer_puts (b, uri);
   return send_response (vr);
 #endif
@@ -516,7 +678,7 @@ site_serve (VirguleReq *vr)
       /* there is an extension */
       if (!strcmp (uri + ix + 1, "html"))
 	{
-	  content_type = "text/html; charset=ISO-8859-1";
+	  content_type = "text/html; charset=UTF-8";
 
 	  is_xml = 1;
 	  uri = ap_pstrcat (r->pool, ap_pstrndup (r->pool, uri, ix + 1),
@@ -558,7 +720,7 @@ site_serve (VirguleReq *vr)
 	{
 	  xmlNode *root;
 
-	  root = doc->root;
+	  root = doc->xmlRootNode;
 	  return_code = site_render_page (vr, root);
 	  xmlFreeDoc (doc);
 	  return return_code;

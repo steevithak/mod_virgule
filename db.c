@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "httpd.h"
 
@@ -255,7 +256,7 @@ db_ensure_dir (Db *db, const char *fn)
 int
 db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
 {
-  char *fn, *tmp_fn, *old_fn;
+  char *fn; //  , *tmp_fn, *old_fn;
   int fd;
   int bytes_written;
 
@@ -264,10 +265,10 @@ db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
   if (!db_ensure_dir (db, fn))
     return -1;
 
-  tmp_fn = ap_psprintf (p, "%s.tmp", fn);
-  old_fn = ap_psprintf (p, "%s~", fn);
+//  tmp_fn = ap_psprintf (p, "%s.tmp", fn);
+//  old_fn = ap_psprintf (p, "%s~", fn);
 
-  fd = ap_popenf (p, tmp_fn, O_RDWR | O_CREAT | O_TRUNC, 0664);
+  fd = ap_popenf (p, fn, O_RDWR | O_CREAT | O_TRUNC, 0664);
   if (fd == -1)
     return -1;
 
@@ -279,11 +280,11 @@ db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
   if (bytes_written != size)
     return -1;
 
-  if (rename (fn, old_fn))
-    return -1;
-  if (rename (tmp_fn, fn))
-    return -1;
-  unlink(old_fn);
+//  if (rename (fn, old_fn))
+//    return -1;
+//  if (rename (tmp_fn, fn))
+//    return -1;
+//  unlink(old_fn);
 
   return 0;
 }
@@ -306,6 +307,37 @@ db_put (Db *db, const char *key, const char *val, int size)
 }
 
 /**
+ * db_del: Delete a record from the database.
+ * @db: The database.
+ * @key: The key.
+ *
+ * Deletes key from the database. If the directory containing the key is
+ # empty after deletion of the key, the directory is also removed. 
+ *
+ * Return value: 0 on success.
+ **/
+int
+db_del (Db *db, const char *key)
+{
+  int status;
+  char *path,*fn,*n;
+
+  fn = db_mk_filename (db->p, db, key);
+
+  status = unlink(fn);
+
+  path = ap_pstrdup (db->p, fn);
+  n = strrchr(path,'/');
+  if(n != NULL) {
+    *n = 0;
+    rmdir(path);
+  }
+  
+  return status;
+}
+
+
+/**
  * db_is_dir: Determine whether a key is a directory.
  * @db: The database.
  * @key: The key.
@@ -320,10 +352,8 @@ db_is_dir (Db *db, const char *key)
   char *fn;
   struct stat stat_buf;
   int status;
-  int len;
 
   fn = db_mk_filename (db->p, db, key);
-  len = strlen (fn);
 
   /* Check for existence of parent dir. */
   status = stat (fn, &stat_buf);

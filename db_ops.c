@@ -6,7 +6,7 @@
 #include <string.h>
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -34,10 +34,10 @@ add_recent (pool *p, Db *db, const char *key, const char *val, int n_max, int du
     {
       doc = db_xml_doc_new (p);
       root = xmlNewDocNode (doc, NULL, "recent", NULL);
-      doc->root = root;
+      doc->xmlRootNode = root;
     }
   else
-    root = doc->root;
+    root = doc->xmlRootNode;
 
   tree = xmlNewTextChild (root, NULL, "item", val);
   date = iso_now (p);
@@ -96,7 +96,7 @@ db_relation_put_field (pool *p, Db *db, const DbRelation *rel,
   char *db_key;
   xmlDoc *doc;
   xmlNode *root;
-  xmlNode *tree;
+  xmlNode *tree = NULL;
   xmlNode *child, *next;
   char *relname;
   int j;
@@ -109,10 +109,10 @@ db_relation_put_field (pool *p, Db *db, const DbRelation *rel,
       doc = db_xml_doc_new (p);
       relname = ap_pstrcat (p, rel->name, "-", rel->fields[i].name, NULL);
       root = xmlNewDocNode (doc, NULL, relname, NULL);
-      doc->root = root;
+      doc->xmlRootNode = root;
     }
   else
-    root = doc->root;
+    root = doc->xmlRootNode;
 
   tree = xmlNewChild (root, NULL, "rel", NULL);
   for (j = 0; j < rel->n_fields; j++)
@@ -124,7 +124,7 @@ db_relation_put_field (pool *p, Db *db, const DbRelation *rel,
     }
 
   /* uniqueness checking */
-  for (child = root->childs; child != NULL; child = next)
+  for (child = root->children; child != NULL && tree != NULL; child = next)
     {
 
       next = child->next;

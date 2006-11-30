@@ -9,11 +9,12 @@
 */
 
 #include "httpd.h"
+
 #include <string.h>
 #include <ctype.h>
 
-#include <tree.h>
-#include <xmlmemory.h>
+#include <libxml/tree.h>
+#include <libxml/xmlmemory.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -24,25 +25,51 @@
 
 #include "rss_export.h"
 
+/* Set the to #ifs to 0 to turn off the HREF stipping actions */
 static void
 rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
 {
   pool *p = vr->r->pool;
-  xmlNode *root = doc->root;
+  xmlNode *root = doc->xmlRootNode;
   xmlNodePtr subtree;
   char *title;
-  char *description;
   char *link;
+  char *raw_description;
+  char *clean_description;
+#if 1
+  char *tmp1, *tmp2;
+#endif
 
   title = xml_find_child_string (root, "title", "(no title)");
   link = ap_psprintf (p, "%s/article/%d.html", vr->base_uri, art_num);
-  description = xml_find_child_string (root, "lead", "(no description)");
+  raw_description = xml_find_child_string (root, "lead", "(no description)");
 
-  title = rss_massage_text (p, title, vr->base_uri);
+  /* strip anchor tags */
+  clean_description = ap_pstrdup (p, raw_description);  
+#if 1
+  tmp1 = raw_description;
+  tmp2 = clean_description;
+  while(*tmp1!=0)
+    {
+      if(strncasecmp(tmp1,"<a",2)==0)
+        {
+	  while(*tmp1!=0&&*tmp1!='>')
+	    tmp1++;
+	  if(*tmp1!=0)
+            tmp1++;
+        }
+      if(strncasecmp(tmp1,"</a>",4)==0)
+        tmp1+=4;
+      *tmp2 = *tmp1;
+      tmp1++;
+      tmp2++;
+    }
+  *tmp2=0;
+#endif
+
   subtree = xmlNewChild (tree, NULL, "title", title);
   subtree = xmlNewChild (tree, NULL, "link", link);
-  description = rss_massage_text (p, description, vr->base_uri);
-  subtree = xmlNewChild (tree, NULL, "description", description);
+  subtree = xmlNewChild (tree, NULL, "description", clean_description);
 }
 
 static void
@@ -75,29 +102,29 @@ rss_index_serve (VirguleReq *vr)
   int size;
 
   doc = xmlNewDoc ("1.0");
+  vr->r->content_type = "text/xml; charset=UTF-8";
   xmlCreateIntSubset (doc, "rss",
 		      "-//Netscape Communications//DTD RSS 0.91//EN",
 		      "http://my.netscape.com/publish/formats/rss-0.91.dtd");
-  doc->root = xmlNewDocNode (doc, NULL, "rss", NULL);
-  xmlSetProp (doc->root, "version", "0.91");
-  tree = xmlNewChild (doc->root, NULL, "channel", NULL);
+  doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
+  xmlSetProp (doc->xmlRootNode, "version", "0.91");
+  tree = xmlNewChild (doc->xmlRootNode, NULL, "channel", NULL);
   subtree = xmlNewChild (tree, NULL, "title", vr->site_name);
-  subtree = xmlNewChild (tree, NULL, "link",
-			 ap_psprintf (p, "%s/article/", vr->base_uri));
-  subtree = xmlNewChild (tree, NULL, "description",
-			 ap_psprintf (p, "Recent %s ", vr->site_name));
-  subtree = xmlNewChild (subtree, NULL, "x", "articles");
+  subtree = xmlNewChild (tree, NULL, "link", 
+			ap_psprintf (p, "%s/", vr->base_uri));
+  subtree = xmlNewChild (tree, NULL, "description", 
+			ap_psprintf (p, "Recent %s articles", vr->site_name));
   subtree = xmlNewChild (tree, NULL, "language", "en-us");
 
   art_num = db_dir_max (vr->db, "articles");
 
-  for (n_arts = 0; n_arts < 10 && art_num >= 0; n_arts++)
+  for (n_arts = 0; n_arts < 15 && art_num >= 0; n_arts++)
     {
       rss_render (vr, art_num, tree);
       art_num--;
     }
 
-  xmlDocDumpMemory (doc, &mem, &size);
+  xmlDocDumpFormatMemory (doc, &mem, &size, 1);
   buffer_write (b, mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
@@ -108,7 +135,7 @@ int
 rss_serve (VirguleReq *vr)
 {
    const char *p;
-   if ((p = match_prefix (vr->r->uri, "/rss/")) == NULL)
+   if ((p = match_prefix (vr->uri, "/rss/")) == NULL)
      return DECLINED;
 
    if (!strcmp (p, "articles.xml"))
