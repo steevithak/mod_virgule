@@ -257,16 +257,6 @@ virgule_eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
   if (profile == NULL)
     return -1;
 
-// rsr - if we test for aliases here we don't have to in rating.c
-// just a thought. Otherwise, load the /tmetric/default list of
-// account names rather than cycling through the physical /acct/
-// directory. That way, we don't have to check each one to see if
-// it's an aliases. Would save some file I/O and speed things up.
-//
-//  tree = virgule_xml_find_child (profile->xmlRootNode, "info");
-//  if (tree == NULL)
-//    return -1;    
-
   tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
@@ -274,13 +264,13 @@ virgule_eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
 
       for (cert = tree->children; cert != NULL; cert = cert->next)
 	if (cert->type == XML_ELEMENT_NODE &&
-	    !strcmp (cert->name, "cert"))
+	    !strcmp ((char *)cert->name, "cert"))
 	  {
 	    char *subject;
 	    char *level;
 
-	    subject = xmlGetProp (cert, "subj");
-	    level = xmlGetProp (cert, "level");
+	    subject = (char *)xmlGetProp (cert, (xmlChar *)"subj");
+	    level = (char *)xmlGetProp (cert, (xmlChar *)"level");
 	    if (strcmp (level, virgule_cert_level_to_name (vr, 0)) &&
 		strcmp (u, subject))
 	      {

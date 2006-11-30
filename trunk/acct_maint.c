@@ -96,7 +96,7 @@ acct_kill(VirguleReq *vr, const char *u)
 
   if (alias != NULL) /* If this is the alias, get username and kill profile */
     {
-      user = virgule_xml_get_prop (p, alias, "link");
+      user = virgule_xml_get_prop (p, alias, (xmlChar *)"link");
       virgule_db_xml_free (p, vr->db, profile);
       virgule_db_del (vr->db, db_key);
       db_key = virgule_acct_dbkey (vr, user);
@@ -118,13 +118,13 @@ acct_kill(VirguleReq *vr, const char *u)
   tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
-      char *subject, *level;
+      xmlChar *subject, *level;
       for (cert = tree->children; cert != NULL; cert = cert->next)
-        if (cert->type == XML_ELEMENT_NODE && ! strcmp (cert->name, "cert"))
+        if (cert->type == XML_ELEMENT_NODE && ! xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	  {
-            subject = xmlGetProp (cert, "subj");
-	    level = xmlGetProp (cert, "level");
-	    virgule_cert_set (vr, user, subject, CERT_LEVEL_NONE);
+            subject = xmlGetProp (cert, (xmlChar *)"subj");
+	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    virgule_cert_set (vr, (char *)user, (char *)subject, CERT_LEVEL_NONE);
 	    xmlFree(subject);
 	    xmlFree(level);
 	  }
@@ -134,13 +134,13 @@ acct_kill(VirguleReq *vr, const char *u)
   tree = virgule_xml_find_child (profile->xmlRootNode, "certs-in");
   if (tree)
     {
-      char *issuer, *level;
+      xmlChar *issuer, *level;
       for (cert = tree->children; cert != NULL; cert = cert->next)
-        if (cert->type == XML_ELEMENT_NODE && ! strcmp (cert->name, "cert"))
+        if (cert->type == XML_ELEMENT_NODE && ! xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	  {
-	    issuer = xmlGetProp (cert, "issuer");
-	    level = xmlGetProp (cert, "level");
-	    virgule_cert_set (vr, issuer, user, CERT_LEVEL_NONE);
+	    issuer = xmlGetProp (cert, (xmlChar *)"issuer");
+	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    virgule_cert_set (vr, (char *)issuer, user, CERT_LEVEL_NONE);
 	    xmlFree(issuer);
 	    xmlFree(level);
 	  }
@@ -154,7 +154,7 @@ acct_kill(VirguleReq *vr, const char *u)
       for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
         {
 	  char *name;
-	  name = virgule_xml_get_prop (p, tree, "name");
+	  name = virgule_xml_get_prop (p, tree, (xmlChar *)"name");
 	  virgule_proj_set_relation(vr,name,user,"None");
 	}
       virgule_db_xml_free (p, vr->db, staff);
@@ -208,9 +208,9 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
 {
   int score = 0;
   int flagged = FALSE;
-  char *scorestr;
   char *db_key;
   xmlDoc *profile;
+  xmlChar *scorestr;
   xmlNode *spamtree;
   xmlNode *flag;
   xmlNode *spamscore;
@@ -236,9 +236,9 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
   /* search for an existing flag from vr->u while tallying the spam score */
   for (flag = spamtree->children; flag != NULL; flag = flag->next)
     {
-      if (flag->type == XML_ELEMENT_NODE && !strcmp (flag->name, "flag"))
+      if (flag->type == XML_ELEMENT_NODE && !xmlStrcmp (flag->name, (xmlChar *)"flag"))
         {
-	  char *issuer = xmlGetProp (flag, "issuer");
+	  char *issuer = (char *)xmlGetProp (flag, (xmlChar *)"issuer");
 	  if(issuer)
 	    {
 	      score += virgule_cert_level_from_name (vr, 
@@ -254,14 +254,14 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
     return virgule_send_error_page (vr, "Account Already Flagged", "You have already flagged this account as spam.\n");
 
   /* add a new spam flag and increment score */
-  flag = xmlNewChild (spamtree, NULL, "flag", NULL);
-  xmlSetProp (flag, "issuer", vr->u);
+  flag = xmlNewChild (spamtree, NULL, (xmlChar *)"flag", NULL);
+  xmlSetProp (flag, (xmlChar *)"issuer", (xmlChar *)vr->u);
 
   score += virgule_cert_level_from_name (vr, virgule_req_get_tmetric_level (vr, vr->u));
-  scorestr = apr_itoa (vr->r->pool, score);
+  scorestr = (xmlChar *)apr_itoa (vr->r->pool, score);
   spamscore = virgule_xml_find_child(profile->xmlRootNode, "spamscore");
   if(spamscore == NULL)
-    spamscore = xmlNewChild (profile->xmlRootNode, NULL, "spamscore", scorestr);
+    spamscore = xmlNewChild (profile->xmlRootNode, NULL, (xmlChar *)"spamscore", scorestr);
   else
     xmlNodeSetContent (spamscore, scorestr);
   
@@ -304,9 +304,9 @@ virgule_acct_set_lastread(VirguleReq *vr, const char *section, const char *locat
   for (msgptr = tree->children; msgptr != NULL; msgptr = msgptr->next)
     {
       if (msgptr->type == XML_ELEMENT_NODE &&
-	  !strcmp (msgptr->name, "lastread"))
+	  !xmlStrcmp (msgptr->name, (xmlChar *)"lastread"))
 	{
-	  char *old_msgptr = xmlGetProp (msgptr, "location");
+	  char *old_msgptr = (char *)xmlGetProp (msgptr, (xmlChar *)"location");
 	      
 	  if (old_msgptr)
 	    {
@@ -321,12 +321,12 @@ virgule_acct_set_lastread(VirguleReq *vr, const char *section, const char *locat
     }
   if (msgptr == NULL)
     {
-      msgptr = xmlNewChild (tree, NULL, "lastread", NULL);
-      xmlSetProp (msgptr, "location", location);
+      msgptr = xmlNewChild (tree, NULL, (xmlChar *)"lastread", NULL);
+      xmlSetProp (msgptr, (xmlChar *)"location", (xmlChar *)location);
     }
 
-  xmlSetProp (msgptr, "num", apr_psprintf(p, "%d", last_read));
-  xmlSetProp (msgptr, "date", virgule_iso_now(p));
+  xmlSetProp (msgptr, (xmlChar *)"num", (xmlChar *)apr_psprintf(p, "%d", last_read));
+  xmlSetProp (msgptr, (xmlChar *)"date", (xmlChar *)virgule_iso_now(p));
 
   status = virgule_db_xml_put (p, db, db_key, profile);
   virgule_db_xml_free (p, db, profile);
@@ -359,15 +359,14 @@ virgule_acct_get_lastread(VirguleReq *vr, const char *section, const char *locat
   for (msgptr = tree->children; msgptr != NULL; msgptr = msgptr->next)
     {
       if (msgptr->type == XML_ELEMENT_NODE &&
-	  !strcmp (msgptr->name, "lastread"))
+	  !xmlStrcmp (msgptr->name, (xmlChar *)"lastread"))
 	{
-	  char *old_msgptr = xmlGetProp (msgptr, "location");
+	  char *old_msgptr = (char *)xmlGetProp (msgptr, (xmlChar *)"location");
 	      
 	  if (old_msgptr)
 	    {
 	      if (!strcmp (old_msgptr, location))
-
-		return atoi (xmlGetProp (msgptr, "num"));
+		return atoi ((char *)xmlGetProp (msgptr, (xmlChar *)"num"));
 	    }
 	}
     }
@@ -392,7 +391,7 @@ virgule_acct_get_num_old(VirguleReq *vr)
       profile = virgule_db_xml_get (p, vr->db, db_key);
       tree = virgule_xml_find_child (profile->xmlRootNode, "info");
 
-      num_old = xmlGetProp (tree, "numold");
+      num_old = (char *)xmlGetProp (tree, (xmlChar *)"numold");
 
       if (num_old == NULL || *num_old == '\0')
 	return 30;
@@ -430,15 +429,15 @@ virgule_acct_get_lastread_date(VirguleReq *vr, const char *section, const char *
   for (msgptr = tree->children; msgptr != NULL; msgptr = msgptr->next)
     {
       if (msgptr->type == XML_ELEMENT_NODE &&
-	  !strcmp (msgptr->name, "lastread"))
+	  !xmlStrcmp (msgptr->name, (xmlChar *)"lastread"))
 	{
-	  char *old_msgptr = xmlGetProp (msgptr, "location");
+	  char *old_msgptr = (char *)xmlGetProp (msgptr, (xmlChar *)"location");
 	      
 	  if (old_msgptr)
 	    {
 	      if (!strcmp (old_msgptr, location))
 		{ 
-		  date = xmlGetProp (msgptr, "date");
+		  date = (char *)xmlGetProp (msgptr, (xmlChar *)"date");
 		  if (date == NULL)
 		    date = "1970-01-01 00:00:00";
 		  virgule_db_xml_free (p, db, profile);
@@ -593,7 +592,7 @@ acct_index_serve (VirguleReq *vr)
 
 	  value = NULL;
 	  if (tree)
-	    value = xmlGetProp (tree, prof_fields[i].attr_name);
+	    value = (char *)xmlGetProp (tree, (xmlChar *)prof_fields[i].attr_name);
 
 	  virgule_buffer_printf (b, "<p> %s: <br>\n", prof_fields[i].description);
 	  if (prof_fields[i].flags & PROFILE_BOOLEAN)
@@ -635,7 +634,6 @@ acct_index_serve (VirguleReq *vr)
 		   "<p> Password: <br/>\n"
 		   "<input name=\"pass\" size=\"20\" type=\"password\"/> \n"
 		   "</p>\n"
-//		   "<p><input name=\"forgot\" type=\"checkbox\"> I forgot my password</p>"
 		   "<input type=\"submit\" value=\"Login\"/>\n"
 		   "</form></div>\n"
 		   "<div class=\"login\">Password Reminder"
@@ -726,20 +724,20 @@ acct_newsub_serve (VirguleReq *vr)
 
   profile = virgule_db_xml_doc_new (p);
 
-  root = xmlNewDocNode (profile, NULL, "profile", NULL);
+  root = xmlNewDocNode (profile, NULL, (xmlChar *)"profile", NULL);
   profile->xmlRootNode = root;
 
   date = virgule_iso_now (p);
-  tree = xmlNewChild (root, NULL, "date", date);
-  tree = xmlNewChild (root, NULL, "auth", NULL);
-  xmlSetProp (tree, "pass", pass);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"auth", NULL);
+  xmlSetProp (tree, (xmlChar *)"pass", (xmlChar *)pass);
   cookie = virgule_rand_cookie (p);
 #if 0
   virgule_buffer_printf (b, "Cookie is %s\n", cookie);
 #endif
-  xmlSetProp (tree, "cookie", cookie);
+  xmlSetProp (tree, (xmlChar *)"cookie", (xmlChar *)cookie);
 
-  tree = xmlNewChild (root, NULL, "info", NULL);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"info", NULL);
   for (i = 0; prof_fields[i].description; i++)
     {
       const char *val;
@@ -747,7 +745,7 @@ acct_newsub_serve (VirguleReq *vr)
       if (val == NULL)
         continue;
       if (virgule_is_input_valid(val))
-        xmlSetProp (tree, prof_fields[i].attr_name, val);
+        xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
       else
         return virgule_send_error_page (vr,
                                 "Invalid Characters Submitted",
@@ -771,10 +769,10 @@ acct_newsub_serve (VirguleReq *vr)
     {
       profile = virgule_db_xml_doc_new (p);
 
-      root = xmlNewDocNode (profile, NULL, "profile", NULL);
+      root = xmlNewDocNode (profile, NULL, (xmlChar *)"profile", NULL);
       profile->xmlRootNode = root;
-      tree = xmlNewChild (root, NULL, "alias", NULL);
-      xmlSetProp (tree, "link", u);
+      tree = xmlNewChild (root, NULL, (xmlChar *)"alias", NULL);
+      xmlSetProp (tree, (xmlChar *)"link", (xmlChar *)u);
 
       status = virgule_db_xml_put (p, db, db_key_lc, profile);
     }
@@ -848,7 +846,7 @@ virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
       if (tree == NULL)
 	break;
 
-      u = virgule_xml_get_prop (p, tree, "link");
+      u = virgule_xml_get_prop (p, tree, (xmlChar *)"link");
       db_key = virgule_acct_dbkey (vr, u);
       profile = virgule_db_xml_get (p, db, db_key);
     }
@@ -870,7 +868,7 @@ virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
       return 0;
     }
 
-  stored_pass = xmlGetProp (tree, "pass");
+  stored_pass = (char *)xmlGetProp (tree, (xmlChar *)"pass");
 
   if (strcmp (pass, stored_pass))
     {
@@ -881,7 +879,7 @@ virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
     }
 
   xmlFree (stored_pass);
-  cookie = xmlGetProp (tree, "cookie");
+  cookie = (char *)xmlGetProp (tree, (xmlChar *)"cookie");
 
   *ret1 = apr_pstrdup (p, u);
   *ret2 = apr_pstrdup (p, cookie);
@@ -972,13 +970,13 @@ acct_loginsub_serve (VirguleReq *vr)
       tree = virgule_xml_find_child (profile->xmlRootNode, "alias");
       if (tree != NULL) 
         {
-          db_key_lc = virgule_acct_dbkey (vr, virgule_xml_get_prop (p, tree, "link"));
+          db_key_lc = virgule_acct_dbkey (vr, virgule_xml_get_prop (p, tree, (xmlChar *)"link"));
           profile = virgule_db_xml_get (p, vr->db, db_key_lc);
         }
       
       /* Get the email and password. */
       tree = virgule_xml_find_child (profile->xmlRootNode, "info");
-      mail = virgule_xml_get_prop (p, tree, "email");
+      mail = virgule_xml_get_prop (p, tree, (xmlChar *)"email");
       if (mail == NULL)
 	{
 	  return virgule_send_error_page(vr,
@@ -988,7 +986,7 @@ acct_loginsub_serve (VirguleReq *vr)
 	}
 
       tree = virgule_xml_find_child (profile->xmlRootNode, "auth");
-      pass = virgule_xml_get_prop (p, tree, "pass");
+      pass = virgule_xml_get_prop (p, tree, (xmlChar *)"pass");
       if (pass == NULL)
 	{
 	  return virgule_send_error_page(vr,
@@ -1078,7 +1076,7 @@ acct_update_serve (VirguleReq *vr)
 	      g_print ("Setting field %s to %s\n",
 		       prof_fields[i].attr_name, val);
 #endif
-              xmlSetProp (tree, prof_fields[i].attr_name, val);
+              xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
 	    }
           else
             return virgule_send_error_page (vr,
@@ -1186,8 +1184,8 @@ virgule_acct_person_index_serve (VirguleReq *vr, int max)
           tree = virgule_xml_find_child (profile->xmlRootNode, "info");
           if (tree != NULL)
 	    {
-	      givenname = virgule_xml_get_prop (vr->r->pool, tree, "givenname");
-	      surname = virgule_xml_get_prop (vr->r->pool, tree, "surname");
+	      givenname = virgule_xml_get_prop (vr->r->pool, tree, (xmlChar *)"givenname");
+	      surname = virgule_xml_get_prop (vr->r->pool, tree, (xmlChar *)"surname");
 	    }
           virgule_db_xml_free (vr->r->pool, vr->db, profile);
 
@@ -1249,17 +1247,17 @@ acct_person_graph_serve (VirguleReq *vr)
       for (cert = tree->children; cert != NULL; cert = cert->next)
 	{
 	  if (cert->type == XML_ELEMENT_NODE &&
-	      !strcmp (cert->name, "cert"))
+	      !xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	    {
 	      char *cert_subj;
 
-	      cert_subj = virgule_xml_get_prop (p, cert, "subj");
+	      cert_subj = virgule_xml_get_prop (p, cert, (xmlChar *)"subj");
 	      if (cert_subj &&
 		  virgule_cert_level_from_name (vr, virgule_req_get_tmetric_level (vr, cert_subj)) >= threshold)
 		{
 		  char *cert_level;
 
-                  cert_level = virgule_xml_get_prop (p, cert, "level");
+                  cert_level = virgule_xml_get_prop (p, cert, (xmlChar *)"level");
 		  virgule_buffer_printf (b, "   %s -> %s [level=\"%s\"];\n",
 				 issuer, cert_subj, cert_level);
 		}
@@ -1280,13 +1278,13 @@ acct_person_diary_xml_serve (VirguleReq *vr, char *u)
   xmlChar *mem;
   int size;
 
-  doc = xmlNewDoc ("1.0");
+  doc = xmlNewDoc ((xmlChar *)"1.0");
 
-  doc->xmlRootNode = xmlNewDocNode (doc, NULL, "tdif", NULL);
+  doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"tdif", NULL);
   virgule_diary_export (vr, doc->xmlRootNode, u);
 
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
-  virgule_buffer_write (b, mem, size);
+  virgule_buffer_write (b, (char *)mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
   return virgule_send_response (vr);
@@ -1300,19 +1298,19 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   xmlChar *mem;
   int size;
 
-  doc = xmlNewDoc ("1.0");
+  doc = xmlNewDoc ((xmlChar *)"1.0");
 
   vr->r->content_type = "text/xml; charset=UTF-8";
 
-  xmlCreateIntSubset(doc, "rss",
-		    "-//Netscape Communications//DTD RSS 0.91//EN",
-		    "http://my.netscape.com/publish/formats/rss-0.91.dtd");
+  xmlCreateIntSubset(doc, (xmlChar *)"rss",
+		    (xmlChar *)"-//Netscape Communications//DTD RSS 0.91//EN",
+		    (xmlChar *)"http://my.netscape.com/publish/formats/rss-0.91.dtd");
 
-  doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
-  xmlSetProp (doc->xmlRootNode, "version", "0.91");
+  doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"rss", NULL);
+  xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"0.91");
   virgule_diary_rss_export (vr, doc->xmlRootNode, u);
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
-  virgule_buffer_write (b, mem, size);
+  virgule_buffer_write (b, (char *)mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
   return virgule_send_response (vr);
@@ -1321,11 +1319,27 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
 static int
 acct_person_diary_serve (VirguleReq *vr, char *u)
 {
+  xmlDoc *profile;
   apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *str;
+  char *db_key;
   apr_table_t *args;
   int start;
+
+  db_key = virgule_acct_dbkey (vr, u);
+  if (db_key == NULL)
+    return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
+    
+  profile = virgule_db_xml_get (p, vr->db, db_key);
+  if (profile == NULL)
+    {
+      vr->r->status = 404;
+      vr->r->status_line = apr_pstrdup(p, "404 Not Found");
+      return virgule_send_error_page (vr,
+			    "<x>Person</x> not found",
+			    "Account <tt>%s</tt> was not found.", u);
+    }
 
   args = virgule_get_args_table (vr);
   if (args == NULL)
@@ -1333,7 +1347,7 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   else
     start = atoi (apr_table_get (args, "start"));
 
-  str = apr_psprintf (p, "Diary for %s", u);
+  str = apr_psprintf (p, "Blog for %s", u);
 
   virgule_render_header (vr, str, NULL);
   if (start == -1)
@@ -1412,16 +1426,20 @@ acct_person_serve (VirguleReq *vr, const char *path)
     
   profile = virgule_db_xml_get (p, vr->db, db_key);
   if (profile == NULL)
-    return virgule_send_error_page (vr,
+    {
+      vr->r->status = 404;
+      vr->r->status_line = apr_pstrdup(p, "404 Not Found");
+      return virgule_send_error_page (vr,
 			    "<x>Person</x> not found",
 			    "Account <tt>%s</tt> was not found.", u);
-
+    }
+    
   tree = virgule_xml_find_child (profile->xmlRootNode, "alias");
   if (tree != NULL)
     {
       apr_table_add (r->headers_out, "Location",
 		    apr_pstrcat (p, vr->prefix, "/person/",
-				virgule_xml_get_prop (p, tree, "link"), "/", NULL));
+				virgule_xml_get_prop (p, tree, (xmlChar *)"link"), "/", NULL));
       return HTTP_MOVED_PERMANENTLY;
 				
     }
@@ -1469,7 +1487,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   lastlogin = virgule_xml_find_child(profile->xmlRootNode, "lastlogin");
   if(lastlogin) 
-    date = virgule_xml_get_prop (p, lastlogin, "date");
+    date = virgule_xml_get_prop (p, lastlogin, (xmlChar *)"date");
   if(!date)
     date = "N/A";
 
@@ -1477,8 +1495,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
   tree = virgule_xml_find_child (profile->xmlRootNode, "info");
   if (tree)
     {
-      givenname = virgule_xml_get_prop (p, tree, "givenname");
-      surname = virgule_xml_get_prop (p, tree, "surname");
+      givenname = virgule_xml_get_prop (p, tree, (xmlChar *)"givenname");
+      surname = virgule_xml_get_prop (p, tree, (xmlChar *)"surname");
       virgule_buffer_printf (b, "<p> Name: %s %s<br />Last login: %s</p>\n",
 // rsr		     givenname ? virgule_nice_utf8(p, givenname) : "",
 //		     surname ? virgule_nice_utf8(p, surname) : "", date);
@@ -1487,7 +1505,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 		     givenname ? givenname : "",
 		     surname ? surname : "", date);
 
-      url = virgule_xml_get_prop (p, tree, "url");
+      url = virgule_xml_get_prop (p, tree, (xmlChar *)"url");
       if (url && url[0])
 	{
 	  char *url2;
@@ -1504,7 +1522,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  virgule_buffer_printf (b, ">%s</a></p>\n", virgule_nice_text (p, url));
 	  any = 1;
 	}
-      notes = virgule_xml_get_prop (p, tree, "notes");
+      notes = virgule_xml_get_prop (p, tree, (xmlChar *)"notes");
       if (notes && notes[0])
 	{
 	  if(observer)
@@ -1530,8 +1548,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  char *name;
 	  char *type;
 
-	  name = virgule_xml_get_prop (p, tree, "name");
-	  type = virgule_xml_get_prop (p, tree, "type");
+	  name = virgule_xml_get_prop (p, tree, (xmlChar *)"name");
+	  type = virgule_xml_get_prop (p, tree, (xmlChar *)"type");
 
 	  if (! !strcmp (type, "None"))
 	    {
@@ -1559,12 +1577,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
       int any = 0;
       for (cert = tree->children; cert != NULL; cert = cert->next)
 	if (cert->type == XML_ELEMENT_NODE &&
-	    !strcmp (cert->name, "cert"))
+	    !xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	  {
-	    char *subject, *level;
-	    subject = xmlGetProp (cert, "subj");
-	    level = xmlGetProp (cert, "level");
-	    if (strcmp (level, virgule_cert_level_to_name (vr, 0)))
+	    xmlChar *subject, *level;
+	    subject = xmlGetProp (cert, (xmlChar *)"subj");
+	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
 	      {
 		if (!any)
 		  {
@@ -1573,7 +1591,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 		    any = 1;
 		  }
 	      virgule_buffer_printf (b, "<li>%s certified <a href=\"../%s/\">%s</a> as %s\n",
-			     u, ap_escape_uri(vr->r->pool, subject), subject, level);
+			     u, ap_escape_uri(vr->r->pool, (char *)subject), subject, level);
 	      }
 	  }
       if (any)
@@ -1587,12 +1605,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
       int any = 0;
       for (cert = tree->children; cert != NULL; cert = cert->next)
 	if (cert->type == XML_ELEMENT_NODE &&
-	    !strcmp (cert->name, "cert"))
+	    !xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	  {
-	    char *issuer, *level;
-	    issuer = xmlGetProp (cert, "issuer");
-	    level = xmlGetProp (cert, "level");
-	    if (strcmp (level, virgule_cert_level_to_name (vr, 0)))
+	    xmlChar *issuer, *level;
+	    issuer = xmlGetProp (cert, (xmlChar *)"issuer");
+	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
 	      {
 		if (!any)
 		  {
@@ -1764,12 +1782,12 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
   lastlogin = virgule_xml_find_child(root, "lastlogin");
   if(lastlogin == NULL) 
   {
-    lastlogin = xmlNewChild (root, NULL, "lastlogin", NULL);
-    xmlSetProp (lastlogin, "date", newdate);
+    lastlogin = xmlNewChild (root, NULL, (xmlChar *)"lastlogin", NULL);
+    xmlSetProp (lastlogin, (xmlChar *)"date", (xmlChar *)newdate);
   }
   else
   {
-    xmlSetProp (lastlogin, "date", newdate);
+    xmlSetProp (lastlogin, (xmlChar *)"date", (xmlChar *)newdate);
   }
   
   virgule_db_xml_put (p, vr->db, db_key, profile);  
