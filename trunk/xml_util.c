@@ -1,3 +1,5 @@
+#include <apr.h>
+#include <apr_strings.h>
 #include <httpd.h>
 
 #include <libxml/tree.h>
@@ -65,7 +67,7 @@ xml_get_string_contents (xmlNode *n)
 
 /* xmlGetProp with Apache-friendly allocation */
 char *
-xml_get_prop (pool *p, xmlNodePtr node, const xmlChar *name)
+xml_get_prop (apr_pool_t *p, xmlNodePtr node, const xmlChar *name)
 {
   char *value;
   char *result;
@@ -73,7 +75,7 @@ xml_get_prop (pool *p, xmlNodePtr node, const xmlChar *name)
   value = xmlGetProp (node, name);
   if (value == NULL)
     return NULL;
-  result = ap_pstrdup (p, value);
+  result = apr_pstrdup (p, value);
   xmlFree (value);
   return result;
 }

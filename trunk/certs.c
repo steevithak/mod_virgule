@@ -1,5 +1,7 @@
 #include <string.h>
-#include "httpd.h"
+
+#include <apr.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
@@ -51,7 +53,7 @@ cert_level_to_name (VirguleReq *vr, CertLevel level)
 CertLevel
 cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   char *db_key;
   xmlDoc *profile;
@@ -95,7 +97,7 @@ cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 int
 cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   char *db_key;
   xmlDoc *profile;

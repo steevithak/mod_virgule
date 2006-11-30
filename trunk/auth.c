@@ -1,6 +1,10 @@
 /* Try to authenticate the user from the cookie */
 
-#include "httpd.h"
+#include <ctype.h>
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -12,14 +16,12 @@
 #include "xml_util.h"
 #include "auth.h"
 
-#include <ctype.h>
-
 void
 auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
 {
   request_rec *r = vr->r;
   Db *db = vr->db;
-  pool *p = r->pool;
+  apr_pool_t *p = r->pool;
   char *u;
   char *db_key;
   xmlDoc *profile;
@@ -51,17 +53,17 @@ auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
   acct_touch(vr,u);
 
   /* store the username where it will be logged */
-  if (!vr->r->connection->user)
+  if (!vr->r->user)
     {
       char *lu, *s, *d;
-      lu = ap_pstrdup (p, u);
+      lu = apr_pstrdup (p, u);
       for (s = d = lu; *s; s++)
         if (isgraph(*s))
 	  *d++ = *s;
 	else
 	  *d++ = '_';
       *d = 0;
-      vr->r->connection->user = lu;
+      vr->r->user = lu;
     }
 }
 
@@ -76,7 +78,7 @@ auth_user (VirguleReq *vr)
     /* already authenticated */
     return;
 
-  cookie = ap_table_get (vr->r->headers_in, "Cookie");
+  cookie = apr_table_get (vr->r->headers_in, "Cookie");
   if (cookie == NULL)
     return;
 

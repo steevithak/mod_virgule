@@ -1,6 +1,7 @@
 /* Nice hash table for Apache runtime. */
 
-#include "httpd.h"
+#include <apr.h>
+#include <httpd.h>
 
 #include "hashtable.h"
 
@@ -38,14 +39,14 @@ hash_func (const char *string)
 }
 
 HashTable *
-hash_table_new (pool *p)
+hash_table_new (apr_pool_t *p)
 {
   HashTable *result;
-  result = (HashTable *)ap_palloc (p, sizeof(HashTable));
+  result = (HashTable *)apr_palloc (p, sizeof(HashTable));
 
   result->n = 0;
   result->n_max = 4;
-  result->buckets = (HashBucket **)ap_palloc (p, sizeof(HashBucket *) * result->n_max);
+  result->buckets = (HashBucket **)apr_palloc (p, sizeof(HashBucket *) * result->n_max);
 
   memset (result->buckets, 0, sizeof(HashBucket *) * result->n_max);
 
@@ -69,7 +70,7 @@ hash_table_get (const HashTable *ht, const char *key)
 }
 
 static void
-hash_table_insert_bucket (pool *p, HashBucket **buckets, int n_max,
+hash_table_insert_bucket (apr_pool_t *p, HashBucket **buckets, int n_max,
 		    HashBucket *bucket)
 {
   unsigned int hash;
@@ -84,10 +85,10 @@ hash_table_insert_bucket (pool *p, HashBucket **buckets, int n_max,
 
 /* Internal insert function. Assumes that key is not already present. */
 static void
-hash_table_insert (pool *p, HashBucket **buckets, int n_max,
+hash_table_insert (apr_pool_t *p, HashBucket **buckets, int n_max,
 	     const char *key, void *val)
 {
-  HashBucket *bucket = (HashBucket *)ap_palloc (p, sizeof(HashBucket));
+  HashBucket *bucket = (HashBucket *)apr_palloc (p, sizeof(HashBucket));
 
   bucket->key = key;
   bucket->val = val;
@@ -95,7 +96,7 @@ hash_table_insert (pool *p, HashBucket **buckets, int n_max,
 }
 
 void
-hash_table_set (pool *p, HashTable *ht, const char *key, void *val)
+hash_table_set (apr_pool_t *p, HashTable *ht, const char *key, void *val)
 {
   unsigned int hash;
   int n_max;
@@ -119,7 +120,7 @@ hash_table_set (pool *p, HashTable *ht, const char *key, void *val)
 
       int new_n_max = n_max << 1;
       HashBucket **old_buckets = ht->buckets;
-      HashBucket **new_buckets = (HashBucket **)ap_palloc (p, sizeof(HashBucket *) * new_n_max);
+      HashBucket **new_buckets = (HashBucket **)apr_palloc (p, sizeof(HashBucket *) * new_n_max);
       int i;
 
       memset (new_buckets, 0, sizeof(HashBucket *) * new_n_max); 
@@ -136,7 +137,7 @@ hash_table_set (pool *p, HashTable *ht, const char *key, void *val)
     }
   else
     {
-      HashBucket *bucket = (HashBucket *)ap_palloc (p, sizeof(HashBucket));
+      HashBucket *bucket = (HashBucket *)apr_palloc (p, sizeof(HashBucket));
       ht->buckets[hash] = bucket;
       bucket->key = key;
       bucket->val = val;
@@ -144,10 +145,10 @@ hash_table_set (pool *p, HashTable *ht, const char *key, void *val)
 }
 
 HashTableIter *
-hash_table_iter (pool *p, const HashTable *ht)
+hash_table_iter (apr_pool_t *p, const HashTable *ht)
 {
   HashTableIter *result;
-  result = (HashTableIter *)ap_palloc (p, sizeof(HashTableIter));
+  result = (HashTableIter *)apr_palloc (p, sizeof(HashTableIter));
 
   result->ht = ht;
   result->index = 0;

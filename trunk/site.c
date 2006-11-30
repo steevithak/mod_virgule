@@ -1,12 +1,14 @@
 /* This module serves xml files into HTML, using a simple hardcoded
    stylesheet. */
 
-#include "httpd.h"
-#include "http_log.h"
-#include "http_core.h"
-#include "http_config.h"
-#include "http_protocol.h"
-#include "ap_config.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
+#include <http_log.h>
+#include <http_core.h>
+#include <http_config.h>
+#include <http_protocol.h>
+#include <ap_config.h>
 
 #include <stdlib.h> /* for atof */
 
@@ -83,7 +85,7 @@ site_render_person_link (VirguleReq *vr, const char *name)
 void
 site_render_banner_ad (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   const char *imp, *img, *url;
   xmlDoc *adlist;
   xmlNode *ad;
@@ -146,13 +148,13 @@ site_send_banner_ad (VirguleReq *vr)
 static void
 site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key;
   xmlDoc *doc;
   xmlNode *root, *tree;
   int n;
 
-  key = ap_psprintf (p, "recent/%s.xml", list);
+  key = apr_psprintf (p, "recent/%s.xml", list);
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return;
@@ -189,25 +191,25 @@ conf_to_gray (double confidence)
 static void
 site_render_recent_changelog (VirguleReq *vr, int n_max)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key;
   xmlDoc *doc;
   xmlNode *root, *tree;
   int n;
   HashTable *ev = NULL;
-  table *args;
+  apr_table_t *args;
   const char *thresh_str;
   double thresh = 0;
   int suppress_count = 0;
-  table *entries = NULL;
+  apr_table_t *entries = NULL;
 
-  key = ap_psprintf (p, "recent/%s.xml", "diary");
+  key = apr_psprintf (p, "recent/%s.xml", "diary");
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return;
 
   args = get_args_table (vr);
-  if (args && (thresh_str = ap_table_get (args, "thresh")))
+  if (args && (thresh_str = apr_table_get (args, "thresh")))
     {
       thresh = atof (thresh_str);
     }
@@ -215,12 +217,12 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
   auth_user (vr);
   if (vr->render_diaryratings && vr->u)
     {
-        char *eigen_key = ap_pstrcat (p, "eigen/vec/", vr->u, NULL);
+        char *eigen_key = apr_pstrcat (p, "eigen/vec/", vr->u, NULL);
 	ev = eigen_vec_load (p, vr, eigen_key);
     }
 
   if (vr->recentlog_as_posted)
-    entries = ap_make_table (p, 4);
+    entries = apr_table_make (p, 4);
 
   root = doc->xmlRootNode;
   n = 0;
@@ -236,7 +238,7 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 
       if (ev)
 	{
-	  char *dkey = ap_pstrcat (p, "d/", name, NULL);
+	  char *dkey = apr_pstrcat (p, "d/", name, NULL);
 	  eve = hash_table_get (ev, dkey);
 
 	  if (eve && eve->rating < thresh)
@@ -263,16 +265,16 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 
       if (vr->recentlog_as_posted)
 	{
-	  const char *result = ap_table_get (entries, name);
+	  const char *result = apr_table_get (entries, name);
 	  if (result)
 	    entry = atoi(result);
 	  else
-	    entry = db_dir_max (vr->db, ap_psprintf (p, "acct/%s/diary", name));
+	    entry = db_dir_max (vr->db, apr_psprintf (p, "acct/%s/diary", name));
 
-	  ap_table_set (entries, name, ap_psprintf (p, "%d", entry - 1));
+	  apr_table_set (entries, name, apr_psprintf (p, "%d", entry - 1));
 	}
       else
-	entry = db_dir_max (vr->db, ap_psprintf (p, "acct/%s/diary", name));
+	entry = db_dir_max (vr->db, apr_psprintf (p, "acct/%s/diary", name));
 
       buffer_printf (vr->b, " <a href=\"%s/person/%s/diary.html?start=%u\" style=\"text-decoration: none\">&raquo;</a>",
 		     vr->prefix, name, entry);
@@ -301,13 +303,13 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 static void
 site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key;
   xmlDoc *doc;
   xmlNode *root, *tree;
   int n;
 
-  key = ap_psprintf (p, "recent/%s.xml", list);
+  key = apr_psprintf (p, "recent/%s.xml", list);
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return;
@@ -326,7 +328,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
       else
 	{
 	  char *creator;
-	  char *db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+	  char *db_key = apr_psprintf (p, "proj/%s/info.xml", name);
 	  xmlDoc *proj_doc;
 	  xmlNode *proj_tree;
 	  char *lastread_date;
@@ -366,7 +368,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
 static void
 site_render_recent_bots (VirguleReq *vr, int n_max)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlDoc *doc;
   xmlNode *root, *tree;
   int n;
@@ -393,7 +395,7 @@ site_render_recent_bots (VirguleReq *vr, int n_max)
 static void
 site_render_cronbox (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlDoc *doc;
   xmlNode *root, *tree;
   char *title, *link, *img, *credit, *author;
@@ -422,7 +424,7 @@ site_render_cronbox (VirguleReq *vr)
 static void
 site_render_include (RenderCtx *ctx, VirguleReq *vr, char *path)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlDoc *doc;
   xmlNode *root;
 
@@ -438,8 +440,12 @@ static void
 site_render (RenderCtx *ctx, xmlNode *node)
 {
   VirguleReq *vr = ctx->vr;
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
+  apr_table_t *args;
+
+  args = get_args_table (vr);
+
   if (node->type == XML_TEXT_NODE)
     {
       buffer_puts (b, node->content);
@@ -521,14 +527,23 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	{
 	  char *list, *nmax_str;
 	  int nmax;
+	  int start = -1;
 
-	  list = xml_get_prop (p, node, "list");
+      	  list = xml_get_prop (p, node, "list");
 	  nmax_str = xml_get_prop (p, node, "nmax");
 	  if (nmax_str)
 	    nmax = atoi (nmax_str);
 	  else
 	    nmax = 10;
-	  article_recent_render (vr, nmax, -1);
+
+	  errno = 0;
+	  if (args)
+            start = atoi (apr_table_get (args, "start"));
+	  if (errno)
+	    start = -1;
+	    
+	  article_recent_render (vr, nmax, start);
+//	  article_recent_render (vr, nmax, -1);
 	}
       else if (!strcmp (node->name, "userlist"))
         {
@@ -584,8 +599,8 @@ site_render (RenderCtx *ctx, xmlNode *node)
       else if (!strcmp (node->name, "diarybox"))
 	{
 	    const char *key, *diary;
-	    diary = ap_psprintf (p, "acct/%s/diary", vr->u);
-	    key = ap_psprintf (p, "%d", db_dir_max (vr->db, diary) + 1);
+	    diary = apr_psprintf (p, "acct/%s/diary", vr->u);
+	    key = apr_psprintf (p, "%d", db_dir_max (vr->db, diary) + 1);
 
             buffer_printf (b, 
 		 "<form method=\"POST\" action=\"/diary/post.html\">\n"
@@ -694,9 +709,9 @@ site_serve (VirguleReq *vr)
 
   len = strlen (uri);
   if (len == 0)
-    uri = ap_pstrcat (r->pool, uri, "/index.html", NULL);
+    uri = apr_pstrcat (r->pool, uri, "/index.html", NULL);
   else if (len > 0 && uri[len - 1] == '/')
-    uri = ap_pstrcat (r->pool, uri, "index.html", NULL);
+    uri = apr_pstrcat (r->pool, uri, "index.html", NULL);
 
 #if 0
   r->content_type = "text/plain; charset=UTF-8";
@@ -715,20 +730,20 @@ site_serve (VirguleReq *vr)
 	  content_type = "text/html; charset=UTF-8";
 
 	  is_xml = 1;
-	  uri = ap_pstrcat (r->pool, ap_pstrndup (r->pool, uri, ix + 1),
+	  uri = apr_pstrcat (r->pool, apr_pstrndup (r->pool, uri, ix + 1),
 			    "xml", NULL);
 	}
     }
 
-  key = ap_pstrcat (r->pool, "/site", uri, NULL);
+  key = apr_pstrcat (r->pool, "/site", uri, NULL);
 
   /* The ordering (doing content type first, dir detection second) is
      not pleasing. */
   if (db_is_dir (db, key))
     {
-      ap_table_add (r->headers_out, "Location",
+      apr_table_add (r->headers_out, "Location",
 		    ap_make_full_path (r->pool, vr->uri, ""));
-      return REDIRECT;
+      return HTTP_MOVED_PERMANENTLY;
     }
 
   if (content_type == NULL)

@@ -1,4 +1,6 @@
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -21,7 +23,7 @@ static xmlNode *
 xmlrpc_value_int (xmlNode *node, long i)
 {
   char buf[12];
-  ap_snprintf(buf, 12, "%ld", i);
+  apr_snprintf(buf, 12, "%ld", i);
 
   node = xmlNewChild (node, NULL, "value", NULL);
   node = xmlNewChild (node, NULL, "int", buf);
@@ -41,7 +43,7 @@ xmlrpc_value_datetime (xmlNode *node, VirguleReq *vr, const char *s)
 {
   char *dt, *s_tmp, *y, *m, *d, *rest;
 
-  s_tmp = ap_pstrdup (vr->r->pool, s);
+  s_tmp = apr_pstrdup (vr->r->pool, s);
   
   /* Handle YYYY-MM-DD case with no tail */
   rest = s_tmp[10] ? s_tmp + 11 : NULL;
@@ -52,9 +54,9 @@ xmlrpc_value_datetime (xmlNode *node, VirguleReq *vr, const char *s)
   d = s_tmp + 8;
 
   if (rest == NULL)
-    dt = ap_psprintf (vr->r->pool, "%s%s%s", y, m, d);
+    dt = apr_psprintf (vr->r->pool, "%s%s%s", y, m, d);
   else
-    dt = ap_psprintf (vr->r->pool, "%s%s%sT%s", y, m, d, rest);
+    dt = apr_psprintf (vr->r->pool, "%s%s%sT%s", y, m, d, rest);
 
   node = xmlNewChild (node, NULL, "value", NULL);
   node = xmlNewTextChild (node, NULL, "dateTime.iso8601", dt);
@@ -113,7 +115,7 @@ xmlrpc_fault (VirguleReq *vr, int code, const char *fmt, ...)
   int ret;
 
   va_start (ap, fmt);
-  msg = ap_pvsprintf (vr->r->pool, fmt, ap);
+  msg = apr_pvsprintf (vr->r->pool, fmt, ap);
   va_end (ap);
   
   resp = xmlrpc_create_response (vr);
@@ -283,7 +285,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
               char *val;
 		
               val = xmlNodeListGetString (value->doc, value->children, 1);
-              *va_arg (va, char **) = ap_pstrdup (vr->r->pool, val);
+              *va_arg (va, char **) = apr_pstrdup (vr->r->pool, val);
               xmlFree (val);
             }
           else if (xmlNodeIsText (value))
@@ -291,7 +293,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
               char *val;
                 
               val = xmlNodeGetContent (value);
-              *va_arg (va, char **) = ap_pstrdup (vr->r->pool, val);
+              *va_arg (va, char **) = apr_pstrdup (vr->r->pool, val);
               xmlFree (val);
             }  
           else
@@ -340,7 +342,7 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
     return xmlrpc_fault (vr, 1, "expecting <methodName>, got <%s>", n->name);
 
   tmp = xmlNodeListGetString (n->doc, n->children, 1);
-  name = ap_pstrdup (vr->r->pool, tmp);
+  name = apr_pstrdup (vr->r->pool, tmp);
   xmlFree (tmp);
 
   /* second element of methodCall should be a <params> */
@@ -372,7 +374,7 @@ xmlrpc_serve (VirguleReq *vr)
     return DECLINED;
 
   if (vr->r->method_number != M_POST)
-    return METHOD_NOT_ALLOWED;
+    return HTTP_METHOD_NOT_ALLOWED;
 
   request = xmlParseMemory (vr->args, vr->r->read_length);
   if (request)

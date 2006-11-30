@@ -1,6 +1,9 @@
 /* Rendering of InterWiki links. */
+#include <ctype.h>
 
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -15,7 +18,7 @@ wiki_get_intermap (VirguleReq *vr)
   const char *result;
   int intermap_size;
 
-  result = ap_table_get (vr->render_data, "wiki_intermap");
+  result = apr_table_get (vr->render_data, "wiki_intermap");
   if (result != NULL)
     return result;
 
@@ -23,7 +26,7 @@ wiki_get_intermap (VirguleReq *vr)
   if (result == NULL)
     result = "";
 
-  ap_table_set (vr->render_data, "wiki_intermap", result);
+  apr_table_set (vr->render_data, "wiki_intermap", result);
 
   return result;
 }
@@ -31,7 +34,7 @@ wiki_get_intermap (VirguleReq *vr)
 static char *
 wiki_lookup_intermap (VirguleReq *vr, const char *wikiname)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   const char *intermap = wiki_get_intermap (vr);
   int i, j;
   int end;
@@ -49,7 +52,7 @@ wiki_lookup_intermap (VirguleReq *vr, const char *wikiname)
       if (!wikiname[j] && i + j < end && intermap[i + j] == ' ')
 	{
 	  int val_ix = i + j + 1;
-	  result = ap_palloc (p, end - val_ix + 1);
+	  result = apr_palloc (p, end - val_ix + 1);
 	  memcpy (result, intermap + val_ix, end - val_ix);
 	  result[end - val_ix] = '\0';
 	  return result;
@@ -61,7 +64,7 @@ wiki_lookup_intermap (VirguleReq *vr, const char *wikiname)
 char *
 wiki_link (VirguleReq *vr, const char *link)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   int i;
   char c;
   int colon = -1;
@@ -75,22 +78,22 @@ wiki_link (VirguleReq *vr, const char *link)
 	colon = i;
       else if (!isalnum (c) && c != ':' && c != '/' &&
 	       c != '.' && c != '?' && c != '=')
-	return ap_psprintf (p, "&lt;wiki&gt;%s&lt;/wiki&gt;", link);
+	return apr_psprintf (p, "&lt;wiki&gt;%s&lt;/wiki&gt;", link);
     }
   tail = link + colon + 1;
   if (colon < 0)
     wikiname = "Wiki";
   else
     {
-      wikiname = ap_palloc (p, colon + 1);
+      wikiname = apr_palloc (p, colon + 1);
       memcpy (wikiname, link, colon);
       wikiname[colon] = '\0';
     }
   wiki_loc = wiki_lookup_intermap (vr, wikiname);
   if (wiki_loc == NULL)
-    return ap_psprintf (p, "&lt;wiki&gt;%s<a href=\"http://usemod.com/intermap.txt\">?</a>:%s&lt;/wiki&gt;",
+    return apr_psprintf (p, "&lt;wiki&gt;%s<a href=\"http://usemod.com/intermap.txt\">?</a>:%s&lt;/wiki&gt;",
 			wikiname, tail);
-  return ap_psprintf (p, "<a href=\"%s%s\">%s</a>",
+  return apr_psprintf (p, "<a href=\"%s%s\">%s</a>",
 		      wiki_loc, tail, link);
 }
 

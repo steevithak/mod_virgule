@@ -4,7 +4,10 @@
    relations, ontology, indexing, and some other things. */
 
 #include <string.h>
-#include "httpd.h"
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -19,7 +22,7 @@
 
 /* careful: val better not have any xml metacharacters */
 int
-add_recent (pool *p, Db *db, const char *key, const char *val, int n_max, int dup)
+add_recent (apr_pool_t *p, Db *db, const char *key, const char *val, int n_max, int dup)
 {
   xmlDoc *doc;
   xmlNode *root, *tree;
@@ -64,7 +67,7 @@ add_recent (pool *p, Db *db, const char *key, const char *val, int n_max, int du
  * Return value: TRUE if they match.
  **/
 static int
-db_relation_match (pool *p, xmlNode *n1, xmlNode *n2,
+db_relation_match (apr_pool_t *p, xmlNode *n1, xmlNode *n2,
 		   const DbRelation *rel, int i)
 {
   int j;
@@ -90,7 +93,7 @@ db_relation_match (pool *p, xmlNode *n1, xmlNode *n2,
 }
 
 static int
-db_relation_put_field (pool *p, Db *db, const DbRelation *rel,
+db_relation_put_field (apr_pool_t *p, Db *db, const DbRelation *rel,
 		       const char **values, int i)
 {
   char *db_key;
@@ -101,13 +104,13 @@ db_relation_put_field (pool *p, Db *db, const DbRelation *rel,
   char *relname;
   int j;
 
-  db_key = ap_pstrcat (p, rel->fields[i].prefix, values[i],
+  db_key = apr_pstrcat (p, rel->fields[i].prefix, values[i],
 		       "/", rel->name, "-", rel->fields[i].name, ".xml", NULL);
   doc = db_xml_get (p, db, db_key);
   if (doc == NULL)
     {
       doc = db_xml_doc_new (p);
-      relname = ap_pstrcat (p, rel->name, "-", rel->fields[i].name, NULL);
+      relname = apr_pstrcat (p, rel->name, "-", rel->fields[i].name, NULL);
       root = xmlNewDocNode (doc, NULL, relname, NULL);
       doc->xmlRootNode = root;
     }
@@ -153,7 +156,7 @@ db_relation_put_field (pool *p, Db *db, const DbRelation *rel,
  * Return value: 0 on sucess.
  **/
 int
-db_relation_put (pool *p, Db *db, const DbRelation *rel, const char **values)
+db_relation_put (apr_pool_t *p, Db *db, const DbRelation *rel, const char **values)
 {
   int i;
   int status = 0;
@@ -173,7 +176,7 @@ db_relation_put (pool *p, Db *db, const DbRelation *rel, const char **values)
 
 /*
 int
-db_relation_get (pool *p, Db *db, const DbRelation *rel, char **values)
+db_relation_get (apr_pool_t *p, Db *db, const DbRelation *rel, char **values)
 {
 }
 */

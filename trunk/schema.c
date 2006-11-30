@@ -1,7 +1,8 @@
 /* A mechanism to partially automate generating HTML forms, sucking things
    out of forms, and gluing them to XML. */
 
-#include "httpd.h"
+#include <apr.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -17,7 +18,7 @@
  * Renders the input field, inserting the value from @tree if present.
  **/
 void
-schema_render_input (pool *p, Buffer *b, SchemaField *sf, xmlNode *tree)
+schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode *tree)
 {
   char *value;
 
@@ -56,7 +57,7 @@ schema_render_input (pool *p, Buffer *b, SchemaField *sf, xmlNode *tree)
  *
  **/
 void
-schema_render_inputs (pool *p, Buffer *b, SchemaField *sf, const char **fields, xmlNode *tree)
+schema_render_inputs (apr_pool_t *p, Buffer *b, SchemaField *sf, const char **fields, xmlNode *tree)
 {
   int i;
   int j;
@@ -73,11 +74,11 @@ schema_render_inputs (pool *p, Buffer *b, SchemaField *sf, const char **fields, 
 }
 
 void
-schema_put_field (pool *p, SchemaField *sf, xmlNode *tree, table *args)
+schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_table_t *args)
 {
   const char *value;
 
-  value = ap_table_get (args, sf->name);
+  value = apr_table_get (args, sf->name);
   if (value != NULL)
     xmlSetProp (tree, sf->name, value);
 }
@@ -89,7 +90,7 @@ schema_put_field (pool *p, SchemaField *sf, xmlNode *tree, table *args)
  *
  **/
 void
-schema_put_fields (pool *p, SchemaField *sf, const char **fields, xmlNode *tree, table *args)
+schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args)
 {
   int i;
   int j;

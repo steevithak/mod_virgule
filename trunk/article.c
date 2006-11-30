@@ -1,8 +1,11 @@
 /* A module for posting news stories. */
 
+#include <ctype.h>
 #include <time.h>
 
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -43,12 +46,12 @@ article_render_topic (VirguleReq *vr, char *topic)
 static void
 article_render_reply (VirguleReq *vr, int art_num, int reply_num)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *key;
   xmlDoc *doc;
 
-  key = ap_psprintf (p, "articles/_%d/_%d/reply.xml", art_num, reply_num);
+  key = apr_psprintf (p, "articles/_%d/_%d/reply.xml", art_num, reply_num);
 
   doc = db_xml_get (p, vr->db, key);
   if (doc != NULL)
@@ -80,15 +83,15 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
 static void
 article_render_replies (VirguleReq *vr, int art_num)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   int lastread;
   char *base;
   int n_art;
   int i;
 
-  base = ap_psprintf (vr->r->pool, "articles/_%d", art_num);
+  base = apr_psprintf (vr->r->pool, "articles/_%d", art_num);
   n_art = db_dir_max (vr->db, base) + 1;
-  lastread = acct_get_lastread (vr, "articles", ap_psprintf(p, "%d", art_num));
+  lastread = acct_get_lastread (vr, "articles", apr_psprintf(p, "%d", art_num));
 #if 0
   buffer_printf (vr->b, "<p> Rendering %d replies. </p>\n", n_art);
 #endif
@@ -102,7 +105,7 @@ article_render_replies (VirguleReq *vr, int art_num)
 	  article_render_reply (vr, art_num, i);
 	}
     }
-  acct_set_lastread(vr, "articles", ap_psprintf(p, "%d", art_num), n_art - 1);
+  acct_set_lastread(vr, "articles", apr_psprintf(p, "%d", art_num), n_art - 1);
 }
 
 /**
@@ -145,7 +148,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 
   if (style == ARTICLE_RENDER_LEAD)
     {
-      lead_a_open = ap_psprintf (vr->r->pool,"<a href=\"%s/article/%d.html\">",vr->prefix,art_num);
+      lead_a_open = apr_psprintf (vr->r->pool,"<a href=\"%s/article/%d.html\">",vr->prefix,art_num);
       lead_a_close = "</a>";
     }
   
@@ -159,7 +162,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 
   buffer_printf (b, "<%s>\n"
 		 "%s\n", lead_tag, lead);
-  article_dir = ap_psprintf (vr->r->pool, "articles/_%d", art_num);
+  article_dir = apr_psprintf (vr->r->pool, "articles/_%d", art_num);
   n_replies = db_dir_max (vr->db, article_dir) + 1;
   if (style == ARTICLE_RENDER_FULL)
     {
@@ -179,12 +182,12 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
     }
   else if (style == ARTICLE_RENDER_LEAD)
     {
-      pool *p = vr->r->pool;
+      apr_pool_t *p = vr->r->pool;
       int n_new, lastread;
 
 
       n_new = -1;
-      lastread = acct_get_lastread (vr, "articles", ap_psprintf(p, "%d", art_num));
+      lastread = acct_get_lastread (vr, "articles", apr_psprintf(p, "%d", art_num));
 
       if (lastread != -1)
 	n_new = n_replies - lastread - 1;
@@ -209,11 +212,11 @@ static void
 article_render (VirguleReq *vr, int art_num, int render_body)
 {
   Buffer *b = vr->b;
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key;
   xmlDoc *doc;
 
-  key = ap_psprintf (p, "articles/_%d/article.xml", art_num);
+  key = apr_psprintf (p, "articles/_%d/article.xml", art_num);
 #if 0
   buffer_printf (b, "<p> Article %d: key %s</p>\n", art_num, key);
 #endif
@@ -305,7 +308,7 @@ article_generic_submit_serve (VirguleReq *vr,
 			      const char *key_base, const char *key_suffix,
 			      const char *art_num_str)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   const char *date;
   char *key;
@@ -343,7 +346,7 @@ article_generic_submit_serve (VirguleReq *vr,
   nice_lead = lead == NULL ? NULL : nice_htext (vr, lead, &lead_error);
   nice_body = body == NULL ? NULL : nice_htext (vr, body, &body_error);
 
-  if (ap_table_get (get_args_table (vr), "preview"))
+  if (apr_table_get (get_args_table (vr), "preview"))
     {
       /* render a preview */
       if (!strcmp (submit_type, "reply"))
@@ -441,7 +444,7 @@ article_generic_submit_serve (VirguleReq *vr,
       return render_footer_send (vr);
     }
 
-  key = ap_psprintf (p, "%s/_%d%s",
+  key = apr_psprintf (p, "%s/_%d%s",
 		     key_base,
 		     db_dir_max (vr->db, key_base) + 1,
 		     key_suffix);
@@ -479,14 +482,14 @@ article_generic_submit_serve (VirguleReq *vr,
 			    "There was an error storing the <x>%s</x>. This means there's something wrong with the site.", submit_type);
 
   if (!strcmp (submit_type, "reply"))
-    ap_table_add (vr->r->headers_out, "refresh", 
-		  ap_psprintf(p, "0;URL=/article/%s.html#lastread", art_num_str));
+    apr_table_add (vr->r->headers_out, "refresh", 
+		  apr_psprintf(p, "0;URL=/article/%s.html#lastread", art_num_str));
   else
-    ap_table_add (vr->r->headers_out, "refresh", 
-		  ap_psprintf(p, "0;URL=/article/%d.html",
+    apr_table_add (vr->r->headers_out, "refresh", 
+		  apr_psprintf(p, "0;URL=/article/%d.html",
 			      db_dir_max (vr->db, key_base)));
 
-  str = ap_psprintf (p, "Ok, your <x>%s</x> was posted. Thanks!", submit_type);
+  str = apr_psprintf (p, "Ok, your <x>%s</x> was posted. Thanks!", submit_type);
   return send_error_page (vr, "Posted", str);
 }
 
@@ -498,7 +501,7 @@ article_submit_serve (VirguleReq *vr)
   xmlDoc *doc;
   const char *old_author, *old_title;
 
-  table *args;
+  apr_table_t *args;
   const char *title, *lead, *body;
 #ifdef STYLE
   const char *topic;
@@ -509,11 +512,11 @@ article_submit_serve (VirguleReq *vr)
     return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
 #ifdef STYLE
-  topic = ap_table_get (args, "topic");
+  topic = apr_table_get (args, "topic");
 #endif
-  title = ap_table_get (args, "title");
-  lead = ap_table_get (args, "lead");
-  body = ap_table_get (args, "body");
+  title = apr_table_get (args, "title");
+  lead = apr_table_get (args, "lead");
+  body = apr_table_get (args, "body");
 
   /* Auth user and check for duplicate post */
   auth_user (vr);
@@ -523,7 +526,7 @@ article_submit_serve (VirguleReq *vr)
   art_num = db_dir_max (vr->db, "articles");
   if (art_num >= 0)
     {
-      key = ap_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
+      key = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
       doc = db_xml_get (vr->r->pool, vr->db, key);
       old_title = xml_find_child_string (doc->xmlRootNode, "title", "(no title)");
       old_author = xml_find_child_string (doc->xmlRootNode, "author", "(no author)");
@@ -544,9 +547,9 @@ article_submit_serve (VirguleReq *vr)
 static int
 article_reply_form_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
-  table *args;
+  apr_table_t *args;
   const char *art_num_str;
   int art_num;
   char *key;
@@ -563,13 +566,13 @@ article_reply_form_serve (VirguleReq *vr)
     return send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   args = get_args_table (vr);
-  art_num_str = ap_table_get (args, "art_num");
+  art_num_str = apr_table_get (args, "art_num");
   if (art_num_str == NULL)
     return send_error_page (vr, "Need <x>article</x> number", "Need <x>article</x> number to reply to.");
 
   art_num = atoi (art_num_str);
 
-  key = ap_psprintf (p, "articles/_%d/article.xml", art_num);
+  key = apr_psprintf (p, "articles/_%d/article.xml", art_num);
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", art_num);
@@ -602,8 +605,8 @@ article_reply_form_serve (VirguleReq *vr)
 static int
 article_reply_submit_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
-  table *args;
+  apr_pool_t *p = vr->r->pool;
+  apr_table_t *args;
   const char *title, *art_num_str, *body;
   char *key_base;
 
@@ -611,14 +614,14 @@ article_reply_submit_serve (VirguleReq *vr)
   if (args == NULL)
     return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
-  title = ap_table_get (args, "title");
-  art_num_str = ap_table_get (args, "art_num");
-  body = ap_table_get (args, "body");
+  title = apr_table_get (args, "title");
+  art_num_str = apr_table_get (args, "art_num");
+  body = apr_table_get (args, "body");
 
   if (art_num_str == NULL)
     return send_error_page (vr, "Need <x>article</x> number", "This page requires <x>an article</x> number. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
-  key_base = ap_psprintf (p, "articles/_%d", atoi (art_num_str));
+  key_base = apr_psprintf (p, "articles/_%d", atoi (art_num_str));
 
 #ifdef STYLE
   return article_generic_submit_serve (vr, NULL, title, NULL, body,
@@ -677,37 +680,10 @@ article_recent_render (VirguleReq *vr, int n_arts_max, int start)
   return 0;
 }
 
-
-static int
-article_older_serve (VirguleReq *vr)
-{
-  Buffer *b = vr->b;
-  table *args;
-  int start;
-
-  args = get_args_table (vr);
-  if (args == NULL)
-    return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
-
-  start = atoi (ap_table_get (args, "start"));
-
-  auth_user (vr);
-
-  render_header (vr, "Older <x>articles</x>", NULL);
-
-  render_sitemap (vr, 1);
-
-  buffer_printf (b, "<p> Older <x>articles</x> (starting at number %d):</p>\n", start);
-
-  article_recent_render (vr, 20, start);
-
-  return render_footer_send (vr);
-}
-
 static int
 article_num_serve (VirguleReq *vr, const char *t)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *tail;
   int n;
@@ -724,20 +700,24 @@ article_num_serve (VirguleReq *vr, const char *t)
 #if 0
   return send_error_page (vr, "Article", "Thank you for requesting article number %d. Have a nice day!", n);
 #endif
-  key = ap_psprintf (p, "articles/_%d/article.xml", n);
+  key = apr_psprintf (p, "articles/_%d/article.xml", n);
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", n);
   root = doc->xmlRootNode;
   title = xml_find_child_string (root, "title", "(no title)");
 
-
   render_header (vr, title, NULL);
+
+buffer_puts (b, "<table><tr><td valign=\"top\">");
+
   buffer_puts (b, "<blockquote>\n");
-
   article_render_from_xml (vr, n, doc, ARTICLE_RENDER_FULL);
-
   buffer_puts (b, "</blockquote>\n");
+
+buffer_puts (b, "</td></tr></table>");
+
+  
   return render_footer_send (vr);
 }
 
@@ -759,12 +739,6 @@ article_serve (VirguleReq *vr)
 
   if (!strcmp (p, "replysubmit.html"))
     return article_reply_submit_serve (vr);
-
-//  if (!strcmp (p, ""))
-//    return article_index_serve (vr);
-
-  if (!strcmp (p, "older.html"))
-    return article_older_serve (vr);
 
   if (isdigit (p[0]))
     return article_num_serve (vr, p);

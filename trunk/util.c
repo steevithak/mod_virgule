@@ -1,5 +1,10 @@
 #include <ctype.h>
-#include "httpd.h"
+#include <time.h>
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <apr_file_io.h>
+#include <httpd.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -22,14 +27,14 @@ static const char basis_64[] =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; 
 
 char *
-b64enc (pool *p, const char *data, int size)
+b64enc (apr_pool_t *p, const char *data, int size)
 {
   char *result;
   int result_blocks;
   int i;
 
   result_blocks = ((size + 2) / 3);
-  result = ap_pcalloc (p, 4 * result_blocks + 1);
+  result = apr_pcalloc (p, 4 * result_blocks + 1);
   for (i = 0; i < result_blocks; i++)
     {
       int rem = size - i * 3;
@@ -56,17 +61,19 @@ b64enc (pool *p, const char *data, int size)
  * Return value: The random cookie.
  **/
 char *
-rand_cookie (pool *p)
+rand_cookie (apr_pool_t *p)
 {
-  int fd;
+  apr_file_t *fd;
+  apr_size_t bytes_read;
   char buf[15];
-  int bytes_read;
 
-  fd = ap_popenf (p, "/dev/random", O_RDONLY, 0664);
-  if (fd == -1)
+  if (apr_file_open (&fd, "/dev/random", APR_READ,
+      APR_UREAD|APR_UWRITE|APR_GWRITE|APR_WREAD, p) != APR_SUCCESS)
     return NULL;
-  bytes_read = read (fd, buf, sizeof(buf));
-  ap_pclosef (p, fd);
+    
+  bytes_read = sizeof(buf);
+  apr_file_read (fd, buf, &bytes_read);
+  apr_file_close (fd);
   if (bytes_read < sizeof(buf))
     {
       return NULL;
@@ -229,7 +236,7 @@ nice_text_helper (const char *raw, char *buf)
  * Return value: HTML formatted text.
  **/
 char *
-nice_text (pool *p, const char *raw)
+nice_text (apr_pool_t *p, const char *raw)
 {
   char *result;
   int size;
@@ -237,7 +244,7 @@ nice_text (pool *p, const char *raw)
   if (raw == NULL)
     return NULL;
   size = nice_text_helper (raw, NULL);
-  result = ap_palloc (p, size + 1);
+  result = apr_palloc (p, size + 1);
   nice_text_helper (raw, result);
   result[size] = '\0';
   return result;
@@ -246,25 +253,25 @@ nice_text (pool *p, const char *raw)
 static char *
 nice_person_link (VirguleReq *vr, const char *name)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   int i;
 
   for (i = 0; name[i]; i++)
     if (!isalnum (name[i]))
-      return ap_psprintf (p, "&lt;person&gt;%s&lt;/person&gt;", name);
-  return ap_psprintf (p, "<a href=\"%s/person/%s/\">%s</a>",
-		      vr->prefix, ap_escape_uri(vr->r->pool, name), name);
+      return apr_psprintf (p, "&lt;person&gt;%s&lt;/person&gt;", name);
+  return apr_psprintf (p, "<a href=\"%s/person/%s/\">%s</a>",
+		      vr->prefix, ap_os_escape_path(p, name, 1), name);
 }
 
 static char *
 nice_proj_link (VirguleReq *vr, const char *proj)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
 
   if (strchr (proj, '/') || proj[0] == '.' || strlen (proj) > 30)
-    return ap_psprintf (p, "&lt;proj&gt;%s&lt;/proj&gt;", proj);
-  return ap_psprintf (p, "<a href=\"%s/proj/%s/\">%s</a>",
-                      vr->prefix, ap_escape_uri (p, proj), proj);
+    return apr_psprintf (p, "&lt;proj&gt;%s&lt;/proj&gt;", proj);
+  return apr_psprintf (p, "<a href=\"%s/proj/%s/\">%s</a>",
+                      vr->prefix, ap_os_escape_path (p, proj, 1), proj);
 }
 
 
@@ -277,9 +284,9 @@ const NavOption *
 add_nav_option (VirguleReq *vr, const char *label, const char *url)
 {
   NavOption *option;
-  option = ap_palloc (vr->r->pool, sizeof(NavOption));
-  option->label = ap_pstrdup (vr->r->pool, label);
-  option->url = ap_pstrdup (vr->r->pool, url);
+  option = apr_palloc (vr->r->pool, sizeof(NavOption));
+  option->label = apr_pstrdup (vr->r->pool, label);
+  option->url = apr_pstrdup (vr->r->pool, url);
   return option;
 }
 
@@ -308,8 +315,8 @@ add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
       if (!strcmp(special_allowed_tags[i].tagname, tagname))
 	return &special_allowed_tags[i];
 
-  tag = ap_palloc (vr->r->pool, sizeof(AllowedTag));
-  tag->tagname = ap_pstrdup  (vr->r->pool, tagname);
+  tag = apr_palloc (vr->r->pool, sizeof(AllowedTag));
+  tag->tagname = apr_pstrdup  (vr->r->pool, tagname);
   tag->empty = can_be_empty;
   tag->handler = NULL;
 
@@ -395,9 +402,9 @@ find_end_tag (const char *str, const char *tag, const char **after)
 char *
 nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = buffer_new (p);
-  array_header *tag_stack;
+  apr_array_header_t *tag_stack;
   int i, end;
   char c;
   int nl_state = 0;
@@ -408,7 +415,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
   /* revert to old nicetext behavior */
   return nice_text (p, raw);
 #endif
-  tag_stack = ap_make_array (p, 16, sizeof (char *));
+  tag_stack = apr_array_make (p, 16, sizeof (char *));
   for (i = 0; raw[i]; i = end)
     {
       for (end = i;
@@ -544,7 +551,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 		      if (body_end != NULL)
 			{
 			  body_size = body_end - (raw + end);
-			  body = ap_palloc (p, body_size + 1);
+			  body = apr_palloc (p, body_size + 1);
 			  memcpy (body, raw + end, body_size);
 			  body[body_size] = 0;
 #if 1
@@ -577,7 +584,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 			{
 			  char **p_stack;
 			  
-			  p_stack = (char **)ap_push_array (tag_stack);
+			  p_stack = (char **)apr_array_push (tag_stack);
 			  *p_stack = (*tag)->tagname;
 			}
 		      continue;
@@ -625,7 +632,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
       tos = ((char **)(tag_stack->elts))[tos_idx];
       buffer_printf (b, "</%s>", tos);
       if (*p_error == NULL)
-	*p_error = ap_psprintf (p, "Unclosed tag %s", tos);
+	*p_error = apr_psprintf (p, "Unclosed tag %s", tos);
     }
 
   return buffer_extract (b);
@@ -638,9 +645,10 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
  * Note: we should at least be adding a timezone.
  **/
 char *
-iso_now (pool *p)
+iso_now (apr_pool_t *p)
 {
-  return ap_ht_time (p, time (NULL), "%Y-%m-%d %H:%M:%S", 0);
+  return ap_ht_time (p, (apr_time_t) (time (NULL)) * 1000000,
+                     "%Y-%m-%d %H:%M:%S", 0);
 }
 
 /**
@@ -697,7 +705,7 @@ iso_to_time_t (const char *iso)
  * Return value: The resulting string.
  **/
 char *
-str_subst (pool *p, const char *str, const char *pattern, const char *repl)
+str_subst (apr_pool_t *p, const char *str, const char *pattern, const char *repl)
 {
   int size, idx;
   int i, j;
@@ -723,7 +731,7 @@ str_subst (pool *p, const char *str, const char *pattern, const char *repl)
       else
 	size++;
     }
-  result = ap_palloc (p, size + 1);
+  result = apr_palloc (p, size + 1);
 
   idx = 0;
   for (i = 0; str[i]; i++)
@@ -749,14 +757,14 @@ str_subst (pool *p, const char *str, const char *pattern, const char *repl)
  * @p: The pool.
  * @str: The original string.
  *
- * The same as ap_escape_uri except that & ' + are also escaped.
+ * The same as ap_os_escape_path except that & ' + are also escaped.
  *
  * Return value: the escaped string.
  **/
 char *
-escape_uri_arg (pool *p, const char *str)
+escape_uri_arg (apr_pool_t *p, const char *str)
 {
-  char *tmp = ap_escape_uri (p, str);
+  char *tmp = ap_os_escape_path (p, str, 1);
   tmp = str_subst (p, tmp, "&", "%26");
   tmp = str_subst (p, tmp, "'", "%27");
   return str_subst (p, tmp, "+", "%2b");
@@ -795,12 +803,12 @@ escape_attr_helper (const char *raw, char *buf)
  * @p: The pool.
  * @raw: The original raw string.
  *
- * The same as ap_escape_uri except that + and ' are also escaped.
+ * The same as ap_os_escape_path except that + and ' are also escaped.
  *
  * Return value: the escaped string.
  **/
 char *
-escape_html_attr (pool *p, const char *raw)
+escape_html_attr (apr_pool_t *p, const char *raw)
 {
   char *result;
   int size;
@@ -808,7 +816,7 @@ escape_html_attr (pool *p, const char *raw)
   if (raw == NULL)
     return NULL;
   size = escape_attr_helper (raw, NULL);
-  result = ap_palloc (p, size + 1);
+  result = apr_palloc (p, size + 1);
   escape_attr_helper (raw, result);
   result[size] = '\0';
   return result;
@@ -825,7 +833,7 @@ escape_html_attr (pool *p, const char *raw)
  * Return value: the link.
  **/
 char *
-render_url (pool *p, const char *prefix, const char *url)
+render_url (apr_pool_t *p, const char *prefix, const char *url)
 {
   const char *url2;
   char *colon;
@@ -833,10 +841,10 @@ render_url (pool *p, const char *prefix, const char *url)
   url2 = url;
   colon = strchr (url, ':');
   if (!colon || colon[1] != '/' || colon[2] != '/')
-    url2 = ap_pstrcat (p, "http://", url, NULL);
-  return ap_psprintf (p, "<p>%s<a href=\"%s\">%s</a> </p>\n",
+    url2 = apr_pstrcat (p, "http://", url, NULL);
+  return apr_psprintf (p, "<p>%s<a href=\"%s\">%s</a> </p>\n",
 		     prefix,
-		     ap_escape_uri (p, url2), nice_text (p, url));
+		     ap_os_escape_path (p, url2, 1), nice_text (p, url));
 }
 
 
@@ -849,7 +857,7 @@ render_url (pool *p, const char *prefix, const char *url)
 int is_input_valid(const char *val)
 {
   unsigned char *c;
-  c = val;
+  c = (unsigned char *)val;
 
 
 return TRUE;

@@ -1,15 +1,15 @@
 
 char *
-b64enc (pool *p, const char *data, int size);
+b64enc (apr_pool_t *p, const char *data, int size);
 
 char *
-rand_cookie (pool *p);
+rand_cookie (apr_pool_t *p);
 
 const char *
 match_prefix (const char *url, const char *prefix);
 
 char *
-nice_text (pool *p, const char *raw);
+nice_text (apr_pool_t *p, const char *raw);
 
 const NavOption *
 add_nav_option (VirguleReq *vr, const char *label, const char *url);
@@ -24,22 +24,22 @@ char *
 nice_htext (VirguleReq *vr, const char *raw, char **p_error);
 
 char *
-iso_now (pool *p);
+iso_now (apr_pool_t *p);
 
 time_t
 iso_to_time_t (const char *iso);
 
 char *
-str_subst (pool *p, const char *str, const char *pattern, const char *repl);
+str_subst (apr_pool_t *p, const char *str, const char *pattern, const char *repl);
 
 char *
-escape_uri_arg (pool *p, const char *str);
+escape_uri_arg (apr_pool_t *p, const char *str);
 
 char *
-render_url (pool *p, const char *prefix, const char *url);
+render_url (apr_pool_t *p, const char *prefix, const char *url);
 
 char *
-escape_html_attr (pool *p, const char *raw);
+escape_html_attr (apr_pool_t *p, const char *raw);
 
 int
 is_input_valid(const char *val);

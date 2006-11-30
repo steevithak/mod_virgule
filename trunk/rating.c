@@ -2,7 +2,10 @@
    Note that the eigenvector computation is quite general, but diary ratings
    are specific. */
 
-#include "httpd.h"
+#include <apr.h>
+#include <apr_pools.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -48,7 +51,7 @@ rating_diary_form (VirguleReq *vr, const char *u)
 static int
 rating_rate_diary (VirguleReq *vr)
 {
-  table *args;
+  apr_table_t *args;
 
   db_lock_upgrade (vr->lock);
   auth_user (vr);
@@ -62,13 +65,13 @@ rating_rate_diary (VirguleReq *vr)
       int rating;
       char *subj;
 
-      subject = ap_table_get (args, "subject");
-      rating_s = ap_table_get (args, "rating");
+      subject = apr_table_get (args, "subject");
+      rating_s = apr_table_get (args, "rating");
       rating = atoi (rating_s);
       if (rating < 1 || rating > 10)
 	return send_error_page (vr, "Rating out of range",
 				"Ratings must be from 1 to 10.");
-      subj = ap_pstrcat (vr->r->pool, "d/", subject, NULL);
+      subj = apr_pstrcat (vr->r->pool, "d/", subject, NULL);
       eigen_set_local (vr, subj, (double)rating);
       return send_error_page (vr, "Submitted",
 			     "Your rating of %s's diary page as %d is noted. Thanks.",
@@ -99,7 +102,7 @@ rating_crank (VirguleReq *vr, const char *u)
 static int
 rating_crank_all (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   DbCursor *dbc;
   char *u;
 
@@ -107,7 +110,11 @@ rating_crank_all (VirguleReq *vr)
   dbc = db_open_dir (vr->db, "acct");
   while ((u = db_read_dir_raw (dbc)) != NULL)
     {
-      pool *sp = ap_make_sub_pool (p);
+
+      apr_pool_t *sp;
+      apr_pool_create(&sp,p);
+//      apr_pool_create_ex(&sp,p,NULL,NULL);
+
       char *dbkey = acct_dbkey (sp, u);
       xmlDoc *profile = db_xml_get (sp, vr->db, dbkey);
       xmlNode *tree = xml_find_child (profile->xmlRootNode, "info");
@@ -119,7 +126,7 @@ rating_crank_all (VirguleReq *vr)
 #endif
 	  eigen_crank (sp, vr, u);
 	}
-      ap_destroy_pool (sp);
+      apr_pool_destroy (sp);
     }
   return render_footer_send (vr);
 }

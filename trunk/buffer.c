@@ -4,9 +4,12 @@
 #include <string.h>
 #undef __USE_GNU
 
-#include "httpd.h"
-#include "http_protocol.h"
-#include "util_md5.h"
+#include <apr.h>
+#include <apr_md5.h>
+#include <apr_strings.h>
+#include <httpd.h>
+#include <http_protocol.h>
+#include <util_md5.h>
 
 #include "buffer.h"
 
@@ -23,31 +26,31 @@ struct _BufferChunk {
 };
 
 struct _Buffer {
-  pool *p;
+  apr_pool_t *p;
   int total_size;
   BufferChunk *first_chunk;
   BufferChunk *last_chunk;
-  AP_MD5_CTX md5_ctx;
+  apr_md5_ctx_t md5_ctx;
   const char **trans;
 };
 
 Buffer *
-buffer_new (pool *p)
+buffer_new (apr_pool_t *p)
 {
-  Buffer *result = ap_palloc (p, sizeof(Buffer));
-  BufferChunk *chunk = ap_palloc (p, sizeof(BufferChunk));
+  Buffer *result = apr_palloc (p, sizeof(Buffer));
+  BufferChunk *chunk = apr_palloc (p, sizeof(BufferChunk));
 
   result->p = p;
   result->total_size = 0;
   result->first_chunk = chunk;
   result->last_chunk = chunk;
-  ap_MD5Init (&result->md5_ctx);
+  apr_md5_init (&result->md5_ctx);
   result->trans = NULL;
 
   chunk->next = NULL;
   chunk->size = 0;
   chunk->size_max = 256;
-  chunk->buf = ap_palloc (p, chunk->size_max);
+  chunk->buf = apr_palloc (p, chunk->size_max);
 
   return result;
 }
@@ -64,9 +67,9 @@ real_buffer_write (Buffer *b, const char *data, int size)
   BufferChunk *last = b->last_chunk;
   int copy_size;
   BufferChunk *new;
-  pool *p;
+  apr_pool_t *p;
 
-  ap_MD5Update (&b->md5_ctx, data, size);
+  apr_md5_update (&b->md5_ctx, data, size);
 
   b->total_size += size;
 
@@ -81,7 +84,7 @@ real_buffer_write (Buffer *b, const char *data, int size)
 
   /* Allocate a new chunk. */
   p = b->p;
-  new = ap_palloc (p, sizeof(BufferChunk));
+  new = apr_palloc (p, sizeof(BufferChunk));
   /* append new chunk to linked list */
   new->next = NULL;
   last->next = new;
@@ -91,7 +94,7 @@ real_buffer_write (Buffer *b, const char *data, int size)
   new->size_max = 256;
   while (new->size_max < new->size)
     new->size_max <<= 1;
-  new->buf = ap_palloc (p, new->size_max);
+  new->buf = apr_palloc (p, new->size_max);
   memcpy (new->buf, data + copy_size, size - copy_size);
 }
 
@@ -159,7 +162,7 @@ buffer_printf (Buffer *b, const char *fmt, ...)
   char *str;
   va_list ap;
   va_start (ap, fmt);
-  str = ap_pvsprintf (b->p, fmt, ap);
+  str = apr_pvsprintf (b->p, fmt, ap);
   va_end (ap);
   buffer_write (b, str, strlen (str));
 }
@@ -192,16 +195,15 @@ buffer_send_response (request_rec *r, Buffer *b)
   int ret;
 
   md5 = ap_md5contextTo64 (r->pool, &b->md5_ctx);
-  etag = ap_psprintf (r->pool, "\"%s\"", md5);
-  ap_table_setn (r->headers_out, "ETag", etag);
+  etag = apr_psprintf (r->pool, "\"%s\"", md5);
+  apr_table_setn (r->headers_out, "ETag", etag);
   ret = ap_meets_conditions(r);
   if (ret != OK)
       return ret;  
 
-  ap_table_setn (r->headers_out, "Content-MD5", md5);
+  apr_table_setn (r->headers_out, "Content-MD5", md5);
   ap_set_content_length (r, b->total_size);
 
-  ap_send_http_header (r);
   if (!r->header_only)
     for (chunk = b->first_chunk; chunk != NULL; chunk = chunk->next)
       ap_rwrite (chunk->buf, chunk->size, r);
@@ -223,7 +225,7 @@ buffer_extract (Buffer *b)
   int idx;
 
   idx = 0;
-  result = ap_palloc (b->p, b->total_size + 1);
+  result = apr_palloc (b->p, b->total_size + 1);
   for (chunk = b->first_chunk; chunk != NULL; chunk = chunk->next)
     {
       memcpy (result + idx, chunk->buf, chunk->size);

@@ -1,25 +1,28 @@
 /* Access to the database with XML. */
 
-#include "httpd.h"
-
-#include "db.h"
+#include <apr.h>
+#include <apr_pools.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 #include <libxml/xmlmemory.h>
 
+#include "db.h"
 #include "db_xml.h"
 
-static void
+static apr_status_t
 db_xml_cleanup (void *data)
 {
   xmlDoc *doc = (xmlDoc *)data;
 
   xmlFreeDoc (doc);
+  
+  return APR_SUCCESS;
 }
 
 xmlDoc *
-db_xml_get (pool *p, Db *db, const char *key)
+db_xml_get (apr_pool_t *p, Db *db, const char *key)
 {
   int val_size;
   char *val = db_get_p (p, db, key, &val_size);
@@ -29,12 +32,12 @@ db_xml_get (pool *p, Db *db, const char *key)
     return NULL;
   result = xmlParseMemory (val, val_size);
   if (result != NULL)
-    ap_register_cleanup (p, result, db_xml_cleanup, ap_null_cleanup);
+    apr_pool_cleanup_register (p, result, db_xml_cleanup, apr_pool_cleanup_null);
   return result;
 }
 
 int
-db_xml_put (pool *p, Db *db, const char *key, xmlDoc *val)
+db_xml_put (apr_pool_t *p, Db *db, const char *key, xmlDoc *val)
 {
   xmlChar *buf;
   int buf_size;
@@ -48,17 +51,17 @@ db_xml_put (pool *p, Db *db, const char *key, xmlDoc *val)
 }
 
 xmlDoc *
-db_xml_doc_new (pool *p)
+db_xml_doc_new (apr_pool_t *p)
 {
   xmlDoc *result = xmlNewDoc ("1.0");
-  ap_register_cleanup (p, result, db_xml_cleanup, ap_null_cleanup);
+  apr_pool_cleanup_register (p, result, db_xml_cleanup, apr_pool_cleanup_null);
   return result;
 }
 
 /* Calling this is optional. */
 void
-db_xml_free (pool *p, Db *db, xmlDoc *doc)
+db_xml_free (apr_pool_t *p, Db *db, xmlDoc *doc)
 {
   xmlFreeDoc (doc);
-  ap_kill_cleanup (p, doc, db_xml_cleanup);
+  apr_pool_cleanup_kill (p, doc, db_xml_cleanup);
 }

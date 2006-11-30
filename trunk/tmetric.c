@@ -1,8 +1,12 @@
 /* This is glue code to run the trust metric as HTML. */
+#include <ctype.h>
+#include <unistd.h>
 
-#include "httpd.h"
-#include "http_log.h"
-#include "http_protocol.h"
+#include <apr.h>
+#include <httpd.h>
+#include <http_log.h>
+#include <http_protocol.h>
+
 #include <glib.h>
 
 #include <libxml/tree.h>
@@ -33,14 +37,14 @@ struct _NodeInfo {
 static int cert_level_n;
 
 static int
-tmetric_find_node (array_header *info, NetFlow *flows[], const char *u)
+tmetric_find_node (apr_array_header_t *info, NetFlow *flows[], const char *u)
 {
   int idx;
 
   idx = net_flow_find_node (flows[1], u);
   if (idx >= info->nelts)
     {
-      NodeInfo *ni = (NodeInfo *)ap_push_array (info);
+      NodeInfo *ni = (NodeInfo *)apr_array_push (info);
       int i;
 
       ni->name = u;
@@ -54,7 +58,7 @@ tmetric_find_node (array_header *info, NetFlow *flows[], const char *u)
 }
 
 static void
-tmetric_set_name (array_header *info, NetFlow *flows[], const char *u,
+tmetric_set_name (apr_array_header_t *info, NetFlow *flows[], const char *u,
 		  const char *givenname, const char *surname, VirguleReq *vr)
 {
   int idx;
@@ -66,7 +70,7 @@ tmetric_set_name (array_header *info, NetFlow *flows[], const char *u,
       ((NodeInfo *)info->elts)[idx].surname = surname;
     }
   else
-    ap_log_rerror(APLOG_MARK, APLOG_ERR, vr->r, "tmetric_find_node() returned bad value for user: %s", u);
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, vr->r, "tmetric_find_node() returned bad value for user: %s", u);
 }
 
 /**
@@ -79,23 +83,22 @@ tmetric_set_name (array_header *info, NetFlow *flows[], const char *u,
  *
  * Return value: NodeInfo array or NULL on error
  **/
-static array_header *
+static apr_array_header_t *
 tmetric_run (VirguleReq *vr,
 	     const char *seeds[], int n_seeds,
 	     const int *caps, int n_caps)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   NetFlow *flows[cert_level_n];
-  array_header *result;
+  apr_array_header_t *result;
   int i, j;
   int seed;
   int idx;
   DbCursor *dbc;
   char *issuer;
 
-  
-  result = ap_make_array (vr->r->pool, 16, sizeof(NodeInfo));
+  result = apr_array_make (vr->r->pool, 16, sizeof(NodeInfo));
 
   for (i = 1; i < cert_level_n; i++)
     flows[i] = net_flow_new ();
@@ -113,19 +116,21 @@ tmetric_run (VirguleReq *vr,
   while ((issuer = db_read_dir_raw (dbc)) != NULL)
     {
       char *db_key;
-      xmlDoc *profile;
+      xmlDoc *profile = NULL;
       xmlNode *tree = NULL;
       xmlNode *cert;
       const char *givenname, *surname;
 
 #if 0
       issuer = ((NodeInfo *)(result->elts))[idx].name;
-#endif
-#if 0
       buffer_printf (vr->b, "issuer = %s\n", issuer);
 #endif
 
       db_key = acct_dbkey (p, issuer);
+
+      if(db_key == NULL) 
+        continue;
+
       profile = db_xml_get (p, db, db_key);
       if (profile != NULL)
         tree = xml_find_child (profile->xmlRootNode, "info");
@@ -164,9 +169,13 @@ tmetric_run (VirguleReq *vr,
 		}
 	    }
 	}
-      db_xml_free (p, db, profile);
+	
+      if (profile != NULL)
+        db_xml_free (p, db, profile);
     }
   db_close_dir (dbc);
+fprintf(stderr,"Test loop complete\n");
+fflush(stderr);
 
   if (vr->lock)
     db_unlock (vr->lock);
@@ -217,10 +226,10 @@ node_info_compare (const void *ni1, const void *ni2)
 static int
 tmetric_index_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   Db *db = vr->db;
-  array_header *nodeinfo;
+  apr_array_header_t *nodeinfo;
   int n_seeds, n_caps;
   int i;
   NodeInfo *ni;
@@ -291,7 +300,6 @@ tmetric_test_serve (VirguleReq *vr)
   vr->lock = NULL;
 
   r->content_type = "text/html; charset=UTF-8";
-  ap_send_http_header (r);
   ap_rprintf (r, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Test</title></head><body bgcolor=white><h1>Test</h1> <p>Testing lock...</p>\n");
 
   ap_rflush (r);

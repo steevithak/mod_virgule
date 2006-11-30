@@ -32,14 +32,14 @@ struct _VirguleReq {
   int sitemap_rendered; /* TRUE if the sitemap has already been rendered */
   char *tmetric;
   char *prefix; /* Prefix of <Location> directive, to be added to links */
-  table *render_data;
-  array_header *topics; /* array of topic info */
+  apr_table_t *render_data;
+  apr_array_header_t *topics; /* array of topic info */
 };
 
 int
 send_response (VirguleReq *vr);
 
-table *
+apr_table_t *
 get_args_table (VirguleReq *vr);
 
 char *

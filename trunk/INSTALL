@@ -14,7 +14,7 @@ Your httpd.conf should look something like this:
 
 <Location /virgule>
  VirguleDb /var/www/virgule
- VirgulePass "/images"
+ VirgulePass "/images" "/css"
  VirguleTopic "Announcement" "/images/announce.png"
  VirguleTopic "Interview" "/images/interview.png"
  VirguleTopic "Hardware" "/images/hardware.png"

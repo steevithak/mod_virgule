@@ -9,7 +9,11 @@
  *  5. add your method to sample_db/site/xmlrpc.xml
  */
 
-#include "httpd.h"
+#include <ctype.h>
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -45,7 +49,7 @@ authenticate (VirguleReq *vr, xmlNode *params)
   if (ret == 0)
     return xmlrpc_fault (vr, 1, ret1);
 
-  id_cookie = ap_pstrcat (vr->r->pool, ret1, ":", ret2, NULL);
+  id_cookie = apr_pstrcat (vr->r->pool, ret1, ":", ret2, NULL);
   return xmlrpc_response (vr, "s", id_cookie);
 }
 
@@ -77,7 +81,7 @@ diary_len (VirguleReq *vr, xmlNode *params)
   if (ret != OK)
     return ret;
 
-  key = ap_psprintf (vr->r->pool, "acct/%s/diary", user);
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary", user);
   return xmlrpc_response (vr, "i", db_dir_max (vr->db, key) + 1);
 }
 
@@ -94,7 +98,7 @@ diary_get (VirguleReq *vr, xmlNode *params)
   if (ret != OK)
     return ret;
 
-  key = ap_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
   entry = db_xml_get (vr->r->pool, vr->db, key);
   if (entry == NULL)
     return xmlrpc_fault (vr, 1, "entry %d not found", index);
@@ -117,7 +121,7 @@ diary_get_dates (VirguleReq *vr, xmlNode *params)
   if (ret != OK)
     return ret;
 
-  key = ap_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
   entry = db_xml_get (vr->r->pool, vr->db, key);
   if (entry == NULL)
     return xmlrpc_fault (vr, 1, "entry %d not found", index);
@@ -152,13 +156,13 @@ diary_set (VirguleReq *vr, xmlNode *params)
     return ret;
   user = vr->u;
 
-  key = ap_psprintf (vr->r->pool, "acct/%s/diary", user);
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary", user);
   max = db_dir_max (vr->db, key) + 1;
   if (index == -1)
     index = max;
   if (index < 0 || index > max)
     return xmlrpc_fault (vr, 1, "invalid entry key %d", index);
-  key = ap_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
   
   entry = nice_htext (vr, entry, &error);
   if (error)

@@ -1,6 +1,7 @@
-#include "httpd.h"
-#include "http_protocol.h"
-#include "http_main.h"
+#include <apr.h>
+#include <httpd.h>
+#include <http_protocol.h>
+#include <http_main.h>
 
 #include "apache_util.h"
 
@@ -18,23 +19,20 @@ read_post_data (request_rec *r)
       char buf[HUGE_STRING_LEN];
       int rsize, bytes_read, rpos=0;
       long length = r->remaining;
-      result = ap_pcalloc (r->pool, length + 1);
+      result = apr_pcalloc (r->pool, length + 1);
 
-      ap_hard_timeout ("read_post_data", r);
       while (rpos < length)
 	{
 	  if (rpos + sizeof(buf) > length)
 	    rsize = length - rpos;
 	  else
 	    rsize = sizeof(buf);
-	  ap_reset_timeout (r);
 	  bytes_read = ap_get_client_block (r, buf, rsize);
 	  if (bytes_read <= 0)
 	    break;
 	  memcpy (result + rpos, buf, bytes_read);
 	  rpos += bytes_read;
 	}
-      ap_kill_timeout (r);
       return result;
     }
   return NULL;
