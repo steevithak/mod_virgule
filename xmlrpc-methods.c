@@ -24,6 +24,8 @@
 #include "util.h"
 #include "acct_maint.h"
 #include "aggregator.h"
+#include "hashtable.h"
+#include "eigen.h"
 #include "diary.h"
 #include "db_xml.h"
 #include "xml_util.h"

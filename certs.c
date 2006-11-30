@@ -71,18 +71,18 @@ virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject)
   for (cert = tree->children; cert != NULL; cert = cert->next)
     {
       if (cert->type == XML_ELEMENT_NODE &&
-	  !strcmp (cert->name, "cert"))
+	  !xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	{
 	  char *cert_subj;
 
-	  cert_subj = xmlGetProp (cert, "subj");
+	  cert_subj = (char *)xmlGetProp (cert, (xmlChar *)"subj");
 	  if (cert_subj)
 	    {
 	      if (!strcmp (cert_subj, subject))
 		{
 		  char *cert_level;
 
-		  cert_level = xmlGetProp (cert, "level");
+		  cert_level = (char *)xmlGetProp (cert, (xmlChar *)"level");
 		  result = virgule_cert_level_from_name (vr, cert_level);
 		  xmlFree (cert_level);
 		  xmlFree (cert_subj);
@@ -118,11 +118,11 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
   for (cert = tree->children; cert != NULL; cert = cert->next)
     {
       if (cert->type == XML_ELEMENT_NODE &&
-	  !strcmp (cert->name, "cert"))
+	  !xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	{
 	  char *cert_issuer;
 
-	  cert_issuer = xmlGetProp (cert, "issuer");
+	  cert_issuer = (char *)xmlGetProp (cert, (xmlChar *)"issuer");
 	  if (cert_issuer)
 	    {
 	      if (!strcmp (cert_issuer, issuer))
@@ -136,8 +136,8 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
     }
   if (cert == NULL)
     {
-      cert = xmlNewChild (tree, NULL, "cert", NULL);
-      xmlSetProp (cert, "issuer", issuer);
+      cert = xmlNewChild (tree, NULL, (xmlChar *)"cert", NULL);
+      xmlSetProp (cert, (xmlChar *)"issuer", (xmlChar *)issuer);
     }
 
   if (level == CERT_LEVEL_NONE)
@@ -146,7 +146,7 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
       xmlFreeNode(cert);
     }
   else
-    xmlSetProp (cert, "level", virgule_cert_level_to_name (vr, level));
+    xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)virgule_cert_level_to_name (vr, level));
 
   status = virgule_db_xml_put (p, db, db_key, profile);
   virgule_db_xml_free (p, db, profile);
@@ -161,11 +161,11 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
   for (cert = tree->children; cert != NULL; cert = cert->next)
     {
       if (cert->type == XML_ELEMENT_NODE &&
-	  !strcmp (cert->name, "cert"))
+	  !xmlStrcmp (cert->name, (xmlChar *)"cert"))
 	{
 	  char *cert_subj;
 
-	  cert_subj = xmlGetProp (cert, "subj");
+	  cert_subj = (char *)xmlGetProp (cert, (xmlChar *)"subj");
 	  if (cert_subj)
 	    {
 	      if (!strcmp (cert_subj, subject))
@@ -179,8 +179,8 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
     }
   if (cert == NULL)
     {
-      cert = xmlNewChild (tree, NULL, "cert", NULL);
-      xmlSetProp (cert, "subj", subject);
+      cert = xmlNewChild (tree, NULL, (xmlChar *)"cert", NULL);
+      xmlSetProp (cert, (xmlChar *)"subj", (xmlChar *)subject);
     }
 
   if (level == CERT_LEVEL_NONE)
@@ -189,7 +189,7 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
       xmlFreeNode(cert);
     }
   else
-    xmlSetProp (cert, "level", virgule_cert_level_to_name (vr, level));
+    xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)virgule_cert_level_to_name (vr, level));
 
   status = virgule_db_xml_put (p, db, db_key, profile);
   virgule_db_xml_free (p, db, profile);

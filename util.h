@@ -9,7 +9,7 @@ char *
 virgule_nice_text (apr_pool_t *p, const char *raw);
 
 char *
-virgule_nice_utf8 (apr_pool_t *p, const unsigned char *raw);
+virgule_nice_utf8 (apr_pool_t *p, const char *raw);
 
 const NavOption *
 virgule_add_nav_option (VirguleReq *vr, const char *label, const char *url);

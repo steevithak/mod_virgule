@@ -31,6 +31,118 @@ static const char UTF8length[256] = {
 static const char basis_64[] = 
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; 
 
+
+/**
+ * RSR note: This is the UTF8ToHTML function out of libxml2 with a fix that
+ * properly parses UTF-8 documents containing characters for which there
+ * are no named entity values in HTML (e.g. Chinese characters). Instead,
+ * these are simply converted to numerical entity values. I think the libxml2
+ * behavior is broken and will submit a patch upstream.
+ *
+ * UTF8ToHtml:
+ * @out:  a pointer to an array of bytes to store the result
+ * @outlen:  the length of @out
+ * @in:  a pointer to an array of UTF-8 chars
+ * @inlen:  the length of @in
+ *
+ * Take a block of UTF-8 chars in and try to convert it to an ASCII
+ * plus HTML entities block of chars out.
+ *
+ * Returns 0 if success, -2 if the transcoding fails, or -1 otherwise
+ * The value of @inlen after return is the number of octets consumed
+ *     as the return value is positive, else unpredictable.
+ * The value of @outlen after return is the number of octets consumed.
+ */
+static int
+virgule_UTF8ToHtml(unsigned char* out, int *outlen,
+              const unsigned char* in, int *inlen) {
+    const unsigned char* processed = in;
+    const unsigned char* outend;
+    const unsigned char* outstart = out;
+    const unsigned char* instart = in;
+    const unsigned char* inend;
+    unsigned int c, d;
+    int trailing;
+
+    if ((out == NULL) || (outlen == NULL) || (inlen == NULL)) return(-1);
+    if (in == NULL) {
+        /*
+	 * initialization nothing to do
+	 */
+	*outlen = 0;
+	*inlen = 0;
+	return(0);
+    }
+    inend = in + (*inlen);
+    outend = out + (*outlen);
+    while (in < inend) {
+	d = *in++;
+	if      (d < 0x80)  { c= d; trailing= 0; }
+	else if (d < 0xC0) {
+	    /* trailing byte in leading position */
+	    *outlen = out - outstart;
+	    *inlen = processed - instart;
+	    return(-2);
+        } else if (d < 0xE0)  { c= d & 0x1F; trailing= 1; }
+        else if (d < 0xF0)  { c= d & 0x0F; trailing= 2; }
+        else if (d < 0xF8)  { c= d & 0x07; trailing= 3; }
+	else {
+	    /* no chance for this in Ascii */
+	    *outlen = out - outstart;
+	    *inlen = processed - instart;
+	    return(-2);
+	}
+
+	if (inend - in < trailing) {
+	    break;
+	} 
+
+	for ( ; trailing; trailing--) {
+	    if ((in >= inend) || (((d= *in++) & 0xC0) != 0x80))
+		break;
+	    c <<= 6;
+	    c |= d & 0x3F;
+	}
+
+	/* assertion: c is a single UTF-4 value */
+	if (c < 0x80) {
+	    if (out + 1 >= outend)
+		break;
+	    *out++ = c;
+	} else {
+	    int len;
+	    const htmlEntityDesc * ent;
+	    const char *cp;
+	    char nbuf[16];
+
+	    /*
+	     * Try to lookup a predefined HTML entity for it
+	     */
+
+	    ent = htmlEntityValueLookup(c);
+	    if (ent == NULL) {
+	      snprintf(nbuf, sizeof(nbuf), "#%u", c);
+	      cp = nbuf;
+	    }
+	    else
+	      cp = ent->name;
+	    len = strlen(cp);
+	    if (out + 2 + len >= outend)
+		break;
+	    *out++ = '&';
+	    memcpy(out, cp, len);
+	    out += len;
+	    *out++ = ';';
+	}
+	processed = in;
+    }
+    *outlen = out - outstart;
+    *inlen = processed - instart;
+    return(0);
+}
+
+
+
 static char *
 b64enc (apr_pool_t *p, const char *data, int size)
 {
@@ -235,32 +347,52 @@ nice_text_helper (const char *raw, char *buf)
 
 
 /**
- * virgule_nice_UTF8: Convert raw UTF8 into nice HTML.
+ * virgule_nice_UTF8: Convert raw UTF8 into nice HTML. Outlength is probably
+ * overkill. It assumes every input character is converted to a 6 byte
+ * entity in the output buffer.
  * @raw: Raw UTF8
  *
  * Return value: HTML formatted text
  **/
 char *
-virgule_nice_utf8 (apr_pool_t *p, const unsigned char *raw)
+virgule_nice_utf8 (apr_pool_t *p, const char *utf8)
 {
-  int inlen = xmlStrlen(raw);
-  int outlen = inlen * 4;
+  int inlen = strlen(utf8);
+  int outlen = inlen * 6;
   char *out = NULL;
    
-  if (raw == NULL)
+  if (utf8 == NULL)
      return NULL;
+
+
+//  htmlParserCtxtPtr ctxt = htmlNewParserCtxt();
+//  if(htmlParseChunk(ctxt, (char *)raw, inlen, 1) != 0)
+//    return "parse failed";
+// get a context
+// set to buffer?
+// htmlParseContent (ctxt);
+// htmlAutoCloseOnEnd (ctxt);
+//  htmlDocPtr html = htmlParseDoc ((xmlChar *)raw, NULL);
+//  if (html == NULL);
+//    return "htmlDocPtr() failed";    
+//  int len;
+//  xmlDocDumpFormatMemory(ctxt->myDoc, &out, &len, 1);
+//  return (char *)out;
 
   out = apr_palloc (p, outlen + 1);
   if(out == NULL)
     return NULL;
-//  memset(out,0,outlen);
-//  if(UTF8ToHtml (out,&outlen,raw,&inlen) == 0)
-  if(htmlEncodeEntities ((xmlChar *)out,&outlen,raw,&inlen,0) == 0)
+
+  memset(out,0,outlen);
+  if(virgule_UTF8ToHtml (out,&outlen,utf8,&inlen) == 0)
+//  if(htmlEncodeEntities ((xmlChar *)out,&outlen,utf8,&inlen,0) == 0)
     {
       out[outlen] = 0;
       return out;
     }
+
   return NULL;
+
 }
  
 
@@ -577,7 +709,7 @@ virgule_strip_a (VirguleReq *vr, const char *raw)
  * Return value: HTML formatted text.
  **/
 char *
-virgule_nice_htext (VirguleReq *vr, const char *raw, char **p_error)
+virgule_nice_htext (VirguleReq *vr, const char *utf8, char **p_error)
 {
   apr_pool_t *p = vr->r->pool;
   Buffer *b = virgule_buffer_new (p);
@@ -588,6 +720,9 @@ virgule_nice_htext (VirguleReq *vr, const char *raw, char **p_error)
   int in_quote = 0;
 
   *p_error = NULL;
+
+  const char *raw = virgule_nice_utf8 (vr->r->pool, utf8);
+
 #if 0
   /* revert to old nicetext behavior */
   return virgule_nice_text (p, raw);
@@ -1195,3 +1330,4 @@ return TRUE;
   }
   return TRUE;
 }
+

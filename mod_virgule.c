@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061115"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061122"
 
 #include <string.h>
 
@@ -34,6 +34,8 @@
 #include "apache_util.h"
 #include "acct_maint.h"
 #include "aggregator.h"
+#include "hashtable.h"
+#include "eigen.h"
 #include "diary.h"
 #include "article.h"
 #include "proj.h"
@@ -48,7 +50,6 @@
 #include "xml_util.h"
 #include "rating.h"
 #include "certs.h"
-#include "hashtable.h" /* for unit testing */
 
 /* Process specific pool */
 static apr_pool_t *ppool = NULL;

@@ -22,6 +22,9 @@
 #include "db_ops.h"
 #include "aggregator.h"
 #include "rss_export.h"
+#include "hashtable.h"
+#include "eigen.h"
+#include "site.h"
 #include "diary.h"
 
 static char *
@@ -46,23 +49,121 @@ validate_key(VirguleReq *vr, const char *diary, const char *key)
 }
 
 
-/* renders into @vr's buffer */
+/**
+ * virgule_diary_entry_render - renders a single diary entry into the buffer.
+ * An informational header is added in one of two styles. If h = 0, a plain
+ * header consisting of the date and a permalink will be added. If h = 1, a
+ * fancy header wrapped in the user's cert level style will be added, along
+ * with an eigenvectory interest ranking if known.
+ **/
+void
+virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev, int h)
+{
+  Buffer *b = vr->b;
+  char *key;
+  char *contents;
+  char *title;
+  char *localdate;
+  char *localupdate;
+  char *entrylink;
+  char *feedposttime;
+  char *blogauthor;
+  xmlDoc *entry;
+  xmlNode *root;
+
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", u, n);
+  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+  if (entry == NULL)
+    return;
+    
+  root = xmlDocGetRootElement (entry);
+  if (root == NULL)
+    return;
+
+  localdate = virgule_xml_find_child_string (root, "date", NULL);
+  localupdate = virgule_xml_find_child_string (root, "update", NULL);
+
+  /* render fancy, recentlog style header if requested */
+  if (h)
+    {
+      virgule_buffer_puts (vr->b, "<br>");
+      virgule_render_cert_level_begin (vr, u, CERT_STYLE_MEDIUM);
+      virgule_buffer_printf (vr->b, " %s ", virgule_render_date (vr, localdate, 0));
+      virgule_site_render_person_link (vr, u);
+      if (ev)
+        {
+	  int gray = virgule_conf_to_gray (ev->confidence);
+	  virgule_buffer_printf (vr->b,
+				"<span style=\"color: #%02x%02x%02x;\">(%.2g)</span>",
+				gray, gray, gray, ev->rating);
+	}
+      virgule_buffer_printf (vr->b,
+    			     "&nbsp; <a href=\"%s/person/%s/diary.html?start=%u\" style=\"text-decoration: none\">&raquo;</a>",
+			     vr->prefix, u, n);
+      if (vr->u && strcmp (vr->u, u) == 0)
+        virgule_buffer_printf (vr->b,
+			       "&nbsp; <a href=\"%s/diary/edit.html?key=%u\" style=\"text-decoration: none\">[ Edit ]</a>",
+			       vr->prefix, n);
+      virgule_render_cert_level_text (vr, u);
+      virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
+    }
+  else
+    {
+      virgule_buffer_printf (vr->b, "<p><a name=\"%u\"><b>%s</b></a>",
+			     n, virgule_render_date (vr, localdate, 0));
+      if (localupdate != NULL)
+	virgule_buffer_printf (vr->b, " (updated %s)",
+			       virgule_render_date (vr, localupdate, 1));
+      virgule_buffer_printf (vr->b,
+    			     " <a href=\"%s/person/%s/diary.html?start=%u\" style=\"text-decoration: none\">&raquo;</a>",
+			     vr->prefix, u, n);
+      if (vr->u && strcmp (vr->u, u) == 0)
+        virgule_buffer_printf (vr->b,
+			       "&nbsp; <a href=\"%s/diary/edit.html?key=%u\" style=\"text-decoration: none\">[ Edit ]</a> &nbsp;",
+			       vr->prefix, n);
+    }
+        
+  contents = virgule_xml_get_string_contents (root);
+  title = virgule_xml_find_child_string (root, "title", NULL);
+  entrylink = virgule_xml_find_child_string (root, "entrylink", NULL);
+  blogauthor = virgule_xml_find_child_string (root, "blogauthor", NULL);
+  feedposttime = virgule_xml_find_child_string (root, "feedposttime", NULL);
+  
+  if (contents != NULL)
+    {    
+      virgule_buffer_puts (b, "<blockquote>\n");
+      if (title)
+        virgule_buffer_printf (b, "<p><b>%s</b></p>\n", title);
+      if (strcmp (virgule_req_get_tmetric_level (vr, u),
+         virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) == 0)
+        virgule_buffer_puts (b, virgule_add_nofollow (vr, contents));
+      else
+        virgule_buffer_puts (b, contents);
+      if (feedposttime && entrylink)
+        {
+          virgule_buffer_printf (b, "<p class=\"syndicated\"><a href=\"%s\">Syndicated %s from %s</a></p>",
+			      entrylink, feedposttime, blogauthor ? blogauthor : u);
+	}
+      virgule_buffer_puts (b, "</blockquote>\n");
+    }
+}
+
+
+/**
+ * virgule_diary_render - renders a range of diary entries on a page followed
+ * by a link that will generated older etnries.
+ **/
 void
 virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 {
   apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *diary;
-  int n, is_owner = 0;
+  int n;
 
   diary = apr_psprintf (p, "acct/%s/diary", u);
 
   virgule_auth_user (vr);
-  if (vr->u && strcmp(vr->u, u) == 0)
-    {
-      /* The user is viewing his or her own diary */
-      is_owner = 1;
-    }
 
   if (start >= 0)
     n = start;
@@ -73,99 +174,15 @@ virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start)
     return;
 
   for (; n >= 0 && max_num--; n--)
-    {
-      char *key;
-      xmlDoc *entry;
-
-      key = apr_psprintf (p, "acct/%s/diary/_%d", u, n);
-#if 0
-      virgule_buffer_printf (b, "<p> Key: %s </p>\n", key);
-      continue;
-#endif
-      entry = virgule_db_xml_get (p, vr->db, key);
-      if (entry != NULL)
-	{
-	  xmlNode *date_el;
-	  char *contents;
-
-	  date_el = virgule_xml_find_child (entry->xmlRootNode, "date");
-	  if (date_el != NULL)
-	    {
-	      xmlNode *update_el;
-	      virgule_buffer_printf (b, "<p><a name=\"%u\"><b>%s</b></a>",
-			     n,
-			     virgule_render_date (vr,
-					  virgule_xml_get_string_contents (date_el),
-					  0));
-	      update_el = virgule_xml_find_child (entry->xmlRootNode, "update");
-	      if (update_el != NULL)
-		virgule_buffer_printf (b, " (updated %s)",
-			       virgule_render_date (vr,
-					    virgule_xml_get_string_contents (update_el),
-					    1));
-
-              virgule_buffer_printf (b, "&nbsp; <a href=\"%s/person/%s/diary.html?start=%u\">&raquo;</a>",
-			     vr->prefix,
-                             ap_escape_uri(vr->r->pool, u),
-                             n); 
-	      if (is_owner)
-	          virgule_buffer_printf (b, " <a href=\"%s/diary/edit.html?key=%u\">[ Edit ]</a>",
-				 vr->prefix,
-				 n);
-	      virgule_buffer_printf (b, "</p>\n");
-	    }
-	  contents = virgule_xml_get_string_contents (entry->xmlRootNode);
-	  if (contents != NULL)
-	    {
-	      virgule_buffer_puts (b, "<blockquote>\n");
-              if (strcmp (virgule_req_get_tmetric_level (vr, u),
-	           virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) == 0)
-	        virgule_buffer_puts (b, virgule_add_nofollow (vr, contents));
-	      else
-	        virgule_buffer_puts (b, contents);
-	      virgule_buffer_puts (b, "</blockquote>\n");
-	    }
-	}
-    }
+    virgule_diary_entry_render (vr, u, n, NULL, 0);
 
   if (n >= 0)
-    {
-      virgule_buffer_printf (b, "<p> <a href=\"%s/person/%s/diary.html?start=%d\">%d older entr%s...</a> </p>\n",
+    virgule_buffer_printf (b, "<p><a href=\"%s/person/%s/diary.html?start=%d\">%d older entr%s...</a></p>\n",
 		     vr->prefix, ap_escape_uri(vr->r->pool, u), n,
 		     n + 1, n == 0 ? "y" : "ies");
-    }
 }
 
 
-/* renders the latest diary entry into @vr's buffer */
-/* used to render recentlog entries */
-void
-virgule_diary_latest_render (VirguleReq *vr, const char *u, int n)
-{
-  apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
-  char *key;
-  xmlDoc *entry;
-
-  key = apr_psprintf (p, "acct/%s/diary/_%d", u, n);
-  entry = virgule_db_xml_get (p, vr->db, key);
-  if (entry != NULL)
-    {
-      char *contents;
-  
-      contents = virgule_xml_get_string_contents (entry->xmlRootNode);
-      virgule_buffer_puts (b, "<blockquote>\n");
-      if (contents != NULL)
-	{
-          if (strcmp (virgule_req_get_tmetric_level (vr, u),
-	      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) == 0)
-	    virgule_buffer_puts (b, virgule_add_nofollow (vr, contents));
-	  else
-	    virgule_buffer_puts (b, contents);
-	}
-      virgule_buffer_puts (b, "</blockquote>\n");
-    }
-}
 
 char *
 virgule_diary_get_backup(VirguleReq *vr)
@@ -209,7 +226,7 @@ diary_preview_serve (VirguleReq *vr)
   const char *key, *entry, *entry_nice;
   const char *date;
   char *diary;
-  char *error;
+  char *error = NULL;
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
@@ -521,13 +538,13 @@ virgule_diary_serve (VirguleReq *vr)
  *
  * ToDo: I think this code is incorrect. It seems to assume that diary
  * entries contain HTML and then attempts to parse the HTML and incorporate
- * it into the XML document tree. It would make more sense to me for the
+ * the HTML nodes into the XML tree. It would make more sense to me for the
  * diary entry, including HTML, if any, to be made into content for an "entry"
  * node in the XML tree. This way we don't have to worry about whether the
  * HTML used is well-formed, XML-compatible markup.
  *
- * It may even be possible to remove this function altogether. The newer
- * XML-RPC code should replace it.
+ * It may even be better to remove this function altogether. The newer
+ * XML-RPC code replaces it.
  **/
 int
 virgule_diary_export (VirguleReq *vr, xmlNode *root, char *u)
@@ -669,7 +686,7 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
  * handling can be fixed, the result is offset to the local zone here.
  **/
 time_t
-virgule_diary_latest_feed_entry (VirguleReq *vr, char *u)
+virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
 {
   int n;
   char *diary, *key;
@@ -677,12 +694,12 @@ virgule_diary_latest_feed_entry (VirguleReq *vr, char *u)
   xmlNode *date = NULL;
   time_t result;
   
-  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", u);
+  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", (char *)u);
   n = virgule_db_dir_max (vr->db, diary);
   if (n < 0)
     return 0;
     
-  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", u, n);
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, n);
   entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
   if (entry == NULL)
     return 0;

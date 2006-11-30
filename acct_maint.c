@@ -25,12 +25,12 @@
 #include "util.h"
 #include "certs.h"
 #include "aggregator.h"
-#include "diary.h"
 #include "db_ops.h"
 #include "proj.h"
 #include "rating.h"
 #include "hashtable.h"
 #include "eigen.h"
+#include "diary.h"
 #include "acct_maint.h"
 
 typedef struct _ProfileField ProfileField;
