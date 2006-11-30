@@ -906,7 +906,7 @@ acct_person_index_serve (VirguleReq *vr)
       db_key = acct_dbkey (p, u);
       profile = db_xml_get (p, db, db_key);
 
-      /* most likely a occurpt profile, silently skip it... */
+      /* most likely a corrupt profile, silently skip it... */
       if (profile == NULL)
         continue;
 

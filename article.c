@@ -677,23 +677,6 @@ article_recent_render (VirguleReq *vr, int n_arts_max, int start)
   return 0;
 }
 
-static int
-article_index_serve (VirguleReq *vr)
-{
-  Buffer *b = vr->b;
-
-  auth_user (vr);
-
-  render_header (vr, "Recent <x>articles</x>", NULL);
-
-  render_sitemap (vr, 1);
-
-  buffer_puts (b, "<p> Recently posted <x>articles</x>:</p>\n");
-
-  article_recent_render (vr, 20, -1);
-
-  return render_footer_send (vr);
-}
 
 static int
 article_older_serve (VirguleReq *vr)
@@ -777,8 +760,8 @@ article_serve (VirguleReq *vr)
   if (!strcmp (p, "replysubmit.html"))
     return article_reply_submit_serve (vr);
 
-  if (!strcmp (p, ""))
-    return article_index_serve (vr);
+//  if (!strcmp (p, ""))
+//    return article_index_serve (vr);
 
   if (!strcmp (p, "older.html"))
     return article_older_serve (vr);

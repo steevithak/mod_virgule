@@ -1,3 +1,21 @@
+2004-09-26 R. Steven Rainwater <steve@ncc.com>
+
+	* db.c (db_put_p): Added check for existence of record before rename
+	to prevent errors on posting with Gary's disk space patch. The patch
+	should now working as intended.
+	
+	* post.c, post.h: Remove these two files which are not referenced in
+	the makefile and appear to be unused cruft.
+	
+2004-09-17 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_index_serve): Removed this unnecessary function
+	and replaced it with a default XML file that makes the page easily
+	configurable by the user.
+
+	* site.c (site_render_include): Added a function that allows the user
+	to include one XML file within another. 
+
 2004-08-19 R. Steven Rainwater <steve@ncc.com>
 
 	* db.c (db_put_p): Reverted Gary's disk space patch due to problems
@@ -8,7 +26,7 @@
 	* db.c (db_put_p): Added Gary Benson's patch to allow graceful 
 	failure in case disk space is exhausted.
 
-	* rec.h (_VirguleRec): Added nav_options, a pointer to a list of
+	* rec.h (_VirguleRec): Added nav_options, and pointer to a list of
 	navigation options from which the sitemap can be constructed.
 
 	* util.c (add_nav_option): Added a utility function to create
