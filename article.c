@@ -324,6 +324,9 @@ article_form_serve (VirguleReq *vr)
  * Submits article or reply.
  *
  * Return value: Response code.
+ *
+ * ToDo: There are a lot potential conflicts between char and xmlChar 
+ * pointers that should be resolved to make the code more consistent.
  **/
 static int
 article_generic_submit_serve (VirguleReq *vr,
@@ -477,31 +480,31 @@ article_generic_submit_serve (VirguleReq *vr,
 		     key_suffix);
 
   doc = virgule_db_xml_doc_new (p);
-  root = xmlNewDocNode (doc, NULL, "article", NULL);
+  root = xmlNewDocNode (doc, NULL, (xmlChar *)"article", NULL);
   doc->xmlRootNode = root;
 
-  tree = xmlNewChild (root, NULL, "date", date);
-  tree = xmlNewChild (root, NULL, "author", vr->u);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"author", (xmlChar *)vr->u);
 
-  tree = xmlNewChild (root, NULL, "title", NULL);
-  xmlAddChild (tree, xmlNewDocText (doc, nice_title));
+  tree = xmlNewChild (root, NULL, (xmlChar *)"title", NULL);
+  xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)nice_title));
 
   if(vr->priv->use_article_topics)
     {
-      tree = xmlNewChild (root, NULL, "topic", NULL);
-      xmlAddChild (tree, xmlNewDocText (doc, topic));
+      tree = xmlNewChild (root, NULL, (xmlChar *)"topic", NULL);
+      xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)topic));
     }
 
   if (lead && lead[0])
     {
-      tree = xmlNewChild (root, NULL, "lead", NULL);
-      xmlAddChild (tree, xmlNewDocText (doc, nice_lead));
+      tree = xmlNewChild (root, NULL, (xmlChar *)"lead", NULL);
+      xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)nice_lead));
     }
 
   if (body != NULL && body[0])
     {
-      tree = xmlNewChild (root, NULL, "body", NULL);
-      xmlAddChild (tree, xmlNewDocText (doc, nice_body));
+      tree = xmlNewChild (root, NULL, (xmlChar *)"body", NULL);
+      xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)nice_body));
     }
 
   status = virgule_db_xml_put (p, vr->db, key, doc);

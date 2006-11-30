@@ -1,8 +1,9 @@
 #include <stdarg.h>
 #include <stdio.h>
-#define __USE_GNU
+#ifndef __USE_GNU
+  #define __USE_GNU
+#endif
 #include <string.h>
-#undef __USE_GNU
 
 #include <apr.h>
 #include <apr_md5.h>
@@ -12,6 +13,13 @@
 #include <util_md5.h>
 
 #include "buffer.h"
+
+/* 
+  rsr note: the buffer routines all use a signed char *buf leading to lots of
+  casting, since most of what we're sending is xmlChar * data from the XML 
+  database. Apache's ap_rwrite seems happy with whatever we send, so maybe it
+  would make thing easier in the long run to change to xmlChar *buf? 
+*/
 
 /* An abstraction for an appendable buffer. This should be reasonably
 efficient in both time and memory usage for most purposes. */

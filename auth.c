@@ -45,7 +45,7 @@ virgule_auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
   if (tree == NULL)
     return;
 
-  stored_cookie = xmlGetProp (tree, "cookie");
+  stored_cookie = (char *)xmlGetProp (tree, (xmlChar *)"cookie");
 
   if (strcmp (id_cookie, stored_cookie))
     /* cookie doesn't match */

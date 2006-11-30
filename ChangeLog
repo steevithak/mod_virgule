@@ -1,10 +1,54 @@
+2006-10-25 R. Steven Rainwater <steve@ncc.com>
+
+	* auth.c (virgule_auth_user_with_cookie): Added xmlChar/char casts
+	to elimate gcc 4.x warnings.
+
+	* article.c (article_generic_submit_serve): Added xmlChar/char casts
+	to elimate gcc 4.x warnings.
+
+	
+2006-10-22 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c: Fixed numerous xmlChar/char castings to fix gcc 4.x
+	warnings. Switched a few strcmp() calls to xmlStrcmp() both to fix
+	warnings and to make sure the string handling code is UTF-8 safe.
+
+
+2006-10-19 R. Steven Rainwater <steve@ncc.com>
+
+	* Makefile: Minor compatibility changes for gcc 4.x and Apache 2.2.
+
+	* mod_virgule (command_rec table): Updated to remove reliance on
+	deprecated Apache 1.3 compatibility layer. Should compile cleanly
+	with Apache 2.2 as well as 2.0 now.
+	
+	* mod_virgule (read_site_config): Added several xmlChar casts of
+	char to	eliminate gcc 4.x warnings. Also replaced calls to strcmp
+	with calls to xmlStrcmp.
+
+	* net_flow.c (virgule_net_flow_max_flow): #Ifdef'd out several
+	debug g_print statements.
+
+	* eigen.c (virgule_eigen_crank): Added a few xmlChar and char
+	casts to elimate gcc 4.x warnings.
+
+	* acct_maint.c (acct_person_serve): When a "person not found" page
+	is returned, the HTTP status code is set to 404 instead of 200. This
+	should help search engines to stop requesting dead pages.
+	
+	* acct_maint.c (acct_person_diary_serve): When diary entries for a
+	non-existent person are requested, the HTTP status code is set to
+	404 and a "person not found" error page is returned.
+
+	* tmetric.c (virgule_tmetric_get): Removed some debugging cruft.
+	
 2006-10-16 R. Steven Rainwater <steve@ncc.com>
 
-	* acct_maint.c (acct_index_server): Separated login and password
+	* acct_maint.c (acct_index_serve): Separated login and password
 	reminder forms to improve usability.
 
 	* acct_maint.c (acct_person_serve): Spam reporting is now done through
-	a form as per Scott Lamb's suggestion. Help protect against accidental
+	a form as per Scott Lamb's suggestion. Helps protect against accidental
 	reports by automated agents following links. This also keeps us
 	compliant with RFC 2616.
 	
@@ -28,7 +72,7 @@
 	flag issuer, and recalculates the spam score. If the score exceeds
 	the currently configured threshold, the account is removed.
 
-	* acct_maint.c (virgule_acct_person_index_server): User list paging
+	* acct_maint.c (virgule_acct_person_index_serve): User list paging
 	now handles missing accounts smoothly (most likely missing because
 	they got deleted by the new acct_kill function).
 
@@ -513,7 +557,7 @@
 	* tmetric.c (tmetric_set_name): Fixed segfault that occured if
 	tmetric_find_node() was unable to find a user name.
 	
-	* acct_maint.c (acct_update_serve, acct_person_server,
+	* acct_maint.c (acct_update_serve, acct_person_serve,
 	acct_certify_serve): Added Gary Benson's page refresh patches.
 
 2004-06-23 R. Steven Rainwater <steve@ncc.com>
@@ -528,7 +572,7 @@
 	switch, the XML-RPC check cookie method, recentlog permalinks, article
 	permalinks, project permalinks, and recentlog edit links.
 	
-	* acct_maint.c (acct_index_server, acct_newsub_serve): Added "forgot 
+	* acct_maint.c (acct_index_serve, acct_newsub_serve): Added "forgot 
 	password" checkbox and instructions to login form. Added forgotten
 	password handler to newsub_serve.
 	
@@ -560,7 +604,7 @@
 	
 2003-10-19 R. Steven Rainwater <steve@ncc.com>
 
-	* rss_export.c (rss_index_server): Applied James Henstridge's patch
+	* rss_export.c (rss_index_serve): Applied James Henstridge's patch
 	to add missing content type to the returned document.
 
 	* (general): Applied James Henstridge's patch that ads a link element
@@ -579,7 +623,7 @@
 
 2003-10-04 R. Steven Rainwater <steve@ncc.com>
 
-	* acct_maint.c (acct_person_diary_???_server): Replaced 
+	* acct_maint.c (acct_person_diary_???_serve): Replaced 
 	xmlDocDumpMemory() with xmlDocDumpFormatMemory() to provide 
 	newlines and indenting in output. This simulates the behavior of
 	libxml with respect to whitespace. Ideally these calls should
@@ -905,7 +949,7 @@
 	* article.c (all): Changed calls to ok_to_post() in cases where
 	ok_to_reply() was more appropriate.
 
-	* article.c (article_form_server): Changed maximum article title 
+	* article.c (article_form_serve): Changed maximum article title 
 	size from 50 to 40 characters.
 
 	* article.c (article_generic_submit_serve): Changed maximum article
@@ -928,7 +972,7 @@
 	* req.c/h (ok_to_create_project): New function. User must have 
 	apprentice or higher cert to create a project.
 
-	* rss.c (rss_index_server, rss_render_from_xml): Replaced hard-coded
+	* rss.c (rss_index_serve, rss_render_from_xml): Replaced hard-coded
 	references to Advogato with hard-coded references to robots.net.
 
 
@@ -948,7 +992,7 @@
 	
 2001-02-26  R. Steven Rainwater <steve@ncc.com>
 
-	* acct_maint.c (acct_index_server): Removed hard-coded reference
+	* acct_maint.c (acct_index_serve): Removed hard-coded reference
 	to Advogato.org from descriptive text on user account page.
 
 	* certs.c (render_cert_level_begin): Removed hard-coded reference

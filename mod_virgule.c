@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061016"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061025"
 
 #include <string.h>
 
@@ -547,7 +547,8 @@ read_site_config (VirguleReq *vr)
         continue;
       }
  
-      if (strcmp (child->name, "level"))
+//      if (strcmp (child->name, "level"))
+      if (xmlStrcmp (child->name, (xmlChar *)"level"))
 	return virgule_send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in cert levels.",
 				child->name);
@@ -605,7 +606,8 @@ read_site_config (VirguleReq *vr)
         continue;
       }
  
-      if (strcmp (child->name, "seed"))
+//      if (strcmp (child->name, "seed"))
+      if (xmlStrcmp (child->name, (xmlChar *)"seed"))
 	return virgule_send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in seeds.",
 				child->name);
@@ -640,7 +642,8 @@ read_site_config (VirguleReq *vr)
         continue;
       }
  
-      if (strcmp (child->name, "cap"))
+//      if (strcmp (child->name, "cap"))
+      if (xmlStrcmp (child->name, (xmlChar *)"cap"))
 	return virgule_send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in capacities.",
 				child->name);
@@ -673,8 +676,8 @@ read_site_config (VirguleReq *vr)
             continue;
           }
 
-	  if (strcmp (child->name, "specialuser"))
- 
+//	  if (strcmp (child->name, "specialuser"))
+	  if (xmlStrcmp (child->name, (xmlChar *)"specialuser"))
 	    return virgule_send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in special users.",
 				    child->name);
@@ -703,16 +706,17 @@ read_site_config (VirguleReq *vr)
             continue;
           }
 
-	  if (strcmp (child->name, "translate"))
+//	  if (strcmp (child->name, "translate"))
+	  if (xmlStrcmp (child->name, (xmlChar *)"translate"))
 	    return virgule_send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in translations.",
 				    child->name);
 
-	  text = virgule_xml_get_prop (vr->r->pool, child, "from");
+	  text = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"from");
 	  c_item = (const char **)apr_array_push (stack);
           *c_item = apr_pstrdup(vr->priv->pool, text);
 
-	  text = virgule_xml_get_prop (vr->r->pool, child, "to");
+	  text = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"to");
 	  c_item = (const char **)apr_array_push (stack);
           *c_item = apr_pstrdup(vr->priv->pool, text);
 	}
@@ -780,12 +784,13 @@ read_site_config (VirguleReq *vr)
 	  continue;
 	}
 	
-	if (strcmp (child->name, "topic"))
+//	if (strcmp (child->name, "topic"))
+	if (xmlStrcmp (child->name, (xmlChar *)"topic"))
 	  return virgule_send_error_page (vr, "Config error",
 				  "Unknown element <tt>%s</tt> in article topic.",
 				  child->name);
 	
-	url = virgule_xml_get_prop (vr->r->pool, child, "url");
+	url = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"url");
 	text = virgule_xml_get_string_contents (child);
         if (!text)
           return virgule_send_error_page (vr, "Config error",
@@ -816,12 +821,13 @@ read_site_config (VirguleReq *vr)
 	  continue;
 	}
 	
-	if (strcmp (child->name, "option"))
+//	if (strcmp (child->name, "option"))
+	if (xmlStrcmp (child->name, (xmlChar *)"option"))
 	  return virgule_send_error_page (vr, "Config error",
 				  "Unknown element <tt>%s</tt> in sitemap options.",
 				  child->name);
 	
-	url = virgule_xml_get_prop (vr->r->pool, child, "url");
+	url = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"url");
 	text = virgule_xml_get_string_contents (child);
         if (!text)
           return virgule_send_error_page (vr, "Config error",
@@ -848,12 +854,13 @@ read_site_config (VirguleReq *vr)
             continue;
           }
 
-	  if (strcmp (child->name, "tag"))
+//	  if (strcmp (child->name, "tag"))
+	  if (xmlStrcmp (child->name, (xmlChar *)"tag"))
 	    return virgule_send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in allowed tags.",
 				    child->name);
 
-	  text = virgule_xml_get_prop (vr->r->pool, child, "canbeempty");
+	  text = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"canbeempty");
 	  empty = text && !strcmp(text, "yes");
 
 	  text = virgule_xml_get_string_contents (child);
@@ -1075,8 +1082,10 @@ xlat_handler (request_rec *r)
 /* Dispatch table of functions to handle Virgule httpd.conf directives */
 static const command_rec virgule_cmds[] =
 {
-  {"VirguleDb", set_virgule_db, NULL, OR_ALL, TAKE1, "the virgule database"},
-  {"VirgulePass", set_virgule_pass, NULL, OR_ALL, ITERATE, "virgule passthrough directories"},
+  AP_INIT_TAKE1("VirguleDb", (const char *(*)())set_virgule_db, NULL, OR_ALL, "the virgule database"),
+  AP_INIT_ITERATE("VirgulePass", set_virgule_pass, NULL, OR_ALL, "virgule passthrough directories"),
+//  {"VirguleDb", set_virgule_db, NULL, OR_ALL, TAKE1, "the virgule database"},
+//  {"VirgulePass", set_virgule_pass, NULL, OR_ALL, ITERATE, "virgule passthrough directories"},
   {NULL}
 };
 

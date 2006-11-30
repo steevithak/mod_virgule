@@ -864,12 +864,16 @@ virgule_net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps
   while (net_flow_augment (self, seed))
     {
       n_aug++;
+#ifdef VERBOSE
       if (n_aug % 100 == 0)
 	g_print ("%d augmentations\n", n_aug);
+#endif	
     }
+#ifdef VERBOSE
   g_print ("total flow %d with %d augmentations\n",
 	   priv->node_flow[seed],
 	   n_aug);
+#endif
 
   virgule_net_flow_sanity_check (self, seed);
 }
