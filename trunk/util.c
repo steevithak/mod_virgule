@@ -7,6 +7,17 @@
 #include "wiki.h"
 #include "util.h"
 
+static const char UTF8length[256] = {
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,6,6,6,6
+};
+				
 static const char basis_64[] = 
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; 
 
@@ -242,7 +253,7 @@ nice_person_link (VirguleReq *vr, const char *name)
     if (!isalnum (name[i]))
       return ap_psprintf (p, "&lt;person&gt;%s&lt;/person&gt;", name);
   return ap_psprintf (p, "<a href=\"%s/person/%s/\">%s</a>",
-		      vr->prefix, name, name);
+		      vr->prefix, ap_escape_uri(vr->r->pool, name), name);
 }
 
 static char *
@@ -255,6 +266,23 @@ nice_proj_link (VirguleReq *vr, const char *proj)
   return ap_psprintf (p, "<a href=\"%s/proj/%s/\">%s</a>",
                       vr->prefix, ap_escape_uri (p, proj), proj);
 }
+
+
+struct _NavOption {
+  char *label;
+  char *url;
+};
+
+const NavOption *
+add_nav_option (VirguleReq *vr, const char *label, const char *url)
+{
+  NavOption *option;
+  option = ap_palloc (vr->r->pool, sizeof(NavOption));
+  option->label = ap_pstrdup (vr->r->pool, label);
+  option->url = ap_pstrdup (vr->r->pool, url);
+  return option;
+}
+
 
 struct _AllowedTag {
   char *tagname;
@@ -811,3 +839,77 @@ render_url (pool *p, const char *prefix, const char *url)
 		     ap_escape_uri (p, url2), nice_text (p, url));
 }
 
+
+/**
+ * in_input_valid: Checks a null-terminated char string to see if there
+ * are any invalid UTF-8 byte sequences or illegal XML characters.
+ *
+ * Returns: TRUE if string is valid, FALSE otherwise
+ **/
+int is_input_valid(const char *val)
+{
+  unsigned char *c;
+  c = val;
+
+
+return TRUE;
+  
+  while(c) {
+    if(!is_legal_XML(c)) return FALSE;
+    
+//    return send_error_page (vr,
+//			    "Passwords must match",
+//			    "The passwords must match. Have a cup of coffee and try again.");
+    
+    if(!is_legal_UTF8(c,UTF8length[*c])) return FALSE;
+    c+= UTF8length[*c];
+  }
+  return TRUE;
+}
+
+
+/**
+ * is_legal_XML: Validates character as a legal XML character 
+ * based on the W3C XML 1.0 Recommendation:
+ * http://www.w3.org/TR/1998/REC-xml-19980210
+ *
+ * Return value: TRUE if legal XML char, FALSE otherwise
+ **/
+int is_legal_XML(unsigned char *c)
+{
+  if(*c <= 0x08) return FALSE;
+  if(*c == 0x0b) return FALSE;
+  if(*c == 0x0c) return FALSE;
+  if(*c >= 0x0e && *c <= 0x1f) return FALSE;
+  return TRUE;
+}
+
+
+/**
+ * is_legal_UTF8:  Validation of a byte sequence as a legal
+ * UTF-8 sequence. This function based on code by Unicode, Inc.
+ *
+ * Return value: TRUE if sequence is valid UTF-8, FALSE otherwise
+ **/
+int is_legal_UTF8(unsigned char *source, char length)
+{
+  unsigned char a;
+  unsigned char *srcptr = source+length;
+  switch (length) {
+    default: return FALSE;
+    /* Everything else falls through when "true"... */
+    case 4: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return FALSE;
+    case 3: if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return FALSE;
+    case 2: if ((a = (*--srcptr)) > 0xBF) return FALSE;
+            switch (*source) {
+              /* no fall-through in this inner switch */
+              case 0xE0: if (a < 0xA0) return FALSE; break;
+              case 0xF0: if (a < 0x90) return FALSE; break;
+              case 0xF4: if (a > 0x8F) return FALSE; break;
+              default:   if (a < 0x80) return FALSE;
+            }
+    case 1: if (*source >= 0x80 && *source < 0xC2) return FALSE;
+            if (*source > 0xF4) return FALSE;
+  }
+  return TRUE;
+}

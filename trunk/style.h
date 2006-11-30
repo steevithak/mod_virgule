@@ -1,8 +1,10 @@
-void
-render_header_raw (VirguleReq *vr, const char *title);
+#define STYLE
 
 void
-render_header (VirguleReq *vr, const char *title);
+render_header_raw (VirguleReq *vr, const char *title, const char *head_content);
+
+void
+render_header (VirguleReq *vr, const char *title, const char *head_content);
 
 void
 render_sitemap (VirguleReq *vr, int enclose);
@@ -24,4 +26,4 @@ send_error_page (VirguleReq *vr, const char *error_short,
 		 const char *fmt, ...);
 
 char *
-render_date (VirguleReq *vr, const char *iso);
+render_date (VirguleReq *vr, const char *iso, int dateonly);

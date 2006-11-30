@@ -4,8 +4,8 @@
 
 #include "httpd.h"
 
-#include <tree.h>
-#include <HTMLparser.h>
+#include <libxml/tree.h>
+#include <libxml/HTMLparser.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -83,7 +83,7 @@ diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 	  xmlNode *date_el;
 	  char *contents;
 
-	  date_el = xml_find_child (entry->root, "date");
+	  date_el = xml_find_child (entry->xmlRootNode, "date");
 	  if (date_el != NULL)
 	    {
 	      xmlNode *update_el;
@@ -91,16 +91,18 @@ diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 	      buffer_printf (b, "<a name=\"%u\"><b>%s</b></a>",
 			     n,
 			     render_date (vr,
-					  xml_get_string_contents (date_el)));
-	      update_el = xml_find_child (entry->root, "update");
+					  xml_get_string_contents (date_el),
+					  0));
+	      update_el = xml_find_child (entry->xmlRootNode, "update");
 	      if (update_el != NULL)
 		buffer_printf (b, " (updated %s)",
 			       render_date (vr,
-					    xml_get_string_contents (update_el)));
+					    xml_get_string_contents (update_el),
+					    1));
 
               buffer_printf (b, "&nbsp; <a href=\"%s/person/%s/diary.html?start=%u\">&raquo;</a>",
 			     vr->prefix,
-                             u,
+                             ap_escape_uri(vr->r->pool, u),
                              n); 
 	      if (is_owner)
 	          buffer_printf (b, " <a href=\"%s/diary/edit.html?key=%u\">[ Edit ]</a>",
@@ -108,7 +110,7 @@ diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 				 n);
 	      buffer_printf (b, " </p>\n");
 	    }
-	  contents = xml_get_string_contents (entry->root);
+	  contents = xml_get_string_contents (entry->xmlRootNode);
 	  if (contents != NULL)
 	    {
 	      buffer_puts (b, "<blockquote>\n");
@@ -121,7 +123,7 @@ diary_render (VirguleReq *vr, const char *u, int max_num, int start)
   if (n >= 0)
     {
       buffer_printf (b, "<p> <a href=\"%s/person/%s/diary.html?start=%d\">%d older entr%s...</a> </p>\n",
-		     vr->prefix, u, n,
+		     vr->prefix, ap_escape_uri(vr->r->pool, u), n,
 		     n + 1, n == 0 ? "y" : "ies");
     }
 }
@@ -140,8 +142,8 @@ diary_latest_render (VirguleReq *vr, const char *u, int n)
   if (entry != NULL)
     {
       char *contents;
-
-      contents = xml_get_string_contents (entry->root);
+  
+      contents = xml_get_string_contents (entry->xmlRootNode);
       buffer_puts (b, "<blockquote>\n");
       if (contents != NULL)
 	{
@@ -210,13 +212,13 @@ diary_preview_serve (VirguleReq *vr)
   diary_put_backup (vr, entry);
   entry_nice = nice_htext (vr, entry, &error);
 
-  render_header (vr, "Diary preview");
+  render_header (vr, "Diary preview", NULL);
 
   buffer_printf (b, "<p> %s </p>\n", entry_nice);
 
   buffer_printf (b, "<p> Edit your entry: </p>\n"
-		 "<form method=\"POST\" action=\"post.html\">\n"
-		 " <textarea name=\"entry\" cols=60 rows=16 wrap=soft>%s"
+		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
+		 " <textarea name=\"entry\" cols=60 rows=16 wrap=hard>%s"
 		 "</textarea>\n"
 		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
 		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
@@ -243,7 +245,7 @@ diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
   entry_doc = db_xml_doc_new (p);
   root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
   xmlAddChild (root, xmlNewDocText (entry_doc, entry));
-  entry_doc->root = root;
+  entry_doc->xmlRootNode = root;
 
   old_entry_doc = db_xml_get (p, vr->db, key);
 
@@ -258,7 +260,7 @@ diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
     {
       xmlNode *old_date_el;
 
-      old_date_el = xml_find_child (old_entry_doc->root, "date");
+      old_date_el = xml_find_child (old_entry_doc->xmlRootNode, "date");
       if (old_date_el != NULL)
 	tree = xmlNewChild (root, NULL, "date",
 			    xml_get_string_contents (old_date_el));
@@ -324,13 +326,13 @@ diary_index_serve (VirguleReq *vr)
     return send_error_page (vr, "Not logged in", "You can't access your diary page because you're not logged in.");
 
   str = ap_psprintf (p, "Diary: %s\n", vr->u);
-  render_header (vr, str);
+  render_header (vr, str, NULL);
   diary = ap_psprintf (p, "acct/%s/diary", vr->u);
   key = ap_psprintf (p, "%d", db_dir_max (vr->db, diary) + 1);
 
   buffer_printf (b, "<p> Post a new entry: </p>\n"
-		 "<form method=\"POST\" action=\"post.html\">\n"
-		 " <textarea name=\"entry\" cols=60 rows=16 wrap=soft>%s"
+		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
+		 " <textarea name=\"entry\" cols=60 rows=16 wrap=hard>%s"
 		 "</textarea>\n"
 		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
 		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
@@ -379,16 +381,17 @@ diary_edit_serve (VirguleReq *vr)
       char *error;
       char *contents;
 
-      date_el = xml_find_child (entry->root, "date");
+      date_el = xml_find_child (entry->xmlRootNode, "date");
       if (date_el != NULL)
         {
 	  str = ap_psprintf (p, "Diary: %s\n",
 			     render_date (vr,
-					  xml_get_string_contents (date_el)));
-	  render_header (vr, str);
+					  xml_get_string_contents (date_el),
+					  1));
+	  render_header (vr, str, NULL);
 	}
 
-      contents = xml_get_string_contents (entry->root);
+      contents = xml_get_string_contents (entry->xmlRootNode);
       if (contents != NULL)
 	{
 	  entry_nice = nice_htext (vr, contents, &error);
@@ -396,8 +399,8 @@ diary_edit_serve (VirguleReq *vr)
 	}
 
       buffer_printf (b, "<p> Edit your entry: </p>\n"
-		     "<form method=\"POST\" action=\"post.html\">\n"
-		     " <textarea name=\"entry\" cols=60 rows=16 wrap=soft>%s"
+		     "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
+		     " <textarea name=\"entry\" cols=60 rows=16 wrap=hard>%s"
 		     "</textarea>\n"
 		     " <p> <input type=\"submit\" name=post value=\"Post\">\n"
 		     " <input type=\"submit\" name=preview value=\"Preview\">\n"
@@ -485,23 +488,26 @@ diary_export (VirguleReq *vr, xmlNode *root, char *u)
       if (entry != NULL)
 	{
 	  xmlNode *date_el;
-	  date_el = xml_find_child (entry->root, "date");
+	  date_el = xml_find_child (entry->xmlRootNode, "date");
 	  if (date_el != NULL)
 	    {
 	      subtree = xmlNewChild (tree, NULL, "date", xml_get_string_contents (date_el));
 	    }
-	  content_str = xml_get_string_contents (entry->root);
+	  content_str = xml_get_string_contents (entry->xmlRootNode);
 	  content_str = ap_pstrcat (p, "<html>", content_str, "</html>", NULL);
 	  subtree = xmlNewChild (tree, NULL, "contents", NULL);
 
 	  content_html = htmlParseDoc (content_str, NULL);
 
-	  content_tree = content_html->root;
+	  content_tree = content_html->xmlRootNode;
+	  while (content_tree->type != XML_ELEMENT_NODE) {
+	    content_tree = content_tree->next;
+	  }
 	  if (content_tree != NULL)
 	    {
 	      /* this moves nodes from doc to doc and is not cool */
 	      xmlUnlinkNode (content_tree);
-	      content_html->root = NULL;
+	      content_html->xmlRootNode = NULL;
 	      xmlAddChild (subtree, content_tree);
 	      xmlFreeDoc ((xmlDocPtr)content_html);
 	    }
@@ -523,9 +529,7 @@ int
 diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 {
   pool *p = vr->r->pool;
-  xmlNode *content_tree;
   xmlNode *channel;
-  htmlDocPtr content_html;
   char *diary;
   char *content_str;
   char *url;
@@ -558,7 +562,7 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 	  xmlNode *date_el;
 	  xmlNode *subtree;
 
-	  date_el = xml_find_child (entry->root, "date");
+	  date_el = xml_find_child (entry->xmlRootNode, "date");
 	  if (date_el != NULL)
 	    {
 	      char *iso = xml_get_string_contents (date_el);
@@ -567,14 +571,14 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 	      char *rfc822_s = ap_ht_time (p, t, "%a, %d %b %Y %H:%M:%S -0700", 1);
 
 	      subtree = xmlNewChild (item, NULL, "title",
-				     render_date (vr, iso));
+				     render_date (vr, iso, 0));
 	      subtree = xmlNewChild (item, NULL, "pubDate", rfc822_s);
 	    }
 	  url = ap_make_full_path (p, vr->base_uri,
 		    ap_psprintf (p, "person/%s/diary.html?start=%d", u, i));
 	  xmlNewChild (item, NULL, "link", url);
 
-	  content_str = xml_get_string_contents (entry->root);
+	  content_str = xml_get_string_contents (entry->xmlRootNode);
 	  content_str = rss_massage_text (p, content_str, vr->base_uri);
 	  subtree = xmlNewChild (item, NULL, "description", content_str);
 

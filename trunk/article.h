@@ -8,3 +8,8 @@ typedef enum {
   ARTICLE_RENDER_FULL,
   ARTICLE_RENDER_LEAD
 } ArticleRenderStyle;
+
+typedef struct {
+  char *name;
+  char *iconURL;
+} ArticleTopic;

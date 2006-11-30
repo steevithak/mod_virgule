@@ -2,7 +2,8 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
+#include <libxml/xmlmemory.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -24,11 +25,11 @@ static void proj_render_replies (VirguleReq *vr, const char *name);
 /* Schema for project page. */
 
 static SchemaField rproj_fields[] = {
-  { "name", "<x>Project</x> name", "proj/", 20, 0 },
+  { "name", "<x>Project</x> name", "proj/", 25, 0 },
   { "url", "<x>Project</x> homepage URL", NULL, 60, 0 },
-  { "fmurl", "<a href=\"http://freshmeat.net/\">Freshmeat</a> URL", NULL, 60, 0 },
-  { "license", "License", NULL, 20, 0 },
-  { "notes", "Notes", NULL, 60016, SCHEMA_TEXTAREA },
+  { "fmurl", "<a href=\"http://freshmeat.net/\">Freshmeat</a> URL (for software projects)", NULL, 60, 0 },
+  { "desc", "Brief Description (e.g. Software, PCM board, Sensor array, etc.)", NULL, 60, 0 },
+  { "notes", "Notes (provide as much detail as you'd like!)", NULL, 60016, SCHEMA_TEXTAREA },
   { NULL }
 };
 
@@ -119,7 +120,7 @@ proj_ok_to_edit (VirguleReq *vr, xmlDoc *doc)
 		  cert_level_to_name (vr, CERT_LEVEL_NONE)))
     return 1;
 
-  tree = xml_find_child (doc->root, "info");
+  tree = xml_find_child (doc->xmlRootNode, "info");
 
   locked = xml_get_prop (p, tree, "locked");
   if (locked && !strcmp (locked, "yes"))
@@ -145,7 +146,7 @@ proj_new_serve (VirguleReq *vr)
 */
   pool *p = vr->r->pool;
   Buffer *b = vr->b;
-  const char *rfields[] = { "name", "url", "fmurl", "license", "notes", NULL };
+  const char *rfields[] = { "name", "url", "fmurl", "desc", "notes", NULL };
   const char *nfields[] = { "name", "url", "notes", NULL };
   const char **fields = vr->projstyle == PROJSTYLE_RAPH ? rfields : nfields;
   SchemaField *proj_fields = vr->projstyle == PROJSTYLE_RAPH ? rproj_fields :
@@ -156,10 +157,13 @@ proj_new_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't create a new <x>project</x> because you're not logged in.");
 
-  render_header (vr, "Create new <x>project</x>");
+  if (!req_ok_to_create_project (vr))
+    return send_error_page (vr, "Certification too low", "You need a higher certification level to create a <x>project</x>.");
+
+  render_header (vr, "Create new <x>project</x>", NULL);
 
   buffer_puts (b, "<p> Create a new <x>project</x>: </p>\n"
-	       "<form method=\"POST\" action=\"newsub.html\">\n");
+	       "<form method=\"POST\" action=\"newsub.html\" accept-charset=\"UTF-8\">\n");
 
   schema_render_inputs (p, b, proj_fields, fields, NULL);
 
@@ -180,7 +184,7 @@ proj_newsub_serve (VirguleReq *vr)
   Db *db = vr->db;
   table *args;
   const char *date;
-  const char *name, *url, *fmurl, *license, *notes;
+  const char *name, *url, *fmurl, *desc, *notes;
   char *db_key;
   xmlDoc *doc;
   xmlNode *root, *tree;
@@ -192,12 +196,15 @@ proj_newsub_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't create a new <x>project</x> because you're not logged in.");
 
+  if (!req_ok_to_create_project (vr))
+    return send_error_page (vr, "Certification too low", "You need a higher certification level to create a <x>project</x>.");
+
   args = get_args_table (vr);
 
   name = ap_table_get (args, "name");
   url = ap_table_get (args, "url");
   fmurl = ap_table_get (args, "fmurl");
-  license = ap_table_get (args, "license");
+  desc = ap_table_get (args, "desc");
   notes = ap_table_get (args, "notes");
   date = iso_now (p);
 
@@ -205,9 +212,9 @@ proj_newsub_serve (VirguleReq *vr)
     return send_error_page (vr, "Specify <x>a project</x> name",
 			    "You must specify <x>a project</x> name.");
 
-  if (strlen (name) > 50)
+  if (strlen (name) > 25)
     return send_error_page (vr, "<x>Project</x> name too long",
-			    "The <x>project</x> name must be 50 characters or less.");
+			    "The <x>project</x> name must be 25 characters or less.");
 
   if (name[0] == '.')
     return send_error_page (vr, "<x>Project</x> name can't begin with dot",
@@ -223,21 +230,21 @@ proj_newsub_serve (VirguleReq *vr)
     return send_error_page (vr,
 			    "<x>Project</x> already exists",
 			    "The <x>project</x> name <tt>%s</tt> already exists.",
-			    render_proj_name (vr, name));
+			    name);
 
   doc = db_xml_doc_new (p);
 
   root = xmlNewDocNode (doc, NULL, "info", NULL);
-  doc->root = root;
+  doc->xmlRootNode = root;
 
   tree = xmlNewChild (root, NULL, "cdate", date);
   tree = xmlNewChild (root, NULL, "info", NULL);
   xmlSetProp (tree, "url", url);
   xmlSetProp (tree, "fmurl", fmurl);
-  xmlSetProp (tree, "license", license);
+  xmlSetProp (tree, "desc", desc);
   xmlSetProp (tree, "notes", notes);
   xmlSetProp (tree, "creator", vr->u);
-  if (req_ok_to_post (vr))
+  if (req_ok_to_create_project (vr))
     xmlSetProp (tree, "locked", "yes");
 
   status = db_xml_put (p, db, db_key, doc);
@@ -248,7 +255,7 @@ proj_newsub_serve (VirguleReq *vr)
 
   add_recent (p, db, "recent/proj-c.xml", name, 50, 0);
   add_recent (p, db, "recent/proj-m.xml", name,
-	      vr->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
+              vr->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
 
   return send_error_page (vr,
 			  "<x>Project</x> created",
@@ -256,32 +263,66 @@ proj_newsub_serve (VirguleReq *vr)
 			  render_proj_name (vr, name));
 }
 
+/* Compares two project names. Used by qsort in proj_index_serve */
+static int
+proj_index_sort (const void *n1, const void *n2)
+{
+  const char *proj1 = *(char **)n1;
+  const char *proj2 = *(char **)n2;
+  int i;
+
+  for(i = 0; proj1[i] && proj2[i]; i++)
+    {
+      int c1,c2;
+      c1 = tolower (proj1[i]);
+      c2 = tolower (proj2[i]);
+      if (c1 != c2) return c1 - c2;
+    }
+  return proj1[i];
+}
+
+/* Renders the project index page which consists of a list of all existing
+   projects, each a link to the associated project page */
 static int
 proj_index_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
   Buffer *b = vr->b;
   Db *db = vr->db;
   DbCursor *dbc;
   char *proj;
+  int i;
+  pool *p = vr->r->pool;
+  array_header *list;
 
   auth_user (vr);
 
-  render_header (vr, "<x>Project</x> index");
+  render_header (vr, "<x>Project</x> index", NULL);
   if (vr->projstyle == PROJSTYLE_RAPH)
     buffer_puts (b, "<ul>\n");
   dbc = db_open_dir (db, "proj");
+  
+  if (dbc == NULL)
+    return send_error_page (vr,
+			    "Error reading <x>projects</x>",
+			    "There was a problem reading the <x>project</x> list due to an internal server error.");
 
+  list = ap_make_array(p, 16, sizeof(char *));
+  
   while ((proj = db_read_dir_raw (dbc)) != NULL)
+    *(char **)ap_push_array(list) = proj;
+    
+  qsort(list->elts, list->nelts, sizeof(char *), proj_index_sort);
+  
+  for(i = 0; i < list->nelts; i++)
     {
       if (vr->projstyle == PROJSTYLE_RAPH)
-	{
-	  buffer_printf (b, "<li>%s\n", render_proj_name (vr, proj));
-	}
+        {
+          buffer_printf (b, "<li>%s\n", render_proj_name (vr, ((char **)list->elts)[i]));
+        }
       else /* vr->projstyle == PROJSTYLE_NICK */
-	{
-	  char *db_key = ap_psprintf (p, "proj/%s/info.xml", proj);
-	  char *creator;
+        {
+          char *db_key = ap_psprintf (p, "proj/%s/info.xml", ((char **)list->elts)[i]);
+          char *creator;
 	  xmlDoc *proj_doc;
 	  xmlNode *proj_tree;
 
@@ -290,7 +331,7 @@ proj_index_serve (VirguleReq *vr)
 	    /* the project doesn't exist, so skip it */
 	    continue;
 
-	  proj_tree = xml_find_child (proj_doc->root, "info");
+	  proj_tree = xml_find_child (proj_doc->xmlRootNode, "info");
 	  if (proj_tree != NULL)
 	    creator = xml_get_prop (p, proj_tree, "creator");
 	  else
@@ -301,23 +342,24 @@ proj_index_serve (VirguleReq *vr)
 	    }
 
 	  render_cert_level_begin (vr, creator, CERT_STYLE_SMALL);
-	  buffer_printf (b, "%s", render_proj_name (vr, proj));
+	  buffer_printf (b, "%s", render_proj_name (vr, ((char **)list->elts)[i]));
 #if 0 /* I don't like how this looks, but you might */
 	  buffer_printf (vr->b, " - <a href=\"%s/person/%s/\" style=\"text-decoration: none\">%s</a>\n",
-			 vr->prefix, creator, creator);
+		       vr->prefix, creator, creator);
 #endif
 	  render_cert_level_text (vr, creator);
 	  render_cert_level_end (vr, CERT_STYLE_SMALL);
 	  db_xml_free (p, vr->db, proj_doc);
-	}
+        }
     }
+    
   if (vr->projstyle == PROJSTYLE_RAPH)
     buffer_puts (b, "</ul>\n");
 
   if (vr->u != NULL)
     buffer_puts (b, "<p> <a href=\"new.html\">Create</a> a new <x>project</x>...</p>\n");
   db_close_dir (dbc);
-
+  
   return render_footer_send (vr);
 }
 
@@ -370,24 +412,24 @@ proj_proj_serve (VirguleReq *vr, const char *path)
   if (vr->projstyle == PROJSTYLE_RAPH)
     {
       title = ap_psprintf (p, "<x>Project</x> info for %s", nice_text (p, name));
-      render_header (vr, title);
+      render_header (vr, title, NULL);
     }
   else /* vr->projstyle == PROJSTYLE_NICK */
     {
       title = ap_psprintf(p, "%s", nice_text (p, name));
-      render_header_raw (vr, title);
+      render_header_raw (vr, title, NULL);
     }
 
-  cdate = xml_find_child_string (doc->root, "cdate", "--no date--");
+  cdate = xml_find_child_string (doc->xmlRootNode, "cdate", "--no date--");
 
-  tree = xml_find_child (doc->root, "info");
+  tree = xml_find_child (doc->xmlRootNode, "info");
   if (tree != NULL)
     {
       char *url;
       char *fmurl;
       char *notes;
       char *creator;
-      char *license;
+      char *desc;
       char *lastmodby;
       char *mdate;
 
@@ -402,27 +444,25 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	}
 
       buffer_printf (b, "<p> Page created %s by <a href=\"%s/person/%s/\">%s</a>",
-		     render_date (vr, cdate), vr->prefix, creator, creator);
-      render_cert_level_text (vr, creator);
+		     render_date (vr, cdate, 1), vr->prefix, ap_escape_uri(vr->r->pool, creator), creator);
 
       if (lastmodby != NULL)
 	{
 	  mdate = xml_get_prop (p, tree, "mdate");
 	  buffer_printf (b, ", last modified %s by <a href=\"%s/person/%s/\">%s</a>",
-			 render_date (vr, mdate), vr->prefix,
-			 lastmodby, lastmodby);
-	  render_cert_level_text (vr, lastmodby);
+			 render_date (vr, mdate, 1), vr->prefix,
+			 ap_escape_uri(vr->r->pool, lastmodby), lastmodby);
 	}
 
       if (proj_ok_to_edit (vr, doc))
 	buffer_printf (b, " (<a href=\"../edit.html?proj=%s\">Edit...</a>)",
 		       escape_uri_arg (p, name));
-      buffer_puts (b, "</p>\n");
+      buffer_puts (b, ".</p\n");
 
       url = xml_get_prop (p, tree, "url");
       if (url && url[0])
 	{
-	  buffer_puts (b, render_url (p,
+	  buffer_printf (b, render_url (p,
 					vr->projstyle == PROJSTYLE_RAPH ?
 					" Homepage: " :
 					" URL: ",
@@ -431,17 +471,17 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       fmurl = xml_get_prop (p, tree, "fmurl");
       if (fmurl && fmurl[0])
 	{
-	  buffer_puts (b,
+	  buffer_printf (b,
 			 render_url (p, " Freshmeat page: ", fmurl));
 	}
 
       notes = xml_get_prop (p, tree, "notes");
       if (notes && notes[0])
-	buffer_printf (b, "<p>  %s </p>\n", nice_htext (vr, notes, &err));
+	buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", nice_htext (vr, notes, &err));
 
-      license = xml_get_prop (p, tree, "license");
-      if (license && license[0])
-	buffer_printf (b, "<p> License: %s </p>\n", nice_text (p, license));
+      desc = xml_get_prop (p, tree, "desc");
+      if (desc && desc[0])
+	buffer_printf (b, "<p> Description: %s </p>\n", nice_text (p, desc));
 
       if (vr->projstyle == PROJSTYLE_RAPH)
 	{
@@ -454,7 +494,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	  staff = db_xml_get (p, vr->db, db_key);
 	  if (staff != NULL)
 	    {
-	      for (tree = staff->root->childs; tree != NULL; tree = tree->next)
+	      for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
 		{
 		  char *person;
 		  char *type;
@@ -468,7 +508,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 		      buffer_puts (b, first);
 		      first = "";
 		      buffer_printf (b, "<li><a href=\"%s/person/%s/\">%s</a> is a %s.\n",
-				     vr->prefix, person, person, nice_text (p, type));
+				     vr->prefix, ap_escape_uri(p, person), person, nice_text (p, type));
 		    }
 		}
 	    }
@@ -499,7 +539,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	  if (req_ok_to_post (vr))
 	    {
 	      buffer_printf (b, "<p> Post a reply: %s. </p>\n"
-		"<form method=\"POST\" action=\"/proj/replysubmit.html\">\n"
+		"<form method=\"POST\" action=\"/proj/replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		" <p> Reply title: <br>\n"
 		" <input type=\"text\" name=\"title\" size=50> </p>\n"
 		" <p> Body of reply: <br>\n"
@@ -530,8 +570,8 @@ proj_next_new_serve (VirguleReq *vr)
     return send_error_page (vr,
 			    "Modification log not found",
 			    "The modification log was not found.");
-  root = doc->root;
-  for (tree = root->childs; tree != NULL; tree = tree->next)
+  root = doc->xmlRootNode;
+  for (tree = root->children; tree != NULL; tree = tree->next)
     {
       char *name = xml_get_string_contents (tree);
       char *date = xml_get_prop (p, tree, "date");
@@ -568,7 +608,7 @@ proj_edit_serve (VirguleReq *vr)
   pool *p = vr->r->pool;
   table *args;
   const char *name;
-  const char *fields[] = { "url", "fmurl", "license", "notes", NULL };
+  const char *fields[] = { "url", "fmurl", "desc", "notes", NULL };
   char *db_key;
   xmlDoc *doc;
   xmlNode *tree;
@@ -590,14 +630,14 @@ proj_edit_serve (VirguleReq *vr)
     return send_error_page (vr, "Not authorized",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, cert_level_to_name (vr, 1));
 
-  render_header (vr, "Edit <x>project</x>");
+  render_header (vr, "Edit <x>project</x>", NULL);
 
   buffer_printf (b, "<p> Edit <x>project</x> for %s: </p>\n"
 	       "<form method=\"POST\" action=\"editsub.html\">\n"
 		 "<input type=\"hidden\" name=\"name\" value=\"%s\">\n",
 		 nice_text (p, name), escape_html_attr(p, name));
 
-  tree = xml_find_child (doc->root, "info");
+  tree = xml_find_child (doc->xmlRootNode, "info");
 
   schema_render_inputs (p, b, proj_fields, fields, tree);
 
@@ -620,7 +660,7 @@ proj_editsub_serve (VirguleReq *vr)
   xmlDoc *doc;
   xmlNode *tree;
   int status;
-  const char *fields[] = { "url", "fmurl", "license", "notes", NULL };
+  const char *fields[] = { "url", "fmurl", "desc", "notes", NULL };
   const char *name;
   SchemaField *proj_fields = vr->projstyle == PROJSTYLE_RAPH ? rproj_fields :
     							       nproj_fields;
@@ -641,7 +681,7 @@ proj_editsub_serve (VirguleReq *vr)
     return send_error_page (vr, "Not authorized",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, cert_level_to_name (vr, 1));
  
-  tree = xml_find_child (doc->root, "info");
+  tree = xml_find_child (doc->xmlRootNode, "info");
   date = iso_now (p);
 
   schema_put_fields (p, proj_fields, fields, tree, args);
@@ -649,7 +689,7 @@ proj_editsub_serve (VirguleReq *vr)
   xmlSetProp (tree, "mdate", date);
   xmlSetProp (tree, "lastmodby", vr->u);
 
-  if (req_ok_to_post (vr))
+  if (req_ok_to_create_project (vr))
     xmlSetProp (tree, "locked", "yes");
 
   status = db_xml_put (p, db, db_key, doc);
@@ -658,7 +698,7 @@ proj_editsub_serve (VirguleReq *vr)
 			    "Error storing <x>project</x>",
 			    "There was an error storing the <x>project</x>. This means there's something wrong with the site.");
 
-  add_recent (p, db, "recent/proj-m.xml", name,
+  add_recent (p, db, "recent/proj-m.xml", name, 
 	      vr->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
 
   return send_error_page (vr,
@@ -677,7 +717,6 @@ proj_relsub_serve (VirguleReq *vr)
   xmlDoc *doc;
   const char *name;
   const char *type;
-  const char *values[3];
 
   args = get_args_table (vr);
   name = ap_table_get (args, "name");
@@ -696,12 +735,7 @@ proj_relsub_serve (VirguleReq *vr)
  
   type = ap_table_get (args, "type");
 
-  /* some this stuffing should probably be done by schema */
-  values[0] = name;
-  values[1] = vr->u;
-  values[2] = type;
-
-  db_relation_put (p, db, &staff_db_rel, values);
+  proj_set_relation (vr, name, vr->u, type);
 
   return send_error_page (vr, "Relationship updated",
 			  "The update of the relationship between <x>person</x> %s and <x>project</x> %s (type %s) is completed. Have a great day!",
@@ -724,7 +758,7 @@ proj_render_reply (VirguleReq *vr, const char *name, int reply_num)
   doc = db_xml_get (p, vr->db, key);
   if (doc != NULL)
     {
-      xmlNode *root = doc->root;
+      xmlNode *root = doc->xmlRootNode;
       char *author;
       char *title;
       char *body;
@@ -737,7 +771,7 @@ proj_render_reply (VirguleReq *vr, const char *name, int reply_num)
 
       render_cert_level_begin (vr, author, CERT_STYLE_MEDIUM);
       buffer_printf (b, "<a name=\"%u\"><b>%s</b></a>, posted %s by <a href=\"%s/person/%s/\">%s</a> <a href=\"#%u\" style=\"text-decoration: none\">&raquo;</a>\n",
-		     reply_num, title, render_date (vr, date), vr->prefix, author, author, reply_num);
+		     reply_num, title, render_date (vr, date, 1), vr->prefix, author, author, reply_num);		     
       render_cert_level_text (vr, author);
       render_cert_level_end (vr, CERT_STYLE_MEDIUM);
       buffer_printf (b, "<blockquote>\n%s\n</blockquote>\n", body);
@@ -864,14 +898,14 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   if (ap_table_get (get_args_table (vr), "preview"))
     {
-      render_header (vr, "Reply preview");
+      render_header (vr, "Reply preview", NULL);
       render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
       buffer_puts (b, nice_title);
       render_cert_level_end (vr, CERT_STYLE_MEDIUM);
       buffer_printf (b, "<p> %s </p>\n", nice_body);
       buffer_puts (b, "<hr>\n");
       buffer_printf (b, "<p> Edit your reply: </p>\n"
-		     "<form method=\"POST\" action=\"replysubmit.html\">\n"
+		     "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		     " <p> Reply title: <br>\n"
 		     " <input type=\"text\" name=\"title\" value=\"%s\" size=50> </p>\n"
 		     " <p> Body of reply: <br>\n"
@@ -896,7 +930,7 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   doc = db_xml_doc_new (p);
   root = xmlNewDocNode (doc, NULL, "article", NULL);
-  doc->root = root;
+  doc->xmlRootNode = root;
 
   tree = xmlNewChild (root, NULL, "date", date);
   tree = xmlNewChild (root, NULL, "author", vr->u);
@@ -967,10 +1001,10 @@ proj_reply_form_serve (VirguleReq *vr)
   if (doc == NULL)
     return send_error_page (vr, "<x>project</x> not found", "<x>project</x> %s not found.", name);
 
-  render_header (vr, "Post a reply");
+  render_header (vr, "Post a reply", NULL);
 
   buffer_printf (b, "<p> Post a reply to <x>project</x>: %s. </p>\n"
-		 "<form method=\"POST\" action=\"/proj/replysubmit.html\">\n"
+		 "<form method=\"POST\" action=\"/proj/replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		 " <p> Reply title: <br>\n"
 		 " <input type=\"text\" name=\"title\" size=50> </p>\n"
 		 " <p> Body of reply: <br>\n"
@@ -987,6 +1021,55 @@ proj_reply_form_serve (VirguleReq *vr)
   return render_footer_send (vr);
 }
 
+/**
+ * proj_set_relation: set or remove the users relation to a project
+ * name: name of project
+ * u: user
+ * type: type of relationship of this user to the project
+ **/
+void
+proj_set_relation (VirguleReq *vr, const char *name, const char *u, const char *type)
+{
+  const char *values[3];
+
+  values[0] = name;
+  values[1] = u;
+  values[2] = type;
+
+  if (strcmp(type,"None") == 0)
+    {
+      char *db_key;
+      char *user;
+      xmlDoc *staff;
+      xmlNode *tree;
+
+      db_key = ap_psprintf (vr->r->pool, "proj/%s/staff-name.xml", name);
+      staff = db_xml_get (vr->r->pool, vr->db, db_key);
+      if (staff != NULL)
+        {
+          for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
+	    {
+	      user = xmlGetProp (tree,"person");
+	      if (strcmp (u, user) == 0)
+	        {
+                  xmlUnlinkNode (tree);
+	          xmlFreeNode (tree);
+		  xmlFree (user);
+		  break;
+	        }
+              xmlFree (user);
+            }
+	}
+      db_xml_put (vr->r->pool, vr->db, db_key, staff);
+      db_xml_free (vr->r->pool, vr->db, staff);
+    }
+  else
+    {
+      db_relation_put (vr->r->pool, vr->db, &staff_db_rel, values);
+    }
+}
+
+
 int
 proj_serve (VirguleReq *vr)
 {
@@ -1002,7 +1085,7 @@ proj_serve (VirguleReq *vr)
 
   if (vr->projstyle == PROJSTYLE_NICK && !strcmp (p, "reply.html"))
     return proj_reply_form_serve (vr);
- 
+    
   if (!strcmp (p, "edit.html"))
     return proj_edit_serve (vr);
  

@@ -5,7 +5,7 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "db.h"
 #include "buffer.h"
@@ -250,12 +250,12 @@ eigen_crank (pool *p, VirguleReq *vr, const char *u)
   if (profile == NULL)
     return -1;
 
-  tree = xml_find_child (profile->root, "certs");
+  tree = xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
       xmlNode *cert;
 
-      for (cert = tree->childs; cert != NULL; cert = cert->next)
+      for (cert = tree->children; cert != NULL; cert = cert->next)
 	if (cert->type == XML_ELEMENT_NODE &&
 	    !strcmp (cert->name, "cert"))
 	  {

@@ -3,7 +3,8 @@
    are specific. */
 
 #include "httpd.h"
-#include <tree.h>
+
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -87,7 +88,7 @@ rating_crank (VirguleReq *vr, const char *u)
   if (reason)
     return send_error_page (vr, "Username error", reason);
 
-  render_header (vr, "Crank");
+  render_header (vr, "Crank", NULL);
   buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", u);
   status = eigen_crank (vr->r->pool, vr, u);
   if (status)
@@ -102,14 +103,14 @@ rating_crank_all (VirguleReq *vr)
   DbCursor *dbc;
   char *u;
 
-  render_header (vr, "Cranking all nodes");
+  render_header (vr, "Cranking all nodes", NULL);
   dbc = db_open_dir (vr->db, "acct");
   while ((u = db_read_dir_raw (dbc)) != NULL)
     {
       pool *sp = ap_make_sub_pool (p);
       char *dbkey = acct_dbkey (sp, u);
       xmlDoc *profile = db_xml_get (sp, vr->db, dbkey);
-      xmlNode *tree = xml_find_child (profile->root, "info");
+      xmlNode *tree = xml_find_child (profile->xmlRootNode, "info");
 
       if (tree != NULL)
 	{
@@ -131,7 +132,7 @@ rating_report (VirguleReq *vr, const char *u)
   if (reason)
     return send_error_page (vr, "Username error", reason);
 
-  render_header (vr, "Report");
+  render_header (vr, "Report", NULL);
   buffer_printf (vr->b, "<p>Reporting node %s.</p>\n", u);
   eigen_report (vr, u);
   return render_footer_send (vr);

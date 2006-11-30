@@ -6,20 +6,22 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION  "mod_virgule/1.41"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20040819"
 
 #include <string.h>
 
 /* gnome-xml includes */
-#include <parser.h>
-#include <tree.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
+/* Apache includes */
 #include "httpd.h"
 #include "http_core.h"
 #include "http_config.h"
 #include "http_protocol.h"
 #include "ap_config.h"
 
+/* mod_virgule includes */
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -41,14 +43,23 @@
 #include "rating.h"
 #include "hashtable.h" /* for unit testing */
 
+/* Per-directory configuration record structure. */
 typedef struct {
   char *dir;
   char *db;
+  array_header *topics;
   array_header *pass_dirs;
 } virgule_dir_conf;
 
+/* Declare the module name so configuration routines can find it.
+   Module structure is filled in at the end of this file */
 module MODULE_VAR_EXPORT virgule_module;
 
+/**
+ * Per-directory initialization function. This creates the per-directory
+ * configuration structure and initializes the contents. The structure
+ * will be filled in by the per-directory command handlers
+ **/
 static void *
 create_virgule_dir_conf (pool *p, char *dir)
 {
@@ -56,17 +67,43 @@ create_virgule_dir_conf (pool *p, char *dir)
 
   result->dir = ap_pstrdup (p, dir);
   result->db = NULL;
+  result->topics = ap_make_array(p, 16, sizeof(ArticleTopic));
   result->pass_dirs = ap_make_array(p, 16, sizeof(char *));
 
   return result;
 }
 
+
+/**
+ * Apache config file option handler (called by Apache).
+ * Sets the Virgule database from the httpd.conf option
+ **/
 static const char *
 set_virgule_db (cmd_parms *parms, void *mconfig, char *db)
 {
   virgule_dir_conf *cfg = (virgule_dir_conf *)mconfig;
 
+  /* temp!!! used by ad function in site.c */
+  srand((unsigned int) time(NULL));
+
   cfg->db = (char *)ap_pstrdup (parms->pool, db);
+  return NULL;
+}
+
+/**
+ * Apache config file option handler (called by Apache once for each seed)
+ * Adds the supplied topic name and icon URL topic list
+ **/
+static const char *
+set_virgule_topic (cmd_parms *parms, void *mconfig, const char *name, const char *url)
+{
+  ArticleTopic *topic;
+  
+  virgule_dir_conf *cfg = (virgule_dir_conf *)mconfig;
+
+  topic = (ArticleTopic *)ap_push_array(cfg->topics);
+  topic->name = (char *)ap_pstrdup(parms->pool, name);
+  topic->iconURL = (char *)ap_pstrdup(parms->pool, url);
   return NULL;
 }
 
@@ -85,6 +122,7 @@ set_virgule_pass (cmd_parms *parms, void *mconfig, const char *dir)
   return NULL;
 }
 
+/* Prints header data. Used only in test_page() */
 static int header_trace (void *data, const char *key, const char *val)
 {
   Buffer *b = (Buffer *)data;
@@ -92,6 +130,8 @@ static int header_trace (void *data, const char *key, const char *val)
   return 1;
 }
 
+/* Prints contents of test.xml. Used only in test_page(). Note that the xml
+   file is expected to be in the base rather than site directory */
 static void
 render_doc (Buffer *b, Db *db, const char *key)
 {
@@ -110,7 +150,7 @@ render_doc (Buffer *b, Db *db, const char *key)
       doc = xmlParseMemory (buf, buf_size);
       if (doc != NULL)
 	{
-	  root = doc->root;
+	  root = doc->xmlRootNode;
 	  buffer_printf (b, "&lt;%s&gt;\n", root->name);
 	  xmlFreeDoc (doc);
 	}
@@ -119,6 +159,8 @@ render_doc (Buffer *b, Db *db, const char *key)
     }
 }
 
+/* Counts the number of times a db key has been accessed. Appears to be
+   used only in test_page(). */
 static void
 count (pool *p, Buffer *b, Db *db, const char *key)
 {
@@ -144,8 +186,7 @@ count (pool *p, Buffer *b, Db *db, const char *key)
     buffer_puts (b, "Error updating count\n");
 }
 
-char *old_filename;
-
+/* Displays a useful diagnostic page if /foo.html is requested */
 static int
 test_page (VirguleReq *vr)
 {
@@ -154,10 +195,11 @@ test_page (VirguleReq *vr)
   Buffer *b = vr->b;
   Db *db = vr->db;
   table *args_table;
+  int i;
 
   char *args;
 
-  r->content_type = "text/html; charset=ISO-8859-1";
+  r->content_type = "text/html; charset=UTF-8";
 
   buffer_puts(b, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
 	      "<html>\n<head><title>\n"
@@ -165,14 +207,32 @@ test_page (VirguleReq *vr)
 	      "</title></head>\n"
 	      "<body bgcolor=white>");
   buffer_puts (b, "<h1>Virgule test</h1>\n");
-  buffer_printf (b, "<p> The uri is: <tt>%s</tt> </p>\n", r->uri);
-  buffer_printf (b, "<p> The document root is: <tt>%s</tt> </p>\n", ap_document_root (r));
+  buffer_printf (b, "<p> The unparsed uri is: <tt>%s</tt> </p>\n", r->unparsed_uri);
+  buffer_printf (b, "<p> The uri (r->uri): <tt>%s</tt> </p>\n", r->uri);
+  buffer_printf (b, "<p> The adjusted uri (vr->uri) is: <tt>%s</tt></p>\n",vr->uri);
   buffer_printf (b, "<p> The filename is: <tt>%s</tt> </p>\n", r->filename);
-  buffer_printf (b, "<p> The old filename was: <tt>%s</tt> </p>\n", old_filename);
   buffer_printf (b, "<p> The path_info is: <tt>%s</tt> </p>\n", r->path_info);
+  buffer_printf (b, "<p> The document root is: <tt>%s</tt> </p>\n", ap_document_root (r));
+  buffer_printf (b, "<p> Browser requested protocol: <tt>%s</tt></p>\n", r->protocol);
+  buffer_printf (b, "<p> Browser requested host: <tt>%s</tt></p>\n", r->hostname);
+  buffer_printf (b, "<p> Requested Apache handler is: <tt>%s</tt></p>\n", r->handler);
   if (cfg)
     buffer_printf (b, "<p> cfg->db=\"%s\", cfg->dir=\"%s\"\n",
 		   cfg->db, cfg->dir);
+
+  /* Dump pass-through directory names read from httpd.conf */
+  if (cfg->pass_dirs)
+    {
+      buffer_puts (b, "<p>Pass-through Directory Names:\n<ul>\n");
+      for ( i = 0; i < cfg->pass_dirs->nelts; i++ )
+        buffer_printf (b, "<li>%s", ((char **)cfg->pass_dirs->elts)[i]);
+      buffer_puts (b, "</ul></p>");
+    }
+  else 
+    {
+      buffer_puts (b, "<p> No pass-through directories found.</p>");
+    }
+
   args = vr->args;
   if (args)
     {
@@ -204,8 +264,9 @@ test_page (VirguleReq *vr)
   
   render_doc (b, db, "test.xml");
 
+//  if(db_lock_upgrade (vr->lock) == -1) return SERVER_ERROR;
   db_lock_upgrade (vr->lock);
-  
+	   
   buffer_printf (b, "<p> The site name is <tt>%s</tt> \n", vr->site_name);
   buffer_printf (b, "and it lives at <tt>%s</tt> </p> \n", vr->base_uri);
 
@@ -264,6 +325,9 @@ test_page (VirguleReq *vr)
   return send_response (vr);
 }
 
+#if 0
+/* Generates a test entry in the test/inc directory under site. May not
+   be needed anymore? */
 static int
 test_serve (VirguleReq *vr)
 {
@@ -310,7 +374,7 @@ test_hashtable_serve (VirguleReq *vr)
   HashTableIter *iter;
   const char *key, *val;
 
-  render_header (vr, "Hash table test");
+  render_header (vr, "Hash table test", NULL);
   test_hashtable_get (vr, ht, "foo");
   test_hashtable_set (vr, ht, "foo", "bar");
   test_hashtable_get (vr, ht, "foo");
@@ -331,6 +395,7 @@ test_hashtable_serve (VirguleReq *vr)
     buffer_printf (vr->b, "(%s, %s)<br>\n", key, val);
   return render_footer_send (vr);
 }
+#endif
 
 /**
  * virgule_init_handler: Module Initialization Handler. This function is
@@ -353,10 +418,11 @@ read_site_config (VirguleReq *vr)
   array_header *stack;
   xmlNode *child;
   char *uri;
-  const char *text;
+  const char *text, *url;
   const char **c_item;
   int *i_item;
   const AllowedTag **t_item;
+  const NavOption **n_item;
 
   doc = db_xml_get (vr->r->pool, vr->db, "config.xml");
   if (doc == NULL)
@@ -364,13 +430,13 @@ read_site_config (VirguleReq *vr)
 			    "Unable to read the site config.");
 
   /* read the site name */
-  vr->site_name = xml_find_child_string (doc->root, "name", "");
+  vr->site_name = xml_find_child_string (doc->xmlRootNode, "name", "");
   if (!strlen (vr->site_name))
     return send_error_page (vr, "Config error",
 			    "No name found in site config.");
 
   /* read the site's base uri, and trim any trailing slashes */
-  uri = xml_find_child_string (doc->root, "baseuri", "");
+  uri = xml_find_child_string (doc->xmlRootNode, "baseuri", "");
   do
     {
       int len = strlen (uri);
@@ -385,7 +451,7 @@ read_site_config (VirguleReq *vr)
   vr->base_uri = uri;
 
   /* read the project style */
-  text = xml_find_child_string (doc->root, "projstyle", "raph");
+  text = xml_find_child_string (doc->xmlRootNode, "projstyle", "raph");
   if (!strcasecmp (text, "Raph"))
     vr->projstyle = PROJSTYLE_RAPH;
   else if (!strcasecmp (text, "Nick"))
@@ -395,7 +461,7 @@ read_site_config (VirguleReq *vr)
 			    "Unknown project style found in site config.");
 
   /* read the recentlog style */
-  text = xml_find_child_string (doc->root, "recentlogstyle", "Unique");
+  text = xml_find_child_string (doc->xmlRootNode, "recentlogstyle", "Unique");
   if (!strcasecmp (text, "Unique"))
     vr->recentlog_as_posted = 0;
   else if (!strcasecmp (text, "As posted"))
@@ -406,13 +472,17 @@ read_site_config (VirguleReq *vr)
 
   /* read the cert levels */
   stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
-  node = xml_find_child (doc->root, "levels");
+  node = xml_find_child (doc->xmlRootNode, "levels");
   if (node == NULL)
     return send_error_page (vr, "Config error",
 			    "No cert levels found in site config.");
 
-  for (child = node->childs; child; child = child->next)
+  for (child = node->children; child; child = child->next)
     {
+      if (child->type != XML_ELEMENT_NODE) {
+        continue;
+      }
+ 
       if (strcmp (child->name, "level"))
 	return send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in cert levels.",
@@ -437,13 +507,17 @@ read_site_config (VirguleReq *vr)
 
   /* read the seeds */
   stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
-  node = xml_find_child (doc->root, "seeds");
+  node = xml_find_child (doc->xmlRootNode, "seeds");
   if (node == NULL)
     return send_error_page (vr, "Config error",
 			    "No seeds found in site config.");
 
-  for (child = node->childs; child; child = child->next)
+  for (child = node->children; child; child = child->next)
     {
+      if (child->type != XML_ELEMENT_NODE) {
+        continue;
+      }
+ 
       if (strcmp (child->name, "seed"))
 	return send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in seeds.",
@@ -468,13 +542,17 @@ read_site_config (VirguleReq *vr)
 
   /* read the capacities */
   stack = ap_make_array (vr->r->pool, 10, sizeof (int));
-  node = xml_find_child (doc->root, "caps");
+  node = xml_find_child (doc->xmlRootNode, "caps");
   if (node == NULL)
     return send_error_page (vr, "Config error",
 			    "No capacities found in site config.");
 
-  for (child = node->childs; child; child = child->next)
+  for (child = node->children; child; child = child->next)
     {
+      if (child->type != XML_ELEMENT_NODE) {
+        continue;
+      }
+ 
       if (strcmp (child->name, "cap"))
 	return send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in capacities.",
@@ -499,12 +577,17 @@ read_site_config (VirguleReq *vr)
 
   /* read the special users */
   stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
-  node = xml_find_child (doc->root, "specialusers");
+  node = xml_find_child (doc->xmlRootNode, "specialusers");
   if (node)
     {
-      for (child = node->childs; child; child = child->next)
+      for (child = node->children; child; child = child->next)
 	{
+          if (child->type != XML_ELEMENT_NODE) {
+            continue;
+          }
+
 	  if (strcmp (child->name, "specialuser"))
+ 
 	    return send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in special users.",
 				    child->name);
@@ -524,11 +607,15 @@ read_site_config (VirguleReq *vr)
 
   /* read the translations */
   stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
-  node = xml_find_child (doc->root, "translations");
+  node = xml_find_child (doc->xmlRootNode, "translations");
   if (node)
     {
-      for (child = node->childs; child; child = child->next)
+      for (child = node->children; child; child = child->next)
 	{
+          if (child->type != XML_ELEMENT_NODE) {
+            continue;
+          }
+
 	  if (strcmp (child->name, "translate"))
 	    return send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in translations.",
@@ -548,27 +635,61 @@ read_site_config (VirguleReq *vr)
   buffer_set_translations (vr->b, (const char **)stack->elts);
 
   /* read the diary rating selection */
-  text = xml_find_child_string (doc->root, "diaryrating", "");
+  text = xml_find_child_string (doc->xmlRootNode, "diaryrating", "");
   if (!strcasecmp (text, "on"))
     vr->render_diaryratings = 1;
   else
     vr->render_diaryratings = 0;
 
   /* read the new accounts allowed selection */
-  text = xml_find_child_string (doc->root, "accountcreation", "");
+  text = xml_find_child_string (doc->xmlRootNode, "accountcreation", "");
   if (!strcasecmp (text, "off"))
     vr->allow_account_creation = 0;
   else
     vr->allow_account_creation = 1;
 
-  /* read the allowed tags */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (AllowedTag *));
-  node = xml_find_child (doc->root, "allowedtags");
+  /* read the sitemap navigation options */
+  stack = ap_make_array (vr->r->pool, 10, sizeof (NavOption *));
+  node = xml_find_child (doc->xmlRootNode, "sitemap");
   if (node)
     {
-	for (child = node->childs; child; child = child->next)
+      for (child = node->children; child; child = child->next)
+      {
+        if (child->type != XML_ELEMENT_NODE) {
+	  continue;
+	}
+	
+	if (strcmp (child->name, "option"))
+	  return send_error_page (vr, "Config error",
+				  "Unknown element <tt>%s</tt> in sitemap options.",
+				  child->name);
+	
+	url = xml_get_prop (vr->r->pool, child, "url");
+	text = xml_get_string_contents (child);
+        if (!text)
+          return send_error_page (vr, "Config error",
+                                      "Empty element in allowed sitemap options.");
+
+        n_item = (const NavOption **)ap_push_array (stack);
+        *n_item = add_nav_option (vr, text, url);	
+      }
+    }
+  n_item = (const NavOption **)ap_push_array (stack);
+  *n_item = NULL;
+  vr->nav_options = (const NavOption **)stack->elts;
+
+  /* read the allowed tags */
+  stack = ap_make_array (vr->r->pool, 10, sizeof (AllowedTag *));
+  node = xml_find_child (doc->xmlRootNode, "allowedtags");
+  if (node)
+    {
+	for (child = node->children; child; child = child->next)
 	{
 	  int empty;
+
+          if (child->type != XML_ELEMENT_NODE) {
+            continue;
+          }
 
 	  if (strcmp (child->name, "tag"))
 	    return send_error_page (vr, "Config error",
@@ -603,6 +724,10 @@ static int virgule_handler(request_rec *r)
   int status;
   VirguleReq *vr;
 
+  /* Set libxml2 to old-style, incorrect handling of whitespace. This can
+     be removed once all existing xml code is updated to handle blank nodes */
+  xmlKeepBlanksDefault(0);
+
   db = db_new_filesystem (r->pool, cfg->db); /* hack */
 
   vr = (VirguleReq *)ap_pcalloc (r->pool, sizeof (VirguleReq));
@@ -622,6 +747,8 @@ static int virgule_handler(request_rec *r)
       vr->uri = r->uri;
     }
 
+  vr->topics = cfg->topics;
+ 
   vr->u = NULL;
   vr->args = get_args (r);
 
@@ -640,8 +767,11 @@ static int virgule_handler(request_rec *r)
 			    "There was an error acquiring the lock, %s.",
 			    strerror (errno));
 
-  if (!strcmp (match_prefix(r->uri, vr->prefix),  "/foo.html"))
+  if (!strcmp (match_prefix(r->uri, vr->prefix), "/foo.html"))
     return test_page (vr);
+
+  if (!strcmp (match_prefix(r->uri, vr->prefix), "/cgi-bin/ad"))
+    return site_send_banner_ad (vr);
 
   status = xmlrpc_serve (vr);
   if (status != DECLINED)
@@ -659,6 +789,7 @@ static int virgule_handler(request_rec *r)
   if (status != DECLINED)
     return status;
 
+#if 0
   status = test_serve (vr);
   if (status != DECLINED)
     return status;
@@ -669,6 +800,7 @@ static int virgule_handler(request_rec *r)
       if (status != DECLINED)
 	return status;
     }
+#endif
 
   status = diary_serve (vr);
   if (status != DECLINED)
@@ -716,16 +848,8 @@ xlat_handler (request_rec *r)
 			    strlen(((char **)cfg->pass_dirs->elts)[i])))
 		  return DECLINED;
 
-      old_filename = r->filename;
       r->handler = "virgule";
       r->filename = ap_pstrdup (r->pool, cfg->db);
-
-#if 0
-      /* strip <Location> prefix from url */
-      if (cfg->dir && !strncmp (r->uri, cfg->dir, strlen (cfg->dir)))
-	r->uri = ap_pstrdup (r->pool, r->uri + strlen (cfg->dir));
-#endif
-
       return OK;
     }
   else
@@ -743,6 +867,7 @@ static const handler_rec virgule_handlers[] = {
 static const command_rec virgule_cmds[] =
 {
   {"VirguleDb", set_virgule_db, NULL, OR_ALL, TAKE1, "the virgule database"},
+  {"VirguleTopic", set_virgule_topic, NULL, OR_ALL, TAKE2, "virgule article topic"},
   {"VirgulePass", set_virgule_pass, NULL, OR_ALL, ITERATE, "virgule passthrough directories"},
   {NULL}
 };

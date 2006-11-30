@@ -1,11 +1,12 @@
 /* This is glue code to run the trust metric as HTML. */
 
 #include "httpd.h"
+#include "http_log.h"
 #include "http_protocol.h"
 #include <glib.h>
 
-#include <tree.h>
-#include <xmlmemory.h>
+#include <libxml/tree.h>
+#include <libxml/xmlmemory.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -15,6 +16,7 @@
 #include "xml_util.h"
 #include "certs.h"
 #include "style.h"
+#include "util.h"
 
 #include "net_flow.h"
 #include "tmetric.h"
@@ -53,13 +55,18 @@ tmetric_find_node (array_header *info, NetFlow *flows[], const char *u)
 
 static void
 tmetric_set_name (array_header *info, NetFlow *flows[], const char *u,
-		  const char *givenname, const char *surname)
+		  const char *givenname, const char *surname, VirguleReq *vr)
 {
   int idx;
 
   idx = tmetric_find_node (info, flows, u);
-  ((NodeInfo *)info->elts)[idx].givenname = givenname;
-  ((NodeInfo *)info->elts)[idx].surname = surname;
+  if (idx >= 0)
+    {
+      ((NodeInfo *)info->elts)[idx].givenname = givenname;
+      ((NodeInfo *)info->elts)[idx].surname = surname;
+    }
+  else
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, vr->r, "tmetric_find_node() returned bad value for user: %s", u);
 }
 
 /**
@@ -70,7 +77,7 @@ tmetric_set_name (array_header *info, NetFlow *flows[], const char *u,
  * @caps: Capacity array.
  * @n_caps: Size of @caps.
  *
- * Return value: NodeInfo array.
+ * Return value: NodeInfo array or NULL on error
  **/
 static array_header *
 tmetric_run (VirguleReq *vr,
@@ -107,7 +114,7 @@ tmetric_run (VirguleReq *vr,
     {
       char *db_key;
       xmlDoc *profile;
-      xmlNode *tree;
+      xmlNode *tree = NULL;
       xmlNode *cert;
       const char *givenname, *surname;
 
@@ -120,17 +127,18 @@ tmetric_run (VirguleReq *vr,
 
       db_key = acct_dbkey (p, issuer);
       profile = db_xml_get (p, db, db_key);
-      tree = xml_find_child (profile->root, "info");
+      if (profile != NULL)
+        tree = xml_find_child (profile->xmlRootNode, "info");
       if (tree != NULL)
 	{
 	  tmetric_find_node (result, flows, issuer);
 	  givenname = xml_get_prop (p, tree, "givenname");
 	  surname = xml_get_prop (p, tree, "surname");
-	  tmetric_set_name (result, flows, issuer, givenname, surname);
-	  tree = xml_find_child (profile->root, "certs");
+	  tmetric_set_name (result, flows, issuer, givenname, surname, vr);
+	  tree = xml_find_child (profile->xmlRootNode, "certs");
 	  if (tree == NULL)
 	    continue;
-	  for (cert = tree->childs; cert != NULL; cert = cert->next)
+	  for (cert = tree->children; cert != NULL; cert = cert->next)
 	    {
 	      if (cert->type == XML_ELEMENT_NODE &&
 		  !strcmp (cert->name, "cert"))
@@ -198,6 +206,11 @@ node_info_compare (const void *ni1, const void *ni2)
   return name1[i];
 }
 
+
+/**
+ * Runs the trust metric and generates a page showing the resulting
+ * certification levels for each user
+ **/
 static int
 tmetric_index_serve (VirguleReq *vr)
 {
@@ -224,7 +237,7 @@ tmetric_index_serve (VirguleReq *vr)
     if (!vr->caps[n_caps])
       break;
 
-  render_header (vr, "Trust Metric");
+  render_header (vr, "Trust Metric", NULL);
   nodeinfo = tmetric_run (vr, vr->seeds, n_seeds, vr->caps, n_caps);
   buffer_puts (b, "<table>\n");
 
@@ -239,14 +252,14 @@ tmetric_index_serve (VirguleReq *vr)
 	/* Skip the root node */
 	continue;
       }
-      buffer_printf (b, "<tr><td><a href=\"../person/%s/\">%s</a></td> <td>%s %s</td> <td class=\"level%d\">%s</td></tr>\n",
-		     ni->name,
+      buffer_printf (b, "<tr><td><a href=\"../person/%s/\">%s</a></td> <td>%s %s</td> <td class=\"level%i\">%s</td></tr>\n",
+		     ap_escape_uri(vr->r->pool, ni->name),
 		     ni->name,
 		     ni->givenname ? nice_text (p, ni->givenname) : "",
 		     ni->surname ? nice_text (p, ni->surname) : "",
 		     ni->level,
 		     cert_level_to_name (vr, ni->level));
-      buffer_printf (cb, "%s %s\n", ni->name, cert_level_to_name (vr, ni->level));
+      buffer_printf (cb, "%s %s\n", ap_escape_uri(vr->r->pool,ni->name), cert_level_to_name (vr, ni->level));
     }
   buffer_puts (b, "</table>\n");
 
@@ -274,7 +287,7 @@ tmetric_test_serve (VirguleReq *vr)
     db_unlock (vr->lock);
   vr->lock = NULL;
 
-  r->content_type = "text/html; charset=ISO-8859-1";
+  r->content_type = "text/html; charset=UTF-8";
   ap_send_http_header (r);
   ap_rprintf (r, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Test</title></head><body bgcolor=white><h1>Test</h1> <p>Testing lock...</p>\n");
 

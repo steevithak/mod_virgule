@@ -4,9 +4,9 @@
 
 #include "db.h"
 
-#include <tree.h>
-#include <parser.h>
-#include <xmlmemory.h>
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/xmlmemory.h>
 
 #include "db_xml.h"
 
@@ -40,7 +40,8 @@ db_xml_put (pool *p, Db *db, const char *key, xmlDoc *val)
   int buf_size;
   int status;
 
-  xmlDocDumpMemory (val, &buf, &buf_size);
+  xmlIndentTreeOutput = 1;
+  xmlDocDumpFormatMemory (val, &buf, &buf_size, 1);
   status = db_put (db, key, buf, buf_size);
   xmlFree (buf);
   return status;

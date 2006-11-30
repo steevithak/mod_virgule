@@ -1,3 +1,56 @@
+------------------------------------------------------------------------
+RSR Notes:
+
+This is not the "official" mod_virgule code. This code is a fork of
+mod_virgule that I use to run the robots.net website. It contains fewer
+hard-coded references to robots.net than the official mod_virgule code
+does to advogato.org but there are still a few in there. You'll need to 
+make some modifications with either if you want to run your own website 
+using mod_virgule. So what does my version do that the original doesn't?
+
+Features of my fork that have not been integrated into official code yet:
+-The sitemap (main navigation menu) is configurable instead of hard-coded.
+-Forgotten password feature (based on Steve Kemp's patch)
+-Headers include link elements for RSS discovery (James Henstridge's patch)
+-Compiles against current libxml2 (Martijn van Beers' libxml2 patch)
+-Usernames may have spaces, dashes, underscores, and dots
+-Articles can have topic/icons like slash or scoop sites
+-Article titles are links to articles
+-Headers include link element for favicons
+-RSS exports 15 (the RSS max) rather than 10 headlines
+-User account page has consistent, easy to read menu layout
+-Users cannot certify themselves
+-Project list is alphabetized
+-Improved, detailed diagnostic info on test page
+-Posting, replying, and project creation authorized independently based
+user certification level
+-Comments added to code to explain purpose
+-Several compiler warnings fixed
+-Underlying code now has the ability to delete as well as add db entries
+-Removed certs are actually deleted
+-Removed project relations are actually deleted
+-Experimental acct_kill() function to remove a user account
+-XML tag for banner ad rotation
+-path handler allowing banner ad to be inserted as SSI
+-XML tag for an externally updated field
+
+Features that may have been integrated into the official code:
+-Permalinks for diary entries
+-Usernames are passed to Apache and logged
+-Configurable pass-through directories
+-XML tag that renders differently based on user login state
+-Code to prevent duplicate replies to articles
+-External CSS used to configure color scheme
+-External CSS used to configure cert colors
+-Cert levels are configurable
+-Trust metric seeds are configurable
+-Removed much illegal HTML
+-DoS vulnerability in cookie parsing fixed
+
+
+What follows is the original mod_virgule readme file
+------------------------------------------------------------------------
+
 This is mod_virgule, the source code to Advogato,
 http://www.advogato.org/ . I am releasing it under GPL with the hope
 that members of the free software community will:

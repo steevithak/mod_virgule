@@ -1,3 +1,4 @@
+
 char *
 b64enc (pool *p, const char *data, int size);
 
@@ -9,6 +10,9 @@ match_prefix (const char *url, const char *prefix);
 
 char *
 nice_text (pool *p, const char *raw);
+
+const NavOption *
+add_nav_option (VirguleReq *vr, const char *label, const char *url);
 
 const AllowedTag *
 add_allowed_tag (VirguleReq *vr, const char *tag, int can_be_empty);
@@ -36,3 +40,12 @@ render_url (pool *p, const char *prefix, const char *url);
 
 char *
 escape_html_attr (pool *p, const char *raw);
+
+int
+is_input_valid(const char *val);
+
+int
+is_legal_XML(unsigned char *c);
+
+int
+is_legal_UTF8(unsigned char *source, char length);

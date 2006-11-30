@@ -1,8 +1,8 @@
 #include <string.h>
 #include "httpd.h"
 
-#include <tree.h>
-#include <xmlmemory.h>
+#include <libxml/tree.h>
+#include <libxml/xmlmemory.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -61,10 +61,10 @@ cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 
   db_key = acct_dbkey (p, issuer);
   profile = db_xml_get (p, db, db_key);
-  tree = xml_find_child (profile->root, "certs");
+  tree = xml_find_child (profile->xmlRootNode, "certs");
   if (tree == NULL)
     return CERT_LEVEL_NONE;
-  for (cert = tree->childs; cert != NULL; cert = cert->next)
+  for (cert = tree->children; cert != NULL; cert = cert->next)
     {
       if (cert->type == XML_ELEMENT_NODE &&
 	  !strcmp (cert->name, "cert"))
@@ -109,9 +109,9 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
   if (profile == NULL)
     return -1;
 
-  tree = xml_ensure_child (profile->root, "certs-in");
+  tree = xml_ensure_child (profile->xmlRootNode, "certs-in");
 
-  for (cert = tree->childs; cert != NULL; cert = cert->next)
+  for (cert = tree->children; cert != NULL; cert = cert->next)
     {
       if (cert->type == XML_ELEMENT_NODE &&
 	  !strcmp (cert->name, "cert"))
@@ -136,7 +136,13 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
       xmlSetProp (cert, "issuer", issuer);
     }
 
-  xmlSetProp (cert, "level", cert_level_to_name (vr, level));
+  if (level == CERT_LEVEL_NONE)
+    {
+      xmlUnlinkNode(cert);
+      xmlFreeNode(cert);
+    }
+  else
+    xmlSetProp (cert, "level", cert_level_to_name (vr, level));
 
   status = db_xml_put (p, db, db_key, profile);
   db_xml_free (p, db, profile);
@@ -146,9 +152,9 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
   profile = db_xml_get (p, db, db_key);
   if (profile == NULL)
     return -1;
-  tree = xml_ensure_child (profile->root, "certs");
+  tree = xml_ensure_child (profile->xmlRootNode, "certs");
 
-  for (cert = tree->childs; cert != NULL; cert = cert->next)
+  for (cert = tree->children; cert != NULL; cert = cert->next)
     {
       if (cert->type == XML_ELEMENT_NODE &&
 	  !strcmp (cert->name, "cert"))
@@ -173,7 +179,13 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
       xmlSetProp (cert, "subj", subject);
     }
 
-  xmlSetProp (cert, "level", cert_level_to_name (vr, level));
+  if (level == CERT_LEVEL_NONE)
+    {
+      xmlUnlinkNode(cert);
+      xmlFreeNode(cert);
+    }
+  else
+    xmlSetProp (cert, "level", cert_level_to_name (vr, level));
 
   status = db_xml_put (p, db, db_key, profile);
   db_xml_free (p, db, profile);

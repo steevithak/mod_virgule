@@ -11,7 +11,7 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -48,17 +48,17 @@ authenticate (VirguleReq *vr, xmlNode *params)
   id_cookie = ap_pstrcat (vr->r->pool, ret1, ":", ret2, NULL);
   return xmlrpc_response (vr, "s", id_cookie);
 }
-  
+
 static int
 check_cookie (VirguleReq *vr, xmlNode *params)
 {
   char *cookie;
   int ret;
-
+  
   ret = xmlrpc_unmarshal_params (vr, params, "s", &cookie);
   if (ret != OK)
     return ret;
-
+    
   auth_user_with_cookie (vr, cookie);
   return xmlrpc_response (vr, "i", vr->u == NULL ? 0 : 1);
 }  
@@ -99,7 +99,7 @@ diary_get (VirguleReq *vr, xmlNode *params)
   if (entry == NULL)
     return xmlrpc_fault (vr, 1, "entry %d not found", index);
 
-  return xmlrpc_response (vr, "s", xml_get_string_contents (entry->root));
+  return xmlrpc_response (vr, "s", xml_get_string_contents (entry->xmlRootNode));
 }
 
 static int
@@ -122,11 +122,11 @@ diary_get_dates (VirguleReq *vr, xmlNode *params)
   if (entry == NULL)
     return xmlrpc_fault (vr, 1, "entry %d not found", index);
 
-  create_el = xml_find_child (entry->root, "date");
+  create_el = xml_find_child (entry->xmlRootNode, "date");
   if (create_el == NULL)
     return xmlrpc_fault (vr, 1, "date broken in %d", index);
 
-  update_el = xml_find_child (entry->root, "update");
+  update_el = xml_find_child (entry->xmlRootNode, "update");
   if (update_el == NULL)
     update_el = create_el;
 
@@ -199,8 +199,8 @@ user_exists (VirguleReq *vr, xmlNode *params)
 static int
 cert_get (VirguleReq *vr, xmlNode *params)
 {
-  char *user, *level;
-  char *reason;
+  char *user, *reason;
+  const char *level;
   int ret;
 
   ret = xmlrpc_unmarshal_params (vr, params, "s", &user);
@@ -296,7 +296,7 @@ xmlrpc_method xmlrpc_method_table[] = {
   { "checkcookie",     check_cookie    },
   { "diary.len",       diary_len       },
   { "diary.get",       diary_get       },
-  { "diary.getDates",  diary_get_dates  },
+  { "diary.getDates",  diary_get_dates },
   { "diary.set",       diary_set       },
   { "user.exists",     user_exists     },
   { "cert.get",        cert_get        },

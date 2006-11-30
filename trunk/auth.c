@@ -2,7 +2,7 @@
 
 #include "httpd.h"
 
-#include <tree.h>
+#include <libxml/tree.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -36,7 +36,7 @@ auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
   if (profile == NULL)
     /* account doesn't exist */
     return;
-  root = profile->root;
+  root = profile->xmlRootNode;
 
   tree = xml_find_child (root, "auth");
   if (tree == NULL)
@@ -48,6 +48,7 @@ auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
     /* cookie doesn't match */
     return;
   vr->u = u;
+  acct_touch(vr,u);
 
   /* store the username where it will be logged */
   if (!vr->r->connection->user)
