@@ -418,6 +418,20 @@ site_render_cronbox (VirguleReq *vr)
                  title, link, img, credit, author);
 }
 
+static void
+site_render_include (RenderCtx *ctx, VirguleReq *vr, char *path)
+{
+  pool *p = vr->r->pool;
+  xmlDoc *doc;
+  xmlNode *root;
+
+  doc = db_xml_get (p, vr->db, path);
+  if (doc == NULL)
+    return;
+  root = doc->xmlRootNode;
+  site_render_children (ctx, root);
+}
+
 
 static void
 site_render (RenderCtx *ctx, xmlNode *node)
@@ -582,6 +596,13 @@ site_render (RenderCtx *ctx, xmlNode *node)
       else if (!strcmp (node->name, "cronbox"))
         {
 	  site_render_cronbox (vr);
+	}
+      else if (!strcmp (node->name, "include"))
+        {
+	  char *inc_path;
+	  
+	  inc_path = xml_get_prop (p, node, "path");
+	  site_render_include (ctx, vr, inc_path);
 	}
       else
 	{

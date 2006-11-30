@@ -8,7 +8,7 @@
 
   <sitemap>
     <option url="/">Home</option>
-    <option url="/article/">Articles</option>
+    <option url="/article/index.html">Articles</option>
     <option url="/acct/">Account</option>
     <option url="/person/">People</option>
     <option url="/proj/">Projects</option>
