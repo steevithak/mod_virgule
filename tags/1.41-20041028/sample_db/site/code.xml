@@ -1,0 +1,15 @@
+<page><title>Show me the code</title>
+
+<p> As promised, mod_virgule (the code to drive Advogato) is now
+released under GPL, and is available in <a
+href="http://cvs.gnome.org/bonsai/rview.cgi?cvsroot=/cvs/gnome&amp;dir=mod_virgule">Gnome
+CVS</a>. Feel free to play with it, although it's probably a good idea
+to coordinate with me before making nontrivial changes, as there are
+some core changes I have in mind. </p>
+
+<p> You'll need recent versions of glib and gnome-xml to build and
+install mod_virgule. </p>
+
+<p> Most important, have fun! </p>
+
+</page>

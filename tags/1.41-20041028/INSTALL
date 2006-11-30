@@ -1,0 +1,103 @@
+------------------------------------------------------------------------
+RSR Notes:
+
+If you're using my modified version of mod_virgule, be sure to add:
+
+ #define STYLE
+ 
+in the style.h file. 
+
+All HTML styles for the site are set in a CSS called mod_virgule.css.
+An example is included in the site directory.
+
+Your httpd.conf should look something like this:
+
+<Location /virgule>
+ VirguleDb /var/www/virgule
+ VirgulePass "/images"
+ VirguleTopic "Announcement" "/images/announce.png"
+ VirguleTopic "Interview" "/images/interview.png"
+ VirguleTopic "Hardware" "/images/hardware.png"
+ VirguleTopic "Software" "/images/software.png"
+</Location>
+
+Note that you should be able to run two or more completely different 
+mod_virgule sites on the same server. I have run as many as four sites on
+the same server with no problems.
+
+VirguleDb specifies the directory used by mod_virgule to keep all of its
+stuff.
+
+VirgulePass specifies one or more directories that will be ignored by
+mod_virgule and handled instead by the normal Apache process. 
+
+VirguleTopic can be used to specify topic catagories for articles. Each
+topic consists of a topic name followed by an image URL. The URL may be
+absolute (e.g., "http://www.xyz.com/image/image.png") or relative
+(e.g., "/images/image.png"). You may add as many topics as you like.
+
+--R. Steven Rainwater <steve@ncc.com>
+
+What follows are the standard mod_virgule install notes
+------------------------------------------------------------------------
+
+
+Installation of mod_virgule should be relatively easy. You need a
+development setup for Apache (the RedHat apache-dev RPM should
+suffice), as well as glib and gnome-xml.
+
+The Makefile is designed to use config binaries, in particular
+/usr/sbin/apxs for Apache, and gnome-config for glib and gnome-xml.
+Note that Debian has apxs in /usr/bin; you'll need to fiddle with the
+Makefile. Also, Debian apxs wants -ldbm instead of -lgdbm. Builder
+beware!
+
+On a RedHat box, "make install" has paths set up wrongly (this is a
+bug in the RH apxs config). You have a few choices. One is to install
+by hand. I just have the httpd.conf file point to the build dir.
+
+This is what I added to my httpd.conf:
+
+LoadModule virgule_module     /home/raph/golf/apache/virgule/mod_virgule.so
+AddModule mod_virgule.c
+
+<VirtualHost www.advogato.org>
+ VirguleDb /home/raph/advogato.org
+</VirthualHost>
+
+
+
+It doesn't have to be in a virtualhost, it can be toplevel or in a
+<Location>. Putting it in a <Directory> probably won't work at the
+moment, because virgule messes around with the translation stuff.
+
+Virgule works out of a database. The pathname is set in the VirguleDb
+directive. Within that directory you'll have a bunch of
+subdirectories:
+
+* acct/ stores account info, one subdir per account
+* site/ stores static pages
+* articles/ stores the articles
+* recent/ stores some recent stuff
+* tmetric/ stores the tmetric cache
+
+You'll need to have rw permissions for nobody set for the virgule db.
+It's probably easiest to just create it with owner nobody.
+
+Static files are stored in the site/ subdir as foo.xml. Thus, the url
+/foo/bar.html is stored as site/foo/bar.xml. The default is index.xml.
+
+I should probably package up a database with skeletal static pages,
+but it's not too hard to figure out.
+
+The sample_db/ subdirectory in this distribution contains a snapshot
+of xml files from advogato. You'll no doubt want to customize them.
+See site.c for more information on the xml tags.
+
+Finally, I have a cron job to regularly access /tmetric/, which
+refreshes the tmetric cache.
+
+Have fun!
+
+Raph Levien
+13 Nov 1999
