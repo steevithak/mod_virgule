@@ -1,3 +1,6 @@
+void
+acct_person_index_serve (VirguleReq *vr, int max);
+
 int
 acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int last_read);
 

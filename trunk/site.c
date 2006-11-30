@@ -2,6 +2,7 @@
    stylesheet. */
 
 #include "httpd.h"
+#include "http_log.h"
 #include "http_core.h"
 #include "http_config.h"
 #include "http_protocol.h"
@@ -528,6 +529,18 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  else
 	    nmax = 10;
 	  article_recent_render (vr, nmax, -1);
+	}
+      else if (!strcmp (node->name, "userlist"))
+        {
+	  char *nmax_str;
+	  int nmax;
+
+	  nmax_str = xml_get_prop (p, node, "nmax");
+	  if (nmax_str)
+	    nmax = atoi (nmax_str);
+	  else
+	    nmax = 30;
+	  acct_person_index_serve (vr, nmax);
 	}
       else if (!strcmp (node->name, "sitemap"))
 	{

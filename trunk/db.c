@@ -256,7 +256,7 @@ db_ensure_dir (Db *db, const char *fn)
 int
 db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
 {
-  char *fn, *tmp_fn, *old_fn;
+  char *fn;
   int fd;
   int bytes_written;
 
@@ -265,10 +265,7 @@ db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
   if (!db_ensure_dir (db, fn))
     return -1;
 
-  tmp_fn = ap_psprintf (p, "%s.tmp", fn);
-  old_fn = ap_psprintf (p, "%s~", fn);
-
-  fd = ap_popenf (p, tmp_fn, O_RDWR | O_CREAT | O_TRUNC, 0664);
+  fd = ap_popenf (p, fn, O_RDWR | O_CREAT | O_TRUNC, 0664);
   if (fd == -1)
     return -1;
 
@@ -280,17 +277,9 @@ db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
   if (bytes_written != size)
     return -1;
 
-  if (access(fn, F_OK) == 0) {
-    if (rename (fn, old_fn))
-      return -1;
-  }
-  
-  if (rename (tmp_fn, fn))
-    return -1;
-  unlink(old_fn);
-
   return 0;
 }
+
 
 /**
  * db_put: Put a record in the database.

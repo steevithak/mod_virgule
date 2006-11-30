@@ -1,3 +1,27 @@
+2004-10-22 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render): Added a <userlist> tag that will place a 
+	pageable list of mod_virgule users on a page. Next/previous page
+	navigation is automatically added and there is a max-per-page value
+	that may be set in the tag to determine how many users are listed
+	on each page.
+	
+	* acct_maint.c (acct_person_index_serve): Complete rewrite of this
+	function to make it much faster, allowing incremental display and
+	paging. Instead of completely parsing the user accounts and sorting
+	them in memory, the userlist is now read from the pre-sorted trust
+	metric table and only those accounts on the currently displayed
+	page are loaded and parsed.
+
+	* tmetric.c (node_info_compare): Added the user cert level to the
+	comparison. Users are now sorted first by cert level, then by name.
+	
+2004-10-10 R. Steven Rainwater <steve@ncc.com>
+
+	* db.c (db_put_p): Reverted Gary's diskspace patch yet again. This
+	time due to what appears to be a rarely encountered race condition
+	that results in the complete loss of the file being written. Yikes!
+
 2004-09-26 R. Steven Rainwater <steve@ncc.com>
 
 	* db.c (db_put_p): Added check for existence of record before rename
