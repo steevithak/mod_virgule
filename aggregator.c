@@ -215,7 +215,7 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
   for (entry = tmp->children; entry != NULL; entry = entry->next)
    if (!strcmp ((char *)entry->name, "item"))
     {
-      /* We can't use feeds that don't have a pubDate (for unique item ID) */
+      /* We can't use feeds that don't have a date (for unique item ID) */
       tmp = virgule_xml_find_child (entry, "pubDate");
       if (tmp == NULL) 
         tmp = virgule_xml_find_child (entry, "date");
@@ -275,7 +275,7 @@ aggregator_index_rdf_site_summary_10 (VirguleReq *vr, xmlDoc *feedbuffer)
   for (entry = root->children; entry != NULL; entry = entry->next)
    if (!strcmp ((char *)entry->name, "item"))
     {
-      /* We can't use feeds that don't have a pubDate (for unique item ID) */
+      /* We can't use feeds that don't have a date (for unique item ID) */
       tmp = virgule_xml_find_child (entry, "date");
       if (tmp == NULL) 
         continue;
@@ -383,7 +383,7 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
   if(item_list == NULL)
     return FALSE;
      
-  /* Post any new, unposted entries */
+  /* Post any new, unposted entries or updated entries */
   for (i = 0; i < item_list->nelts; i++)
     {
       FeedItem *item = &((FeedItem *)(item_list->elts))[i];
@@ -392,6 +392,10 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 	  virgule_diary_store_feed_item (vr, user, item);
 	  post = 1;
 	}
+      if ((item->update_time != -1) && (item->post_time != item->update_time))
+      {
+	virgule_diary_update_feed_item (vr, user, item);
+      }
     }
 
   /* Post one recentlog entry even if we get multiple new posts */

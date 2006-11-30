@@ -60,14 +60,15 @@ void
 virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev, int h)
 {
   Buffer *b = vr->b;
-  char *key;
-  char *contents;
-  char *title;
-  char *localdate;
-  char *localupdate;
-  char *entrylink;
-  char *feedposttime;
-  char *blogauthor;
+  char *key = NULL;
+  char *contents = NULL;
+  char *title = NULL;
+  char *localdate = NULL;
+  char *localupdate = NULL;
+  char *entrylink = NULL;
+  char *feedposttime = NULL;
+  char *feedupdatetime = NULL;
+  char *blogauthor = NULL;
   xmlDoc *entry;
   xmlNode *root;
 
@@ -128,6 +129,11 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   entrylink = virgule_xml_find_child_string (root, "entrylink", NULL);
   blogauthor = virgule_xml_find_child_string (root, "blogauthor", NULL);
   feedposttime = virgule_xml_find_child_string (root, "feedposttime", NULL);
+  feedupdatetime = virgule_xml_find_child_string (root, "feedupdatetime", NULL);
+  if(feedupdatetime && (strcmp (feedposttime, feedupdatetime) != 0))
+    feedupdatetime = apr_psprintf (vr->r->pool, " (Updated %s) ", feedupdatetime);
+  else 
+    feedupdatetime = NULL;
   
   if (contents != NULL)
     {    
@@ -141,8 +147,10 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
         virgule_buffer_puts (b, contents);
       if (feedposttime && entrylink)
         {
-          virgule_buffer_printf (b, "<p class=\"syndicated\"><a href=\"%s\">Syndicated %s from %s</a></p>",
-			      entrylink, feedposttime, blogauthor ? blogauthor : u);
+          virgule_buffer_printf (b, "<p class=\"syndicated\"><a href=\"%s\">Syndicated %s %s from %s</a></p>",
+			      entrylink, feedposttime, 
+			      feedupdatetime ? feedupdatetime : "",
+			      blogauthor ? blogauthor : u);
 	}
       virgule_buffer_puts (b, "</blockquote>\n");
     }
@@ -301,10 +309,99 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
     tree = xmlNewChild (root, NULL, "blogauthor", item->blogauthor);
   if(item->post_time)
     tree = xmlNewChild (root, NULL, "feedposttime", virgule_time_t_to_iso(vr,item->post_time));
-  if(item->update_time)
-    tree = xmlNewChild (root, NULL, "feedupdatetime", virgule_time_t_to_iso(vr,item->post_time));
+  if(item->update_time != -1)
+    tree = xmlNewChild (root, NULL, "feedupdatetime", virgule_time_t_to_iso(vr,item->update_time));
+
+  virgule_buffer_printf (vr->b, "<br />Posted entry: [%s]", virgule_time_t_to_iso(vr,item->post_time));
 
   return virgule_db_xml_put (vr->r->pool, vr->db, key, entry_doc);
+}
+
+
+/**
+ * find_entry_by_feedposttime - Search for an entry that has a matching
+ * feedposttime field. Start with the most recent entry and search
+ * backwards to minimize search time.
+ **/
+static char *
+find_entry_by_feedposttime (VirguleReq *vr, xmlChar *user, time_t posttime)
+{
+  int n, i;
+  time_t ptime;
+  char *key = NULL;
+  char *diary = NULL;
+  char *feedposttime = NULL;
+  xmlDoc *entry = NULL;
+  xmlNode *root = NULL;
+
+  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", (char *)user);
+  n = virgule_db_dir_max (vr->db, diary);
+
+  for (i = n; i >= 0; i--)
+    {
+      key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)user, i);
+      entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+      if (entry != NULL)
+        {
+	  root = xmlDocGetRootElement (entry);
+	  if (root == NULL)
+	    continue;
+	  feedposttime = virgule_xml_find_child_string (root, "feedposttime", NULL);
+	  if (feedposttime == NULL)
+	    continue;
+	  ptime = virgule_virgule_to_time_t (vr, feedposttime);
+	  if (posttime == ptime)
+	    return key;
+	}
+    }
+    
+  return NULL;
+}
+
+
+/**
+ * virgule_diary_update_feed_item - Check to see if the specified entry
+ * needs to be updated. If it does, replace it with the updated entry.
+ **/
+int
+virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
+{
+  char *key = NULL;
+  char *feedupdatetime = NULL;
+  time_t utime;
+  xmlNode *root, *tmpNode;
+  xmlDoc *entry;
+
+  if(user == NULL || item == NULL)
+    return 0;
+
+  /* find the entry */
+  key = find_entry_by_feedposttime (vr, user, item->post_time);
+  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+  root = xmlDocGetRootElement (entry);
+
+  /* skip the update if we've already done it */
+  feedupdatetime = virgule_xml_find_child_string (root, "feedupdatetime", NULL);
+  if (feedupdatetime != NULL)
+    {
+      utime = virgule_virgule_to_time_t (vr, feedupdatetime);
+      if (utime == item->update_time)
+        return 0;
+    }
+
+  /* update the entry */
+  virgule_xml_del_string_contents(root);
+  xmlNodeAddContent (root, virgule_xml_get_string_contents(item->content));
+  tmpNode = virgule_xml_ensure_child (root, "title");
+  xmlNodeSetContent (tmpNode, virgule_xml_get_string_contents(item->title));  
+  tmpNode = virgule_xml_ensure_child (root, "feedupdatetime");
+  xmlNodeSetContent (tmpNode, virgule_time_t_to_iso(vr,item->update_time));
+  tmpNode = virgule_xml_ensure_child (root, "update");
+  xmlNodeSetContent (tmpNode, virgule_iso_now (vr->r->pool));
+  
+  virgule_buffer_printf (vr->b, "<br />Updated entry: [%s]", virgule_time_t_to_iso(vr,item->post_time));
+
+  return virgule_db_xml_put (vr->r->pool, vr->db, key, entry);
 }
 
 

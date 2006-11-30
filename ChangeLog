@@ -1,3 +1,33 @@
+2006-11-29 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_post_feed): Now handles entries that have
+	been updated by passing them to virgule_diary_update_feed_item().
+	At present only Atom feeds seem to have support for updated entries.
+
+	* diary.c (virgule_diary_update_feed_item): Handles the replacement
+	of a diary entry that has been updated or changed via a syndicated
+	feed.
+
+	* diary.c (find_entry_by_feedposttime): Searches blog entries in
+	reverse chronological order trying to find one that matches the
+	specified feed post time.
+
+	* diary.c (virgule_diary_store_feed_item): Stores the update time
+	of entries when available. At present, only Atom feeds seem to
+	include an entry update time tag.
+
+	* diary.c (virgule_diary_entry_render): Diary update timestamp is
+	added to syndication link when entry has been updated via a feed.
+
+	* util.c (virgule_virgule_to_time_t): Converts the timestamp string
+	format used by mod_virgule into a proper time_t value, adjusting for
+	the server's time zone. The older virgule_iso_to_time_t was broken.
+	This code should replace the old code in all uses eventually.
+
+	* xml_util.c (virgule_xml_del_string_contents): New function that
+	removes and frees all text and CDATA child nodes from an XML node
+	while leaving other children untouched.
+
 2006-11-22 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_index_rss_20): Added support for <guid>

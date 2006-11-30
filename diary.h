@@ -23,6 +23,9 @@ int
 virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item);
 
 int
+virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item);
+
+int
 virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry);
 
 time_t
