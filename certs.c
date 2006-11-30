@@ -14,6 +14,7 @@
 #include "xml_util.h"
 #include "acct_maint.h"
 #include "style.h"
+#include "util.h"
 
 #include "certs.h"
 
@@ -209,13 +210,14 @@ virgule_render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
 {
   const char *level;
   CertLevel cert_level;
-  const char **u;
+//  const char **u;
 
-  for (u = vr->priv->special_users; *u; u++)
-    if (!strcmp (user, *u))
-      break;
+//  for (u = vr->priv->special_users; *u; u++)
+//    if (!strcmp (user, *u))
+//      break;
 
-  if (*u)
+//  if (*u)
+  if (virgule_user_is_special(vr,user))
     cert_level = virgule_cert_num_levels (vr);
   else
     {

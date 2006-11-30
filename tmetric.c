@@ -219,8 +219,7 @@ node_info_compare (const void *ni1, const void *ni2)
 
 
 /**
- * Runs the trust metric and generates a page showing the resulting
- * certification levels for each user
+ * Runs the trust metric and generates an updated tmetric cache file
  **/
 static int
 tmetric_index_serve (VirguleReq *vr)
@@ -250,7 +249,7 @@ tmetric_index_serve (VirguleReq *vr)
 
   virgule_render_header (vr, "Trust Metric", NULL);
   nodeinfo = tmetric_run (vr, vr->priv->seeds, n_seeds, vr->priv->caps, n_caps);
-  virgule_buffer_puts (b, "<table>\n");
+//  virgule_buffer_puts (b, "<table>\n");
 
   qsort (nodeinfo->elts, nodeinfo->nelts, sizeof(NodeInfo),
 	 node_info_compare);
@@ -263,16 +262,16 @@ tmetric_index_serve (VirguleReq *vr)
 	/* Skip the root node */
 	continue;
       }
-      virgule_buffer_printf (b, "<tr><td><a href=\"../person/%s/\">%s</a></td> <td>%s %s</td> <td class=\"level%i\">%s</td></tr>\n",
-		     ap_escape_uri(vr->r->pool, ni->name),
-		     ni->name,
-		     ni->givenname ? virgule_nice_text (p, ni->givenname) : "",
-		     ni->surname ? virgule_nice_text (p, ni->surname) : "",
-		     ni->level,
-		     virgule_cert_level_to_name (vr, ni->level));
+//      virgule_buffer_printf (b, "<tr><td><a href=\"../person/%s/\">%s</a></td> <td>%s %s</td> <td class=\"level%i\">%s</td></tr>\n",
+//		     ap_escape_uri(vr->r->pool, ni->name),
+//		     ni->name,
+//		     ni->givenname ? virgule_nice_text (p, ni->givenname) : "",
+//		     ni->surname ? virgule_nice_text (p, ni->surname) : "",
+//		     ni->level,
+//		     virgule_cert_level_to_name (vr, ni->level));
       virgule_buffer_printf (cb, "%s %s\n", ap_escape_uri(vr->r->pool,ni->name), virgule_cert_level_to_name (vr, ni->level));
     }
-  virgule_buffer_puts (b, "</table>\n");
+//  virgule_buffer_puts (b, "</table>\n");
 
   cache_str = virgule_buffer_extract (cb);
   vr->lock = virgule_db_lock (db);
@@ -342,6 +341,9 @@ virgule_tmetric_serve (VirguleReq *vr)
  * need to make sure the cache gets updated regularly (for example,
  * by retrieving /tmetric/ from a cron job).
  *
+ * ToDo: What's with the fputs and flushing to /dev/null? Left over 
+ * debug stuff maybe?
+ * 
  * Return value: the trust metric info.
  **/
 char *

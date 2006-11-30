@@ -1,4 +1,126 @@
-2006-10-29 R. Steven Rainwater <steve@ncc.com>
+2006-10-16 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_index_server): Separated login and password
+	reminder forms to improve usability.
+
+	* acct_maint.c (acct_person_serve): Spam reporting is now done through
+	a form as per Scott Lamb's suggestion. Help protect against accidental
+	reports by automated agents following links. This also keeps us
+	compliant with RFC 2616.
+	
+
+2006-10-13 R. Steven Rainwater <steve@ncc.com>
+
+	* rating.c (rating_crank_all): Rewrote this function completely. It
+	now uses the cached, pre-sorted tmetric list instead of looping
+	through and reading every account's XML file. This shaved about 30%
+	off the total processing time.
+	
+
+2006-10-09 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule (read_site_config): Added config handler for new
+	<accountspamthreshold> tag to set the spam score at which an
+	untrusted observer account is automatically deleted.
+
+	* acct_maint.c (acct_flag_as_spam): Handles an account spam report. 
+	Writes a new spam flag to the reported account with the name of the 
+	flag issuer, and recalculates the spam score. If the score exceeds
+	the currently configured threshold, the account is removed.
+
+	* acct_maint.c (virgule_acct_person_index_server): User list paging
+	now handles missing accounts smoothly (most likely missing because
+	they got deleted by the new acct_kill function).
+
+	* eigen.c (virgule_eigen_cleanup): Remove any eigen data associated
+	with the passed user account. Called as part of the account deletion
+	process.
+
+	* db_ops.c (virgule_remove_recent): Remove items from a recent list
+	that match a specified user account name. Called as part of the
+	account deletion process.
+
+
+2006-10-08 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Now displays the spam rating for
+	observer accounts. A spam report link is displayed on observer 
+	accounts when viewed by trusted users.
+
+	* req.c (virgule_req_get_tmetric_level): Added additional sanity
+	check to handle case where vr->u is null. This was causing a
+	segfault when a non-trusted user performed certain (very rare)
+	operations.
+
+
+2006-10-06 R. Steven Rainwater <steve@ncc.com>
+
+	* tmetric.c (tmetric_index_serve): Removed unneeded HTML dump of
+	trust metric debug data during processing. This reduced trust
+	metric computation time by more than 50%.
+
+
+2006-10-05 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_index_serve): Corrected typo in UTF-8 content
+	type specifier for account info form.
+
+	* acct_maint.c (acct_kill, acct_killsub_serve): Updated account 
+	removal code for live use. Account kill feature is now live and can 
+	be used by any of the users listed as special users in config.xml.
+
+	* article.c (article_render_from_xml): Added missing UTF-8 content
+	type specifier in reply form. 
+
+	* article.c (article_reply_submit_serve): Added code to (hopefully) 
+	reject duplicate replies.
+
+
+2006-10-04 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (virgule_user_is_special): Tests whether or not the currently
+	logged in user, if any, is on the list of special (admin) users.
+	
+	* article.c (article_render_from_xml): Replaced special user code
+	with call to virgule_user_is_special().
+
+	* cert.c (virgule_render_cert_level_begin): Replaced special user
+	code with all to virgule_user_is_special().
+	
+
+2006-10-03 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (send_email): For added security the IP address 
+	requesting a password reminder is included in the reminder email.
+
+	* acct_maint.c (acct_person_serve): Observers now have a nofollow
+	relation attribute added to the anchor tag for their homepage.
+
+	* util.c (virgule_add_nofollow): Adds nofollow relationship
+	attributes to any anchor tags in the passed string.
+
+	* diary.c (virgule_diary_render, virgule_diary_latest_render): 
+	Nofollow is added to anchors in	diary entries when rendered for an
+	observer.
+
+
+2006-10-02 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_render_from_xml): Reply posting form is now
+	concatenated to end of reply list as per Advogato style.
+	
+	* util.c (virgule_nice_utf8): Added new function to clean up some
+	UTF-8 to HTML entity conversions that were being missed.
+	
+
+2006-10-01 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (virgule_read_site_config): Added code support for
+	<articletitlesize> tag in config.xml that can set the maximum length
+	allowed for article titles.
+	
+
+2006-09-29 R. Steven Rainwater <steve@ncc.com>
 
 	* proj.c: Now has even more horrible hacks scattered through it than
 	before to render three "styles" of project pages: RAPH, NICK, and
@@ -21,7 +143,8 @@
 	* xml_util.c:  Added virgule_ prefix to non-static functions.
 	* xmlrpc.c:  Added virgule_ prefix to non-static functions.
 
-2006-10-28 R. Steven Rainwater <steve@ncc.com>
+
+2006-09-28 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule.c (virgule_read_site_config): Added code support for
 	three settings to determine the features available at particular
@@ -42,7 +165,8 @@
 	* req.c:  Added virgule_ prefix to non-static functions.
 	* rss_export.c:  Added virgule_ prefix to non-static functions.
 
-2006-10-23 R. Steven Rainwater <steve@ncc.com>
+
+2006-09-23 R. Steven Rainwater <steve@ncc.com>
 
 	* general: Replaced "weblog" with "blog". Robots.net used "weblog"
 	and Advogato used "diary". After discussing with Raph, we decided
@@ -53,7 +177,8 @@
 	* proj.c:  Added virgule_ prefix to non-static functions.
 	* rating.c:  Added virgule_ prefix to non-static functions.
 
-2006-10-21 R. Steven Rainwater <steve@ncc.com>
+
+2006-09-21 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule.c (virgule_read_site_config): Added code support for
 	<accountextendedcharset> tag in config.xml. When set to "on", this 
@@ -67,7 +192,7 @@
 	* eigen.c: Added virgule_ prefix to non-static functions.
 
 
-2006-10-20 R. Steven Rainwater <steve@ncc.com>
+2006-09-20 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule.c (set_virgule_db): Stats the provided path to verify
 	that it exists and that it's a directory. Returns error message to
@@ -89,7 +214,7 @@
 	
 	* diary.c: Added virgule_ prefix to non-static functions.
 
-2006-10-18 R. Steven Rainwater <steve@ncc.com>
+2006-09-18 R. Steven Rainwater <steve@ncc.com>
 
 	* db.c: Added virgule_ prefix to non-static functions.
 	* db_obs.c: Added virgule_ prefix to non-static functions.

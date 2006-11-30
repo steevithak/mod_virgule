@@ -47,9 +47,11 @@ struct virgule_private {
   int		     use_article_title_links;
   int		     use_article_topics;
   int		     article_post_by_seeds_only;
+  int		     article_title_maxsize;
   int	             level_articlepost;
   int		     level_articlereply;
   int		     level_projectcreate;
+  int		     acct_spam_threshold;
   const Topic	   **topics;
   const NavOption  **nav_options;
   const AllowedTag **allowed_tags;

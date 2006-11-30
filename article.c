@@ -135,7 +135,6 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   int n_replies;
   char *article_dir;
   CertLevel cert_level;
-  const char **u;
 
   topic = virgule_xml_find_child_string (root, "topic", "(no topic)");
   title = virgule_xml_find_child_string (root, "title", "(no title)");
@@ -144,7 +143,6 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   lead = virgule_xml_find_child_string (root, "lead", "(no lead)");
   lead_tag = (style == ARTICLE_RENDER_LEAD) ? "blockquote" : "p";
 
-//  virgule_buffer_puts (b, "<table border=0 cellspacing=0 width=\"85%\"><tr>");
   virgule_buffer_puts (b, "<table border=0 cellspacing=0 class=\"article\"><tr>");
 
   if(vr->priv->use_article_topics)
@@ -155,18 +153,13 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
     }
 
   /* check if author is a special user */
-  for (u = vr->priv->special_users; *u; u++)
-    if (!strcmp (author, *u))
-      break;
-
-  if (*u)
+  if (virgule_user_is_special(vr,author))
     cert_level = virgule_cert_num_levels (vr);
   else 
     cert_level = virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, author));
 
   virgule_buffer_printf (b, "<td width=\"100\%\" class=\"level%i\">",
                          cert_level);
-//      virgule_cert_level_from_name (vr, virgule_req_get_tmetric_level (vr, author)));
 
   if (style == ARTICLE_RENDER_LEAD && vr->priv->use_article_title_links)
     {
@@ -192,14 +185,26 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
       if (body)
 	  virgule_buffer_printf (b, "<p> %s\n", body);
 
-      if (virgule_req_ok_to_reply (vr))
-	virgule_buffer_printf (b, "<p> <a href=\"reply.html?art_num=%d\">Reply...</a> (%d repl%s) </p>\n",
-		       art_num, n_replies, n_replies == 1 ? "y" : "ies");
       article_render_replies (vr, art_num);
 
-      if (n_replies && virgule_req_ok_to_reply (vr))
-	virgule_buffer_printf (b, "<p> <a href=\"reply.html?art_num=%d\">Reply...</a> </p>\n",
-		       art_num);
+      if (virgule_req_ok_to_reply (vr))
+        {
+	  virgule_buffer_printf (b, "<hr> <p> Post a reply to <x>article</x>: %s. </p>\n"
+                 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
+		 " <p> Reply title: <br>\n"
+		 " <input type=\"text\" name=\"title\" size=\"50\" maxlength=\"60\"> </p>\n"
+		 " <p> Body of reply: <br>\n"
+		 " <textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
+		 "</textarea> </p>\n"
+		 " <input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
+		 " <p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		 " <input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
+		 "</form>\n", title, art_num);
+
+          virgule_render_acceptable_html (vr);
+        }
+
+
     }
   else if (style == ARTICLE_RENDER_LEAD)
     {
@@ -282,17 +287,19 @@ article_form_serve (VirguleReq *vr)
       virgule_buffer_puts (b," </select></p>\n");
     }
   
-  virgule_buffer_puts (b," <p><b><x>Article</x> title</b>:<br>\n"
-	       " <input type=\"text\" name=\"title\" size=40 maxlength=40></p>\n"
-	       " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
-	       "of the news story complete with links to the original "
-	       "sources when appropriate.<br>"
+  virgule_buffer_puts (b," <p><b><x>Article</x> title</b>:<br>\n");
+
+  virgule_buffer_printf (b," <input type=\"text\" name=\"title\" size=\"40\" maxlength=\"%i\"></p>\n", vr->priv->article_title_maxsize);
+
+  virgule_buffer_puts (b," <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
+	       "of the story complete with links to original sources when "
+	       "appropriate.<br>"
 	       " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>"
 	       "</textarea> </p>\n"
-	       " <p><b><x>Article</x> Body</b>. This portion of the form should be left "
-	       "empty unless this is an original story. A good rule of thumb "
-	       "is to leave the body blank unless the body would be at least "
-	       "twice as large at the summary in the lead box above.<br>"
+	       " <p><b><x>Article</x> Body</b>. This should contain the body "
+	       "of your article and may be as long as needed. If your entire "
+	       "article is only one paragraph, put it in the lead field above "
+	       "and leave this one empty.<br>"
 	       " <textarea name=\"body\" cols=72 rows=16 wrap=hard>"
 	       "</textarea> </p>\n"
 	       " <p><input type=\"submit\" name=preview value=\"Preview\">\n"
@@ -376,13 +383,13 @@ article_generic_submit_serve (VirguleReq *vr,
 	  virgule_buffer_printf (b, "<p> Edit your reply: </p>\n"
 			 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
 			 " <p> <x>Article</x> title: <br>\n"
-			 " <input type=\"text\" name=\"title\" value=\"%s\" size=40 maxlength=40> </p>\n"
+			 " <input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"60\"></p>\n"
 			 " <p> Body of <x>article</x>: <br>\n"
-			 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
-			 "</textarea> </p>\n"
+			 " <textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"hard\">%s"
+			 "</textarea></p>\n"
 			 " <input type=\"hidden\" name=\"art_num\" value=\"%s\">\n"
-			 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-			 " <input type=\"submit\" name=preview value=\"Preview\">\n"
+			 " <p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
+			 " <input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 			 "</form>\n",
 			 virgule_str_subst (p, title, "\"", "&quot;"),
 			 ap_escape_html (p, body),
@@ -425,23 +432,25 @@ article_generic_submit_serve (VirguleReq *vr,
 	      virgule_buffer_puts (b, " </select></p>\n");
 	    }
 
+
 	  virgule_buffer_printf (b,
 			 " <p><b><x>Article</x> title</b>:<br>\n"
-			 " <input type=\"text\" name=\"title\" value=\"%s\" size=40 maxlength=40> </p>\n"
+			 " <input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"%i\"> </p>\n"
 	        	 " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
-	    		 "of the news story complete with links to the original "
+	    		 "of the story complete with links to the original "
 	    		 "sources when appropriate.<br>"			 
 			 " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>%s"
 			 "</textarea> </p>\n",
 			 virgule_str_subst (p, title, "\"", "&quot;"),
+			 vr->priv->article_title_maxsize,
 			 ap_escape_html (p, lead));
 	  if (lead_error != NULL)
 	    virgule_buffer_printf (b, "<p> <b>Warning:</b> %s </p>\n", lead_error);
 
-	  virgule_buffer_printf (b," <p><b><x>Article</x> Body</b>. This portion of the form should be left "
-	    		 "empty unless this is an original story. A good rule of thumb "
-	    		 "is to leave the body blank unless the body would be at least "
-	    		 "twice as large at the summary in the lead box above.<br>"
+	  virgule_buffer_printf (b," <p><b><x>Article</x> Body</b>. This should "
+	    		 "contain the body of your article and may be as long as "
+			 "needed. If your entire article is only one paragraph, "
+			 "put it in the lead field above and leave this one empty<br>"
 			 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
 			 "</textarea> </p>\n"
 			 " <p><b>Warning:</b> Please proof read your article "
@@ -559,6 +568,7 @@ article_submit_serve (VirguleReq *vr)
 }
 
 
+/* maybe not needed anymore since form is on article page? */
 static int
 article_reply_form_serve (VirguleReq *vr)
 {
@@ -624,6 +634,14 @@ article_reply_submit_serve (VirguleReq *vr)
   apr_table_t *args;
   const char *title, *art_num_str, *body;
   char *key_base;
+  char *key_reply;
+  int last_reply;
+  xmlDoc *doc;
+
+  virgule_auth_user (vr);
+  
+  if (vr->u == NULL)
+    return virgule_send_error_page (vr, "Not logged in", "You can't post a reply because you're not logged in.");
 
   args = virgule_get_args_table (vr);
   if (args == NULL)
@@ -637,6 +655,20 @@ article_reply_submit_serve (VirguleReq *vr)
     return virgule_send_error_page (vr, "Need <x>article</x> number", "This page requires <x>an article</x> number. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
   key_base = apr_psprintf (p, "articles/_%d", atoi (art_num_str));
+
+  /* Reject duplicate replies */
+  last_reply = virgule_db_dir_max (vr->db, key_base);
+  key_reply = apr_psprintf (p, "articles/_%d/_%d/reply.xml", atoi (art_num_str),last_reply);
+  doc = virgule_db_xml_get (p, vr->db, key_reply);
+  if (doc != NULL)
+    {
+      const char *old_author;
+      const char *old_title;
+      old_author = virgule_xml_find_child_string (doc->xmlRootNode, "author", "(no author)");
+      old_title = virgule_xml_find_child_string (doc->xmlRootNode, "title", "(no author)");
+      if(strcmp (old_author, vr->u) == 0 && strcmp (old_title, title) == 0)
+	  return virgule_send_error_page (vr, "Duplicate Reply", "Please post your reply only once.");
+    }
 
   return article_generic_submit_serve (vr, NULL, title, NULL, body,
 				       "reply",

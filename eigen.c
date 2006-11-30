@@ -257,6 +257,16 @@ virgule_eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
   if (profile == NULL)
     return -1;
 
+// rsr - if we test for aliases here we don't have to in rating.c
+// just a thought. Otherwise, load the /tmetric/default list of
+// account names rather than cycling through the physical /acct/
+// directory. That way, we don't have to check each one to see if
+// it's an aliases. Would save some file I/O and speed things up.
+//
+//  tree = virgule_xml_find_child (profile->xmlRootNode, "info");
+//  if (tree == NULL)
+//    return -1;    
+
   tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
@@ -344,4 +354,19 @@ virgule_eigen_report (VirguleReq *vr, const char *u)
 		     val->confidence);
     }
   return 0;
+}
+
+
+/**
+ * virgule_eigen_cleanup: Remove any eigen data associated with the passed
+ * user account. Called by the acct_kill function.
+ **/
+void
+virgule_eigen_cleanup (VirguleReq *vr, const char *u)
+{
+  char *dbkey;
+  dbkey = apr_pstrcat (vr->r->pool, "eigen/vec/", u, NULL);
+  virgule_db_del (vr->db, dbkey);
+  dbkey = apr_pstrcat (vr->r->pool, "eigen/local/", u, NULL);
+  virgule_db_del (vr->db, dbkey);
 }

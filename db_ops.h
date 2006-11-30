@@ -41,13 +41,5 @@ struct _DbRelation {
 int
 virgule_db_relation_put (apr_pool_t *p, Db *db, const DbRelation *rel, const char **values);
 
-/*
-int
-db_relation_get (apr_pool_t *p, Db *db, const DbRelation *rel, char **values);
-
-DbSelect *
-db_relation_select (apr_pool_t *p, Db *db, const DbRelation *rel, char **values);
-
-int
-db_relation_select_next (DbSelect *dbs, char **values);
-*/
+void
+virgule_remove_recent (VirguleReq *vr, const char *key, const char *val);

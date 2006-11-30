@@ -100,39 +100,48 @@ rating_crank (VirguleReq *vr, const char *u)
   return virgule_render_footer_send (vr);
 }
 
+
+/**
+ * rating_crank_all: This is a complete rewrite of Raph's original. There
+ * is an approximate 30% speed improvement from using the presorted tmetric
+ * cache instead of looping through every account in the XML acct tree and
+ * testing to see if it's an alias or not. 
+ * There is room for further improvement. The memory pool allocation in
+ * each iteration of the loop a work around for a memory leak somewhere 
+ * in the eigen code.
+ **/
 static int
 rating_crank_all (VirguleReq *vr)
 {
-  apr_pool_t *p = vr->r->pool;
-  DbCursor *dbc;
-  char *u;
+  char *tmetric = virgule_req_get_tmetric (vr);
+  char *user;
+  int i = 0;
+  int j, k;
+  apr_pool_t *sp;
 
   virgule_render_header (vr, "Cranking all nodes", NULL);
-  dbc = virgule_db_open_dir (vr->db, "acct");
-  while ((u = virgule_db_read_dir_raw (dbc)) != NULL)
+  
+  while(tmetric[i])
     {
-
-      apr_pool_t *sp;
-      apr_pool_create(&sp,p);
-//      apr_pool_create_ex(&sp,p,NULL,NULL);
-
-/* virgule_acct_dbkey will use the default request pool, is this a problem? */
-      char *dbkey = virgule_acct_dbkey (vr, u);
-
-      xmlDoc *profile = virgule_db_xml_get (sp, vr->db, dbkey);
-      xmlNode *tree = virgule_xml_find_child (profile->xmlRootNode, "info");
-
-      if (tree != NULL)
-	{
+      for(j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++); /* EOL */
+      for(k = j; k > 0 && tmetric[i + k] != ' '; k--); /* username */
+      user = apr_palloc (vr->r->pool, k + 1);
+      memcpy (user, tmetric + i, k);
+      user[k] = 0;
+      i += j;
+      if (tmetric[i] == '\n')
+        i++;
 #if 0
-	  virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", u);
+virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", user);
 #endif
-	  virgule_eigen_crank (sp, vr, u);
-	}
+      apr_pool_create(&sp,vr->r->pool);
+      virgule_eigen_crank (sp, vr, user);
       apr_pool_destroy (sp);
     }
+
   return virgule_render_footer_send (vr);
 }
+
 
 static int
 rating_report (VirguleReq *vr, const char *u)

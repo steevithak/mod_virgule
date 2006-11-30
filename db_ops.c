@@ -21,6 +21,36 @@
 
 #include "db_ops.h"
 
+
+/**
+ * virgule_remove_recent: Removes recent items matching the specified
+ * user account name. Called by acct_kill as part of account removal.
+ **/
+void
+virgule_remove_recent (VirguleReq *vr, const char *key, const char *val)
+{
+  xmlDoc *recent;
+  xmlNode *item;
+
+  if (key == NULL || val == NULL)
+    return;
+  
+  recent = virgule_db_xml_get (vr->r->pool, vr->db, key);
+  if (recent == NULL)
+    return;
+
+  for (item = recent->xmlRootNode->children; item != NULL; item = item->next)
+    {
+	if(!strcmp (val, virgule_xml_get_string_contents (item)))
+	  {
+	    xmlUnlinkNode (item);
+	    xmlFreeNode (item);
+	  }
+    }
+  virgule_db_xml_put (vr->r->pool, vr->db, key, recent);
+}
+
+
 /* careful: val better not have any xml metacharacters */
 int
 virgule_add_recent (apr_pool_t *p, Db *db, const char *key, const char *val, int n_max, int dup)
