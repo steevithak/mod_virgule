@@ -1,0 +1,16 @@
+body { background: white; color: black; }
+body, td { font-family: lucida, helvetica, sans-serif; }
+
+.level0 { background: #c1c1c1; }
+.level1 { background: #c0ffc8; }
+.level2 { background: #c0d0ff; }
+.level3 { background: #e0d0ff; }
+.level4 { background: #e0d0c0; }
+
+div.level0, div.level1, div.level2, div.level3, div.level4 {
+	padding: 1px;
+	margin: 0px 0px 3px 0px;
+}
+
+h2 { padding: 3px; }
+h4 { padding: 2px; font-weight: normal; }
