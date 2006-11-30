@@ -434,6 +434,8 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 
   doc = virgule_db_xml_get (p, vr->db, db_key);
   if (doc == NULL)
+    vr->r->status = 404;
+    vr->r->status_line = apr_pstrdup(p, "404 Not Found");
     return virgule_send_error_page (vr,
 			    "<x>Project</x> not found",
 			    "<x>Project</x> <tt>%s</tt> was not found.",

@@ -473,6 +473,16 @@ virgule_diary_serve (VirguleReq *vr)
  * @u: Username for diary to export.
  *
  * Return value: status (zero on success).
+ *
+ * ToDo: I think this code is incorrect. It seems to assume that diary
+ * entries contain HTML and then attempts to parse the HTML and incorporate
+ * it into the XML document tree. It would make more sense to me for the
+ * diary entry including HTML, if any, to be made into content for an "entry"
+ * node in the XML tree. This way we don't have to worry about whether the
+ * HTML used is well-formed, XML-compatible markup.
+ *
+ * It may even be possible to remove this function altogether. The newer
+ * XML-RPC code should replace it.
  **/
 int
 virgule_diary_export (VirguleReq *vr, xmlNode *root, char *u)
@@ -601,3 +611,33 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 
   return 0;
 }
+
+
+/**
+ * virgule_diary_latest_entry - return the Unix time_t value of the most
+ * recent diary entry for the specified user. If the user has no diary
+ * entries yet, a value of 0 is returned. This function should only be
+ * called for value usernames. It does not validate the username.
+ **/
+time_t
+virgule_diary_latest_entry (VirguleReq *vr, char *u)
+{
+  int n;
+  char *diary, *key;
+  xmlDoc *entry = NULL;
+  xmlNode *date = NULL;
+  
+  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", u);
+  n = virgule_db_dir_max (vr->db, diary);
+  if (n < 0)
+    return 0;
+    
+  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", u, n);
+  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+  if (entry == NULL)
+    return 0;
+    
+  date = virgule_xml_find_child (entry->xmlRootNode, "date");
+  return virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
+}
+

@@ -41,6 +41,9 @@ struct virgule_private {
   const int         *caps;
   const char       **special_users;
   const char       **trans;
+  char 		    *tmetric;	  /* Trust metric cache */
+  apr_time_t	     tm_mtime;    /* Time of last tmetric change */
+  apr_pool_t	    *tm_pool;     /* Subpool used for tmetric cache */
   int                render_diaryratings;
   int                allow_account_creation;
   int		     allow_account_extendedcharset;
@@ -51,6 +54,7 @@ struct virgule_private {
   int	             level_articlepost;
   int		     level_articlereply;
   int		     level_projectcreate;
+  int		     level_blogsyndicate;
   int		     acct_spam_threshold;
   const Topic	   **topics;
   const NavOption  **nav_options;

@@ -30,6 +30,7 @@
 #include "rating.h"
 #include "hashtable.h"
 #include "eigen.h"
+#include "aggregator.h"
 #include "acct_maint.h"
 
 typedef struct _ProfileField ProfileField;
@@ -44,7 +45,8 @@ struct _ProfileField {
 typedef enum {
   PROFILE_PUBLIC    = 1 << 0,
   PROFILE_TEXTAREA  = 1 << 1,
-  PROFILE_BOOLEAN   = 1 << 2
+  PROFILE_BOOLEAN   = 1 << 2,
+  PROFILE_SYNDICATE = 1 << 4
 } ProfileFlags;
 
 ProfileField prof_fields[] = {
@@ -55,6 +57,8 @@ ProfileField prof_fields[] = {
   { "Homepage", "url", 40, PROFILE_PUBLIC },
   { "Number of old messages to display", "numold", 4, 0 },
   { "Notes", "notes", 60015, PROFILE_PUBLIC | PROFILE_TEXTAREA },
+  { "Syndicate your blog from another site?", "syndicate", 40, PROFILE_PUBLIC | PROFILE_BOOLEAN | PROFILE_SYNDICATE },
+  { "RSS or ATOM feed URL of your blog", "feedurl", 60, PROFILE_PUBLIC | PROFILE_SYNDICATE },
   { NULL }
 };
 
@@ -540,12 +544,13 @@ acct_index_serve (VirguleReq *vr)
       const char *level;
       char *db_key;
       xmlDoc *profile;
-      xmlNode *tree;
+      xmlNode *info, *aggregate, *tree;
       char *value;
 
       db_key = virgule_acct_dbkey (vr, vr->u);
       profile = virgule_db_xml_get (p, vr->db, db_key);
-      tree = virgule_xml_find_child (profile->xmlRootNode, "info");
+      info = virgule_xml_find_child (profile->xmlRootNode, "info");
+      aggregate = virgule_xml_find_child (profile->xmlRootNode, "aggregate");
       level = virgule_req_get_tmetric_level (vr, vr->u);
 
       virgule_render_header (vr, "User Account Info", NULL);
@@ -578,6 +583,11 @@ acct_index_serve (VirguleReq *vr)
         {
 	  virgule_buffer_printf (b, "<li><a href=\"%s/article/post.html\">Post an article</a></li>\n",vr->prefix);
 	}
+
+      if (virgule_req_ok_to_syndicate_blog (vr))
+        {
+	  virgule_buffer_printf (b, "<li>Syndicate your blog from an external site</li>\n");
+	}
 	
       virgule_buffer_puts (b, "<li><a href=\"logout.html\">Logout</a></li>\n");
       if (vr->priv->projstyle == PROJSTYLE_NICK)
@@ -586,9 +596,18 @@ acct_index_serve (VirguleReq *vr)
       virgule_buffer_puts (b, "<form method=\"POST\" action=\"update.html\" accept-charset=\"UTF-8\">\n");
       for (i = 0; prof_fields[i].description; i++)
 	{
+	  if (prof_fields[i].flags & PROFILE_SYNDICATE && 
+	      !virgule_req_ok_to_syndicate_blog (vr))
+	    continue;
+	    
 	  if (vr->priv->projstyle != PROJSTYLE_NICK &&
 	      !strcmp(prof_fields[i].attr_name, "numold"))
 	    continue;
+
+	  if (prof_fields[i].flags & PROFILE_SYNDICATE)
+	    tree = aggregate;
+	  else
+	    tree = info;
 
 	  value = NULL;
 	  if (tree)
@@ -596,17 +615,17 @@ acct_index_serve (VirguleReq *vr)
 
 	  virgule_buffer_printf (b, "<p> %s: <br>\n", prof_fields[i].description);
 	  if (prof_fields[i].flags & PROFILE_BOOLEAN)
-	    virgule_buffer_printf (b, "<input name=\"%s\" type=checkbox %s> </p>\n",
+	    virgule_buffer_printf (b, "<input name=\"%s\" type=\"checkbox\" %s></p>\n",
 			   prof_fields[i].attr_name,
 			   value ? (strcmp (value, "on") ? "" : " checked") : "");
 	  else if (prof_fields[i].flags & PROFILE_TEXTAREA)
-	    virgule_buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
+	    virgule_buffer_printf (b, "<textarea name=\"%s\" cols=\"%d\" rows=\"%d\" wrap=\"hard\">%s</textarea></p>\n",
 			   prof_fields[i].attr_name,
 			   prof_fields[i].size / 1000,
 			   prof_fields[i].size % 1000,
 			   value ? ap_escape_html (p, value) : "");
 	  else
-	    virgule_buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"> </p>\n",
+	    virgule_buffer_printf (b, "<input name=\"%s\" size=\"%d\" value=\"%s\"> </p>\n",
 			   prof_fields[i].attr_name, prof_fields[i].size,
 			   value ? ap_escape_html (p, value) : "");
 	  if (value != NULL)
@@ -887,6 +906,7 @@ virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
   return 1;
 }
 
+
 /*
  *  Send an email to the given user reminding them of their password
  */
@@ -1040,6 +1060,12 @@ acct_logout_serve (VirguleReq *vr)
 
 }
 
+
+/**
+ * acct_update_serve: Update the users account info. Blog syndication info
+ * comes is piggy-backed on the same profile array but is processed 
+ * separately. This isn't very elegant but will do for now.
+ **/
 static int
 acct_update_serve (VirguleReq *vr)
 {
@@ -1055,27 +1081,33 @@ acct_update_serve (VirguleReq *vr)
     {
       char *db_key;
       xmlDoc *profile;
-      xmlNode *tree;
+      xmlNode *info, *aggregate, *tree;
       int i;
       int status;
 
       db_key = virgule_acct_dbkey (vr, vr->u);
       profile = virgule_db_xml_get (p, vr->db, db_key);
 
-      tree = virgule_xml_ensure_child (profile->xmlRootNode, "info");
+      info = virgule_xml_ensure_child (profile->xmlRootNode, "info");
+      aggregate = virgule_xml_ensure_child (profile->xmlRootNode, "aggregate");
 
       for (i = 0; prof_fields[i].description; i++)
 	{
+	  if(prof_fields[i].flags & PROFILE_SYNDICATE)
+	    tree = aggregate;
+          else
+	    tree = info;
+	    
 	  const char *val;
 	  val = apr_table_get (args, prof_fields[i].attr_name);
 	  if (val == NULL && prof_fields[i].flags & PROFILE_BOOLEAN)
 	    val = "off";
+          if (prof_fields[i].flags & PROFILE_BOOLEAN && 
+	      prof_fields[i].flags & PROFILE_SYNDICATE &&
+	      !virgule_req_ok_to_syndicate_blog (vr))
+	    val = "off";
           if (virgule_is_input_valid(val))
 	    {
-#if 0
-	      g_print ("Setting field %s to %s\n",
-		       prof_fields[i].attr_name, val);
-#endif
               xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
 	    }
           else
@@ -1084,14 +1116,18 @@ acct_update_serve (VirguleReq *vr)
                                     "Only valid characters that use valid UTF-8 sequences may be submitted.");
 	}
 
-
       status = virgule_db_xml_put (p, vr->db, db_key, profile);
+
       if (status)
 	return virgule_send_error_page (vr,
 				"Error storing account profile",
 				"There was an error storing the account profile. This means there's something wrong with the site.");
+
+      virgule_update_aggregator_list (vr);
+
       apr_table_add (vr->r->headers_out, "refresh",
 		    apr_psprintf(p, "0;URL=/person/%s/", vr->u));
+
       return virgule_send_error_page (vr,
 			      "Updated",
 			      "Updates to account <a href=\"../person/%s/\">%s</a> ok",
@@ -1485,25 +1521,31 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	}
     }
 
-  lastlogin = virgule_xml_find_child(profile->xmlRootNode, "lastlogin");
-  if(lastlogin) 
-    date = virgule_xml_get_prop (p, lastlogin, (xmlChar *)"date");
-  if(!date)
-    date = "N/A";
-
   any = 0;
   tree = virgule_xml_find_child (profile->xmlRootNode, "info");
   if (tree)
     {
       givenname = virgule_xml_get_prop (p, tree, (xmlChar *)"givenname");
       surname = virgule_xml_get_prop (p, tree, (xmlChar *)"surname");
-      virgule_buffer_printf (b, "<p> Name: %s %s<br />Last login: %s</p>\n",
+      virgule_buffer_printf (b, "<p> Name: %s %s<br />\n",
 // rsr		     givenname ? virgule_nice_utf8(p, givenname) : "",
 //		     surname ? virgule_nice_utf8(p, surname) : "", date);
 // raph		     givenname ? virgule_nice_text(p, givenname) : "",
 //		     surname ? virgule_nice_text(p, surname) : "", date);
 		     givenname ? givenname : "",
-		     surname ? surname : "", date);
+		     surname ? surname : "");
+
+
+      date = virgule_xml_find_child_string (profile->xmlRootNode, "date", "N/A");
+      virgule_buffer_printf (b, "Member since: %s<br />\n", date);
+
+      lastlogin = virgule_xml_find_child(profile->xmlRootNode, "lastlogin");
+      if(lastlogin) 
+        date = virgule_xml_get_prop (p, lastlogin, (xmlChar *)"date");
+      if(!date)
+        date = "N/A";
+	
+      virgule_buffer_printf (b, "Last Login: %s<br />\n", date);
 
       url = virgule_xml_get_prop (p, tree, (xmlChar *)"url");
       if (url && url[0])

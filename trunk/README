@@ -1,17 +1,18 @@
 ------------------------------------------------------------------------
 Notes on Steve's for of mod_virgule:
 
-This is not the "official" mod_virgule code. This code is a fork of
-mod_virgule that I use to run the robots.net website. Because the original
-mod_virgule code contained many hardcoded references to Advogato.org, I
-had to modify the code to use it on my site. Over time I've tried to remove
-as many hardcoded site references as possible to make it easier to use the
-software on new sites. Along the way, I've made other improvements and
-modifications to the source code.
+This is not the "official" mod_virgule code. The official mod_virgule was
+used to run Advogato.org from it's creation until Oct 1, 2006. I created
+this fork for my robots.net website. On Oct 1, 2006, Advogato was 
+transitioned to this codebase as well. So I think that makes this code
+at least "semi-official" at this point. :-)
 
-So what does my version do that the original doesn't?
+The main difference is that this code is much closer to being usable
+out of the box for a new site. There are no hard coded references to URLs
+or site names, etc. Everything like that can be configured in a handy XML
+file at run time.  Here are a few of the other improvements found in this
+codebase over the original mod_virgule:
 
-Features of my fork that have not been integrated into official code yet:
 -Function names now follows Apache module guidelines
 -Compiles against Apache 2.0 (roughly based on James Henstridge's patch)
 -User list is configurable, paged, and sorted by cert level
@@ -41,7 +42,7 @@ user certification level
 -path handler allowing banner ad to be inserted as SSI
 -XML tag for an externally updated field
 
-Features that have been integrated into the official codebase:
+Features that have also been integrated into the "official" codebase:
 -Permalinks for diary entries
 -Usernames are passed to Apache and logged
 -Configurable pass-through directories

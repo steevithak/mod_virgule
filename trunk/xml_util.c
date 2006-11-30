@@ -25,7 +25,7 @@ virgule_xml_find_child (xmlNode *n, const char *tag)
   if (n == NULL)
     return NULL;
   for (child = n->children; child != NULL; child = child->next)
-    if (!strcmp (child->name, tag))
+    if (!strcmp ((char *)child->name, tag))
       return child;
   return NULL;
 }
@@ -46,9 +46,9 @@ virgule_xml_ensure_child (xmlNode *n, const char *tag)
   xmlNode *child;
 
   for (child = n->children; child != NULL; child = child->next)
-    if (!strcmp (child->name, tag))
+    if (!strcmp ((char *)child->name, tag))
       return child;
-  return xmlNewChild (n, NULL, tag, NULL);
+  return xmlNewChild (n, NULL, (xmlChar *)tag, NULL);
 }
 
 char *
@@ -60,7 +60,7 @@ virgule_xml_get_string_contents (xmlNode *n)
     child = child->next;
 
   if (child)
-    return child->content;
+    return (char *)child->content;
   else
     return NULL;
 }
@@ -72,7 +72,7 @@ virgule_xml_get_prop (apr_pool_t *p, xmlNodePtr node, const xmlChar *name)
   char *value;
   char *result;
 
-  value = xmlGetProp (node, name);
+  value = (char *)xmlGetProp (node, name);
   if (value == NULL)
     return NULL;
   result = apr_pstrdup (p, value);

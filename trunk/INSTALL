@@ -63,6 +63,7 @@ AddModule mod_virgule.c
 
 <VirtualHost www.advogato.org>
  VirguleDb /home/raph/advogato.org
+ VirgulePass "/images" "/css" "/favicon.ico"
 </VirthualHost>
 
 
