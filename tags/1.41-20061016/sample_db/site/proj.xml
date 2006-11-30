@@ -1,0 +1,8 @@
+<page><title>Recent projects</title>
+
+<p> <b>Recently modified projects:</b> </p>
+<recentproj list="proj-m"/>
+
+<p> Create a <a href="/proj/new.html">new project</a>. </p>
+
+</page>
