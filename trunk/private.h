@@ -23,6 +23,7 @@
 
 */
 
+typedef struct _Topic Topic;
 typedef struct _NavOption NavOption;
 typedef struct _AllowedTag AllowedTag;
 typedef struct virgule_private virgule_private_t;
@@ -33,6 +34,7 @@ struct virgule_private {
   unsigned long      count;        /* Thread request counter */
   const char        *site_name;
   const char        *base_uri;
+  const char	    *admin_email;
   int                recentlog_as_posted;
   const char       **cert_level_names;
   const char       **seeds;
@@ -41,6 +43,8 @@ struct virgule_private {
   const char       **trans;
   int                render_diaryratings;
   int                allow_account_creation;
+  int		     use_article_topics;
+  const Topic	   **topics;
   const NavOption  **nav_options;
   const AllowedTag **allowed_tags;
   enum {

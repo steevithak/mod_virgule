@@ -175,8 +175,6 @@ tmetric_run (VirguleReq *vr,
         db_xml_free (p, db, profile);
     }
   db_close_dir (dbc);
-fprintf(stderr,"Test loop complete\n");
-fflush(stderr);
 
   if (vr->lock)
     db_unlock (vr->lock);

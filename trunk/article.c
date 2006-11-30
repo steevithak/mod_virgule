@@ -23,24 +23,30 @@
 
 #include "article.h"
 
+
+struct _Topic {
+  char *desc;
+  char *url;
+};
+
+
 /**
  * Render an img tag for the topic icon based on the passed topic name
  **/
 static void
 article_render_topic (VirguleReq *vr, char *topic)
 {
-  int i;
+  const Topic **t;
   
-  if (!vr->topics || !topic) return;
-  
-  for (i=0; i < vr->topics->nelts; i++)
-    if (!strcmp ( ((ArticleTopic *)(vr->topics->elts))[i].name, topic) )
+  if (!vr->priv->use_article_topics || !topic) return;
+
+  for (t = vr->priv->topics; *t; t++)
+    if (!strcmp ( (*t)->desc, topic) )
       break;
-      
-  if (i < vr->topics->nelts)
-    buffer_printf (vr->b, "<img height=50 width=50 src=\"%s\" alt=\"*\" title=\"%s\">",
-		   ((ArticleTopic *)(vr->topics->elts))[i].iconURL,
-		   ((ArticleTopic *)(vr->topics->elts))[i].name);
+
+  if(*t)
+    buffer_printf (vr->b, "<img height=\"50\" width=\"50\" src=\"%s\" alt=\"%s\" title=\"%s\">",
+		    (*t)->url,(*t)->desc,(*t)->desc);		    
 }
 
 
@@ -135,16 +141,16 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   lead = xml_find_child_string (root, "lead", "(no lead)");
   lead_tag = (style == ARTICLE_RENDER_LEAD) ? "blockquote" : "p";
 
-#ifndef STYLE
-  render_cert_level_begin (vr, author, CERT_STYLE_LARGE);
-  buffer_puts (b, title);
-  render_cert_level_end (vr, CERT_STYLE_LARGE);
-  buffer_printf (b, "<b>Posted %s by <a href=\"%s/person/%s/\">%s</a></b>",
-#else
-  buffer_puts (b, "<table border=0 cellspacing=0 width=\"85%\"><tr><td rowspan=\"2\" class=\"article-topic\">");
-  article_render_topic (vr, topic);
+  buffer_puts (b, "<table border=0 cellspacing=0 width=\"85%\"><tr>");
 
-  buffer_printf (b, "</td><td nowrap width=\"100\%\" class=\"level%i\">",
+  if(vr->priv->use_article_topics)
+    {
+      buffer_puts (b, "<td rowspan=\"2\" class=\"article-topic\">");
+      article_render_topic (vr, topic);
+      buffer_puts (b, "</td>");
+    }
+
+  buffer_printf (b, "<td nowrap width=\"100\%\" class=\"level%i\">",
       cert_level_from_name (vr, req_get_tmetric_level (vr, author)));
 
   if (style == ARTICLE_RENDER_LEAD)
@@ -158,7 +164,6 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 
   buffer_printf (b, "</td></tr><tr><td nowrap class=\"article-author\">Posted %s by "
 		 "<a href=\"%s/person/%s/\">%s</a></td></tr></table>\n",
-#endif
 		 render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author);
 
   buffer_printf (b, "<%s>\n"
@@ -237,9 +242,7 @@ article_render (VirguleReq *vr, int art_num, int render_body)
 static int
 article_form_serve (VirguleReq *vr)
 {
-#ifdef STYLE
-  int i;
-#endif
+  const Topic **t;
   Buffer *b = vr->b;
 
   auth_user (vr);
@@ -252,18 +255,19 @@ article_form_serve (VirguleReq *vr)
 
   render_header (vr, "Post a new <x>article</x>", NULL);
 
-  buffer_puts (b, "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n"
-#ifdef STYLE
-	       " <p><b><x>Article</x> topic</b>:<br>\n"
-	       " <select name=\"topic\">\n");
+  buffer_puts (b, "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
+
+  if(vr->priv->use_article_topics)
+    {
+      buffer_puts (b," <p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
+
+      for (t = vr->priv->topics; *t; t++)
+	buffer_printf (b, "<option>%s</option>\n", (*t)->desc);
 	       
-  for (i=0; i < vr->topics->nelts; i++)
-    buffer_printf (b, "<option>%s</option>\n",
-		   ((ArticleTopic *)(vr->topics->elts))[i].name);
-  buffer_puts (b,
-               " </select></p>\n"
-#endif
-	       " <p><b><x>Article</x> title</b>:<br>\n"
+      buffer_puts (b," </select></p>\n");
+    }
+  
+  buffer_puts (b," <p><b><x>Article</x> title</b>:<br>\n"
 	       " <input type=\"text\" name=\"title\" size=40 maxlength=40></p>\n"
 	       " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
 	       "of the news story complete with links to the original "
@@ -301,9 +305,7 @@ article_form_serve (VirguleReq *vr)
  **/
 static int
 article_generic_submit_serve (VirguleReq *vr,
-#ifdef STYLE
 			      const char *topic,
-#endif
 			      const char *title, const char *lead, const char *body,
 			      const char *submit_type,
 			      const char *key_base, const char *key_suffix,
@@ -311,6 +313,7 @@ article_generic_submit_serve (VirguleReq *vr,
 {
   apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
+  const Topic **t;
   const char *date;
   char *key;
   xmlDoc *doc;
@@ -322,9 +325,6 @@ article_generic_submit_serve (VirguleReq *vr,
   char *nice_title;
   char *nice_lead;
   char *nice_body;
-#ifdef STYLE
-  int i;
-#endif
 
   db_lock_upgrade(vr->lock);
   auth_user (vr);
@@ -379,36 +379,38 @@ article_generic_submit_serve (VirguleReq *vr,
 	{
 	  render_header (vr, "<x>Article</x> preview", NULL);
 
-#ifdef STYLE
-	  buffer_puts (b, "<table><tr><td>");
-	  article_render_topic (vr, (char *)topic);
-	  buffer_puts (b, "</td><td>");
-	  render_cert_level_begin (vr, vr->u, CERT_STYLE_LARGE);
-	  buffer_printf (b, "<span class=\"article-title\">%s</span>",nice_title);
-	  render_cert_level_end (vr, CERT_STYLE_LARGE);
-	  buffer_puts (b, "</td></tr></table>\n");
-#else
-	  render_cert_level_begin (vr, vr->u, CERT_STYLE_LARGE);
-	  buffer_printf (b, "<font size=+2><b>%s</b></font> <br>\n", nice_title);
-	  render_cert_level_end (vr, CERT_STYLE_LARGE);
-#endif
+	  if(vr->priv->use_article_topics)
+	    {
+	      buffer_puts (b, "<table><tr><td>");
+              article_render_topic (vr, (char *)topic);
+              buffer_puts (b, "</td><td>");
+	    }
+
+          render_cert_level_begin (vr, vr->u, CERT_STYLE_LARGE);
+          buffer_printf (b, "<span class=\"article-title\">%s</span>",nice_title);
+          render_cert_level_end (vr, CERT_STYLE_LARGE);
+	  
+	  if(vr->priv->use_article_topics)
+            buffer_puts (b, "</td></tr></table>\n");
 
 	  buffer_printf (b, "<p>\n%s\n", nice_lead);
 	  buffer_printf (b, "<p> %s </p>\n", nice_body);
 	  buffer_puts (b, "<hr>\n");
-	  buffer_printf (b, "<p> Edit your <x>article</x>: </p>\n"
-			 "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n"
-#ifdef STYLE
-			 " <p><b><x>Article</x> topic</b>:<br>\n"
-			 " <select name=\"topic\">\n",NULL);
+	  buffer_puts (b, "<p> Edit your <x>article</x>: </p>\n"
+		"<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
 
-	  for (i=0; i < vr->topics->nelts; i++)
-	    buffer_printf (b, "<option%s>%s</option>\n",
-	      strcmp(((ArticleTopic *)(vr->topics->elts))[i].name,topic) ? "" : " selected",
-	      ((ArticleTopic *)(vr->topics->elts))[i].name);
+	  if(vr->priv->use_article_topics)
+	    {
+	      buffer_puts (b, " <p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
+
+              for (t = vr->priv->topics; *t; t++)
+	        buffer_printf (b, "<option%s>%s</option>\n",
+		  strcmp((*t)->desc,topic) ? "" : " selected",(*t)->desc);
+
+	      buffer_puts (b, " </select></p>\n");
+	    }
+
 	  buffer_printf (b,
-			 " </select></p>\n"
-#endif
 			 " <p><b><x>Article</x> title</b>:<br>\n"
 			 " <input type=\"text\" name=\"title\" value=\"%s\" size=40 maxlength=40> </p>\n"
 	        	 " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
@@ -459,15 +461,18 @@ article_generic_submit_serve (VirguleReq *vr,
 
   tree = xmlNewChild (root, NULL, "title", NULL);
   xmlAddChild (tree, xmlNewDocText (doc, nice_title));
-#ifdef STYLE
-  tree = xmlNewChild (root, NULL, "topic", NULL);
-  xmlAddChild (tree, xmlNewDocText (doc, topic));
-#endif  
+
+  if(vr->priv->use_article_topics)
+    {
+      tree = xmlNewChild (root, NULL, "topic", NULL);
+      xmlAddChild (tree, xmlNewDocText (doc, topic));
+    }
+
   if (lead && lead[0])
-  {
-    tree = xmlNewChild (root, NULL, "lead", NULL);
-    xmlAddChild (tree, xmlNewDocText (doc, nice_lead));
-  }
+    {
+      tree = xmlNewChild (root, NULL, "lead", NULL);
+      xmlAddChild (tree, xmlNewDocText (doc, nice_lead));
+    }
 
   if (body != NULL && body[0])
     {
@@ -504,17 +509,15 @@ article_submit_serve (VirguleReq *vr)
 
   apr_table_t *args;
   const char *title, *lead, *body;
-#ifdef STYLE
-  const char *topic;
-#endif
+  const char *topic = NULL;
 
   args = get_args_table (vr);
   if (args == NULL)
     return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
-#ifdef STYLE
-  topic = apr_table_get (args, "topic");
-#endif
+  if(vr->priv->use_article_topics)
+    topic = apr_table_get (args, "topic");
+    
   title = apr_table_get (args, "title");
   lead = apr_table_get (args, "lead");
   body = apr_table_get (args, "body");
@@ -535,11 +538,7 @@ article_submit_serve (VirguleReq *vr)
 	  return send_error_page (vr, "Duplicate <x>Article</x>", "Please post your <x>article</x> only once.");
     }
 
-#ifdef STYLE
   return article_generic_submit_serve (vr, topic, title, lead, body,
-#else  
-  return article_generic_submit_serve (vr, title, lead, body,
-#endif  
 				       "article",
 				       "articles", "/article.xml", NULL);
 }
@@ -624,11 +623,7 @@ article_reply_submit_serve (VirguleReq *vr)
 
   key_base = apr_psprintf (p, "articles/_%d", atoi (art_num_str));
 
-#ifdef STYLE
   return article_generic_submit_serve (vr, NULL, title, NULL, body,
-#else
-  return article_generic_submit_serve (vr, title, NULL, body,
-#endif  
 				       "reply",
 				       key_base, "/reply.xml", art_num_str);
 }
@@ -676,7 +671,7 @@ article_recent_render (VirguleReq *vr, int n_arts_max, int start)
   if (req_ok_to_post (vr))
     buffer_printf (b, "<p> <a href=\"%s/article/post.html\">Post</a> a new <x>article</x>... </p>\n", vr->prefix);
   else 
-    buffer_puts (b, "<p> <a href=\"mailto:editor@robots.net?subject=robots.net story suggestion\">Suggest a story</a>\n");
+    buffer_printf (b, "<p> <a href=\"mailto:%s?subject=Story suggestion\">Suggest a story</a>\n", vr->priv->admin_email);
 
   return 0;
 }
@@ -710,15 +705,10 @@ article_num_serve (VirguleReq *vr, const char *t)
 
   render_header (vr, title, NULL);
 
-buffer_puts (b, "<table><tr><td valign=\"top\">");
-
   buffer_puts (b, "<blockquote>\n");
   article_render_from_xml (vr, n, doc, ARTICLE_RENDER_FULL);
   buffer_puts (b, "</blockquote>\n");
 
-buffer_puts (b, "</td></tr></table>");
-
-  
   return render_footer_send (vr);
 }
 

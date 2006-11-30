@@ -14,6 +14,9 @@ nice_text (apr_pool_t *p, const char *raw);
 const NavOption *
 add_nav_option (VirguleReq *vr, const char *label, const char *url);
 
+const Topic *
+add_topic (VirguleReq *vr, const char *desc, const char *url);
+
 const AllowedTag *
 add_allowed_tag (VirguleReq *vr, const char *tag, int can_be_empty);
 

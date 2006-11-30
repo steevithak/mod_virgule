@@ -655,16 +655,15 @@ static int
 send_email(VirguleReq *vr, const char *mail, const char *u, const char *pass)
 {
   FILE *fp;
-  char *from = "editor@robots.net";
 
   char cmd[1024];
-  snprintf( cmd, sizeof(cmd)-1, "/usr/lib/sendmail -t -f %s", from);
+  snprintf( cmd, sizeof(cmd)-1, "/usr/lib/sendmail -t -f %s", vr->priv->admin_email);
 
   if ((fp = popen( cmd, "w")) == NULL) 
      return send_error_page (vr, "Error", "There was an error sending mail to <tt>%s</tt>.\n", mail);
 
   fprintf(fp,"To: %s\n", mail);
-  fprintf(fp,"From: %s\n", from);
+  fprintf(fp,"From: %s\n", vr->priv->admin_email);
   fprintf(fp,"Subject: Your %s password\n\n", vr->priv->site_name);
   fprintf(fp,"You, or someone else, recently asked for a password ");
   fprintf(fp,"reminder to be sent for your %s account.\n\n", vr->priv->site_name);

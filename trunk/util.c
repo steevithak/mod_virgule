@@ -276,11 +276,33 @@ nice_proj_link (VirguleReq *vr, const char *proj)
 }
 
 
+struct _Topic {
+  char *desc;
+  char *url;
+};
+
+
+/**
+ * add_topic - Allocates a Topic structures during loading
+ * of the site configuration. This information must survive across
+ * multiple requests so it uses the thread private pool.
+ */
+const Topic *
+add_topic (VirguleReq *vr, const char *desc, const char *url)
+{
+  Topic *topic;
+  topic = apr_palloc (vr->priv->pool, sizeof(Topic));
+  topic->desc = apr_pstrdup (vr->priv->pool, desc);
+  topic->url = apr_pstrdup (vr->priv->pool, url);
+  return topic;
+}
+
+
+
 struct _NavOption {
   char *label;
   char *url;
 };
-
 
 /**
  * add_nav_option - Allocates a NavOption structures during loading
