@@ -3,6 +3,7 @@
 #include <time.h>
 #include <ctype.h>
 #include "httpd.h"
+#include "http_log.h"
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -875,79 +876,89 @@ node_info_compare (const void *ni1, const void *ni2)
   return name1[i];
 }
 
-static int
-acct_person_index_serve (VirguleReq *vr)
+
+/*
+ * Generate a list of users with cert info. Paging navigation links are 
+ * included at the bottom of the page. Sort order follows /tmetric/default
+ *
+ */
+void
+acct_person_index_serve (VirguleReq *vr, int max)
 {
-  Buffer *b = vr->b;
-  Db *db = vr->db;
-  pool *p = vr->r->pool;
-  DbCursor *dbc;
-  char *u;
-  array_header *list;
-  int i;
+  char *tmetric = req_get_tmetric (vr);
+  int start = 0;
+  int line = 0;
+  int i, j, k;
+  int len;
+  char *user;
+  char *givenname = NULL;
+  char *surname = NULL;
+  char *db_key;
+  char *uri = vr->uri;
+  xmlDoc *profile;
+  xmlNode *tree;
+  table *args;
 
-  auth_user (vr);
+  if (tmetric == NULL)
+    return;
 
-  dbc = db_open_dir (db, "acct");
-  if (dbc == NULL)
-    return send_error_page (vr,
-			    "Error reading accounts",
-			    "There was an error reading the accounts. This means the server is screwed up.");
+  args = get_args_table (vr);
+  if (args != NULL)
+    start = atoi (ap_table_get (args, "start"));
 
-  list = ap_make_array (p, 16, sizeof(NodeInfo));
-
-  while ((u = db_read_dir_raw (dbc)) != NULL)
+  for (i = 0; tmetric[i] && line < (start + max); line++)
     {
-      NodeInfo *ni;
-      char *db_key;
-      xmlDoc *profile;
-      xmlNode *tree;
-
-      db_key = acct_dbkey (p, u);
-      profile = db_xml_get (p, db, db_key);
-
-      /* most likely a corrupt profile, silently skip it... */
-      if (profile == NULL)
-        continue;
-
-      tree = xml_find_child (profile->xmlRootNode, "info");
-      if (tree != NULL)
-	{
-	  ni = (NodeInfo *)ap_push_array (list);
-	  ni->name = u;
-	  ni->givenname = xml_get_prop (p, tree, "givenname");
-	  ni->surname = xml_get_prop (p, tree, "surname");
+      if(line < start)  /* skip to the start page */
+        {
+	  while (tmetric[i] && tmetric[i] != '\n')
+	    i++;
 	}
-      db_xml_free (p, db, profile);
+      else  /* render max users */
+        {
+	  for(j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++); /* EOL */
+          for(k = j; k > 0 && tmetric[i + k] != ' '; k--); /* username */
+	  user = ap_palloc (vr->r->pool, k + 1);
+	  memcpy (user, tmetric + i, k);
+	  user[k] = 0;
+	  i += j;
+
+          ap_unescape_url(user);
+          db_key = acct_dbkey (vr->r->pool, user);
+	  if (db_key == NULL)
+	    continue;
+          profile = db_xml_get (vr->r->pool, vr->db, db_key);
+          if (profile == NULL)
+            continue;
+          tree = xml_find_child (profile->xmlRootNode, "info");
+          if (tree != NULL)
+	    {
+	      givenname = xml_get_prop (vr->r->pool, tree, "givenname");
+	      surname = xml_get_prop (vr->r->pool, tree, "surname");
+	    }
+          db_xml_free (vr->r->pool, vr->db, profile);
+
+          render_cert_level_begin (vr, user, CERT_STYLE_SMALL);
+          buffer_printf (vr->b, "<a href=\"%s/\">%s</a>, %s %s, %s\n",
+	                 ap_escape_uri(vr->r->pool,user), user,
+			 givenname, surname,
+	                 req_get_tmetric_level (vr, user));
+          render_cert_level_end (vr, CERT_STYLE_SMALL);
+        }
+      if (tmetric[i] == '\n')
+        i++;
     }
-  db_close_dir (dbc);
-
-  qsort (list->elts, list->nelts, sizeof(NodeInfo),
-	 node_info_compare);
-
-  render_header (vr, "<x>People</x>", NULL);
-  for (i = 0; i < list->nelts; i++)
-    {
-      NodeInfo *ni = &((NodeInfo *)(list->elts))[i];
-      const char *u = ni->name;
-      char *givenname;
-      char *surname;
-      
-      givenname = ni->givenname ? nice_text (p, ni->givenname) : "";
-      surname = ni->surname ? nice_text (p, ni->surname) : "";
-
-      render_cert_level_begin (vr, u, CERT_STYLE_SMALL);
-      buffer_printf (b, "<a href=\"%s/\">%s</a> %s %s, %s\n",
-		     ap_escape_uri(vr->r->pool,u), u, givenname, surname,
-		     req_get_tmetric_level (vr, u));
-      render_cert_level_end (vr, CERT_STYLE_SMALL);
-
-    }
-
-  if (vr->u)
-    buffer_puts (b, "<p> Go to <x>a person</x>'s page to certify them. </p>\n");
-  return render_footer_send (vr);
+  len = strlen (vr->uri);
+  if (len == 0)
+    uri = ap_pstrcat (vr->r->pool, uri, "/index.html", NULL);
+  else if (len > 0 && uri[len -1] == '/')
+    uri = ap_pstrcat (vr->r->pool, uri, "index.html", NULL);
+  if (start-max >= 0)
+    buffer_printf (vr->b, "<a href=\"%s?start=%i\"><< Previous Page</a>&nbsp;&nbsp;\n", uri, start-max);
+  if (line == start+max && tmetric[i])
+    buffer_printf (vr->b, "<a href=\"%s?start=%i\">Next Page >></a>\n", uri, start+max);
+  buffer_puts (vr->b, "<p> Go to <x>a person</x>'s page to certify them. </p>\n");
 }
+
 
 /* Outputs a text file showing certification information when the URL
    /person/graph.dot is requested */
@@ -1103,8 +1114,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
   char *err;
   char *first;
 
-  if (!path[0])
-    return acct_person_index_serve (vr);
+//  if (!path[0])
+//    return acct_person_index_serve (vr);
 
   if (!strcmp (path, "graph.dot"))
     return acct_person_graph_serve (vr);

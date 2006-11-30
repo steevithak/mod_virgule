@@ -194,6 +194,9 @@ node_info_compare (const void *ni1, const void *ni2)
   const char *name2 = ((NodeInfo *)ni2)->surname;
   int i;
 
+  if (((NodeInfo *)ni1)->level != ((NodeInfo *)ni2)->level)
+    return ((NodeInfo *)ni2)->level - ((NodeInfo *)ni1)->level;
+
   if (name1 == NULL || name1[0] == 0) name1 = ((NodeInfo *)ni1)->name;
   if (name2 == NULL || name2[0] == 0) name2 = ((NodeInfo *)ni2)->name;
   for (i = 0; name2[i]; i++)
