@@ -25,6 +25,7 @@
 #include "article.h"
 #include "certs.h"
 #include "auth.h"
+#include "aggregator.h"
 #include "diary.h"
 #include "proj.h"
 #include "wiki.h"

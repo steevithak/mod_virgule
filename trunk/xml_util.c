@@ -6,6 +6,10 @@
 #include <libxml/entities.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
+#include "buffer.h"
+#include "db.h"
+#include "req.h"
 #include "xml_util.h"
 
 /**
@@ -51,12 +55,16 @@ virgule_xml_ensure_child (xmlNode *n, const char *tag)
   return xmlNewChild (n, NULL, (xmlChar *)tag, NULL);
 }
 
+
 char *
 virgule_xml_get_string_contents (xmlNode *n)
 {
+  if(n == NULL)
+    return NULL;
+
   xmlNode *child = n->children;
 
-  while (child && child->type != XML_TEXT_NODE)
+  while (child && child->type != XML_TEXT_NODE && child->type != XML_CDATA_SECTION_NODE)
     child = child->next;
 
   if (child)
@@ -64,6 +72,7 @@ virgule_xml_get_string_contents (xmlNode *n)
   else
     return NULL;
 }
+
 
 /* xmlGetProp with Apache-friendly allocation */
 char *

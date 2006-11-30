@@ -42,6 +42,15 @@ time_t
 virgule_iso_to_time_t (const char *iso);
 
 char *
+virgule_time_t_to_iso (VirguleReq *vr, time_t t);
+
+time_t
+virgule_rfc822_to_time_t (VirguleReq *vr, const char *time_string);
+
+time_t
+virgule_rfc3339_to_time_t (VirguleReq *vr, const char *time_string);
+
+char *
 virgule_str_subst (apr_pool_t *p, const char *str, const char *pattern, const char *repl);
 
 char *

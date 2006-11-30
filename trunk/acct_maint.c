@@ -24,13 +24,13 @@
 #include "xml_util.h"
 #include "util.h"
 #include "certs.h"
+#include "aggregator.h"
 #include "diary.h"
 #include "db_ops.h"
 #include "proj.h"
 #include "rating.h"
 #include "hashtable.h"
 #include "eigen.h"
-#include "aggregator.h"
 #include "acct_maint.h"
 
 typedef struct _ProfileField ProfileField;
@@ -46,7 +46,7 @@ typedef enum {
   PROFILE_PUBLIC    = 1 << 0,
   PROFILE_TEXTAREA  = 1 << 1,
   PROFILE_BOOLEAN   = 1 << 2,
-  PROFILE_SYNDICATE = 1 << 4
+  PROFILE_SYNDICATE = 1 << 3
 } ProfileFlags;
 
 ProfileField prof_fields[] = {
@@ -85,8 +85,8 @@ acct_kill(VirguleReq *vr, const char *u)
   const char *user = NULL;
   char *db_key, *db_key2, *user_alias, *diary;
   apr_pool_t *p = vr->r->pool;
-  xmlDoc *profile, *staff, *entry;
-  xmlNode *tree, *cert, *alias;
+  xmlDoc *profile, *staff, *entry, *agglist;
+  xmlNode *tree, *cert, *alias, *feed;
 
   virgule_db_lock_upgrade(vr->lock);
 
@@ -194,6 +194,20 @@ acct_kill(VirguleReq *vr, const char *u)
   /* Remove the profile and account */
   virgule_db_del (vr->db, db_key);
   virgule_db_xml_free(p, vr->db, profile);
+
+  /* Remove from feedlist */
+  agglist = virgule_db_xml_get (vr->r->pool, vr->db, "feedlist");
+  if (agglist != NULL)
+    for (feed = agglist->xmlRootNode->children; feed != NULL; feed = feed->next)
+    {
+        if(!strcmp (user, virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"user")))
+	  {
+	    xmlUnlinkNode (feed);
+	    xmlFreeNode (feed);
+	    break;
+	  }
+    }
+  virgule_db_xml_put (vr->r->pool, vr->db, "feedlist", agglist);  
 
   return TRUE;
 }
@@ -781,7 +795,7 @@ acct_newsub_serve (VirguleReq *vr)
 
   vr->u = u;
 
-  virgule_add_recent (p, db, "recent/acct.xml", u, 50, 0);
+  virgule_add_recent (p, db, "recent/acct.xml", u, 100, 0);
 
   /* store lower case alias if necessary */
   if (! (strcmp (u_lc, u) == 0))
@@ -1538,6 +1552,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
       date = virgule_xml_find_child_string (profile->xmlRootNode, "date", "N/A");
       virgule_buffer_printf (b, "Member since: %s<br />\n", date);
+      date = NULL;
 
       lastlogin = virgule_xml_find_child(profile->xmlRootNode, "lastlogin");
       if(lastlogin) 

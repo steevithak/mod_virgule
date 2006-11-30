@@ -20,7 +20,7 @@
 #include "db_xml.h"
 #include "xml_util.h"
 #include "db_ops.h"
-
+#include "aggregator.h"
 #include "rss_export.h"
 #include "diary.h"
 
@@ -44,6 +44,7 @@ validate_key(VirguleReq *vr, const char *diary, const char *key)
   /* Create XML key */
   return apr_psprintf (p, "acct/%s/diary/_%d", vr->u, key_val);
 }
+
 
 /* renders into @vr's buffer */
 void
@@ -91,8 +92,7 @@ virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 	  if (date_el != NULL)
 	    {
 	      xmlNode *update_el;
-	      virgule_buffer_printf (b, "<p> ");
-	      virgule_buffer_printf (b, "<a name=\"%u\"><b>%s</b></a>",
+	      virgule_buffer_printf (b, "<p><a name=\"%u\"><b>%s</b></a>",
 			     n,
 			     virgule_render_date (vr,
 					  virgule_xml_get_string_contents (date_el),
@@ -112,7 +112,7 @@ virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 	          virgule_buffer_printf (b, " <a href=\"%s/diary/edit.html?key=%u\">[ Edit ]</a>",
 				 vr->prefix,
 				 n);
-	      virgule_buffer_printf (b, " </p>\n");
+	      virgule_buffer_printf (b, "</p>\n");
 	    }
 	  contents = virgule_xml_get_string_contents (entry->xmlRootNode);
 	  if (contents != NULL)
@@ -136,7 +136,9 @@ virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start)
     }
 }
 
+
 /* renders the latest diary entry into @vr's buffer */
+/* used to render recentlog entries */
 void
 virgule_diary_latest_render (VirguleReq *vr, const char *u, int n)
 {
@@ -226,25 +228,68 @@ diary_preview_serve (VirguleReq *vr)
 
   virgule_render_header (vr, "blog preview", NULL);
 
-  virgule_buffer_printf (b, "<p> %s </p>\n", entry_nice);
+  virgule_buffer_printf (b, "<p>%s</p>\n", entry_nice);
 
-  virgule_buffer_printf (b, "<p> Edit your entry: </p>\n"
+  virgule_buffer_printf (b, "<p>Edit your entry:</p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
-		 " <textarea name=\"entry\" cols=60 rows=16 wrap=hard>%s"
+		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
 		 "</textarea>\n"
-		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
-		 " <input type=\"hidden\" name=key value=\"%s\">\n"
+		 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
+		 "<input type=\"hidden\" name=\"key\" value=\"%s\">\n"
 		 "</form>\n",
 		 ap_escape_html (p, entry), apr_table_get(args, "key"));
 
   if (error != NULL)
-    virgule_buffer_printf (b, "<p> <b>Warning:</b> %s </p>\n", error);
+    virgule_buffer_printf (b, "<p><b>Warning:</b> %s</p>\n", error);
 
   virgule_render_acceptable_html (vr);
 
   return virgule_render_footer_send (vr);
 }
+
+
+/**
+ * virgule_diary_store_feed_item - Store a diary entry based on the contents
+ * of the passed feed item. This will store a couple of extra elements in
+ * the XML document such the original permalink.
+ *
+ * ToDo: Eventually, it would be good to refactor the various diary storage
+ * functions to reduce the amount of duplicated code.
+ **/
+int
+virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
+{
+  const char *date = virgule_time_t_to_iso (vr,-1);
+  const char *diary, *key;
+  xmlDoc *entry_doc;
+  xmlNode *root, *tree;
+  
+  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", (char *)user);
+  key = apr_psprintf (vr->r->pool, "%s/_%d", 
+                      diary, virgule_db_dir_max (vr->db, diary) + 1);
+  
+  entry_doc = virgule_db_xml_doc_new (vr->r->pool);
+  root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
+  xmlAddChild (root, xmlNewDocText (entry_doc, virgule_xml_get_string_contents(item->content)));
+  entry_doc->xmlRootNode = root;
+
+  tree = xmlNewChild (root, NULL, "date", date);
+  tree = xmlNewChild (root, NULL, "title", virgule_xml_get_string_contents(item->title));
+  if(item->link)
+    tree = xmlNewChild (root, NULL, "entrylink", item->link);
+  if(item->bloglink)
+    tree = xmlNewChild (root, NULL, "bloglink", item->bloglink);
+  if(item->blogauthor)
+    tree = xmlNewChild (root, NULL, "blogauthor", item->blogauthor);
+  if(item->post_time)
+    tree = xmlNewChild (root, NULL, "feedposttime", virgule_time_t_to_iso(vr,item->post_time));
+  if(item->update_time)
+    tree = xmlNewChild (root, NULL, "feedupdatetime", virgule_time_t_to_iso(vr,item->post_time));
+
+  return virgule_db_xml_put (vr->r->pool, vr->db, key, entry_doc);
+}
+
 
 int
 virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
@@ -344,16 +389,16 @@ diary_index_serve (VirguleReq *vr)
 
   virgule_buffer_printf (b, "<p> Post a new entry: </p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
-		 " <textarea name=\"entry\" cols=60 rows=16 wrap=hard>%s"
+		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
 		 "</textarea>\n"
-		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
-		 " <input type=\"hidden\" name=key value=\"%s\">\n"
+		 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
+		 "<input type=\"hidden\" name=\"key\" value=\"%s\">\n"
 		 "</form>\n", ap_escape_html(p, virgule_diary_get_backup(vr)), key);
 
   virgule_render_acceptable_html (vr);
 
-  virgule_buffer_printf (b, "<p> Recent blog entries for %s: </p>\n", vr->u);
+  virgule_buffer_printf (b, "<p>Recent blog entries for %s:</p>\n", vr->u);
 
   virgule_diary_render (vr, vr->u, 5, -1);
 
@@ -412,18 +457,18 @@ diary_edit_serve (VirguleReq *vr)
 
       virgule_buffer_printf (b, "<p> Edit your entry: </p>\n"
 		     "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
-		     " <textarea name=\"entry\" cols=60 rows=16 wrap=hard>%s"
+		     "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
 		     "</textarea>\n"
-		     " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		     " <input type=\"submit\" name=preview value=\"Preview\">\n"
-		     " <input type=\"hidden\" name=key value=\"%s\">\n"
+		     "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		     "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
+		     "<input type=\"hidden\" name=\"key\" value=\"%s\">\n"
 		     "</form>\n",
 		     contents == NULL ? "" : ap_escape_html(p, contents),
 		     apr_table_get (args, "key"));
     }
   else
     {
-      return virgule_send_error_page (vr, "Invalid Key", "An invalid blog key was submitted.");
+      return virgule_send_error_page (vr, "Invalid Blog Entry", "The request blog entry was not found.");
     }
 
   return virgule_render_footer_send (vr);
@@ -477,7 +522,7 @@ virgule_diary_serve (VirguleReq *vr)
  * ToDo: I think this code is incorrect. It seems to assume that diary
  * entries contain HTML and then attempts to parse the HTML and incorporate
  * it into the XML document tree. It would make more sense to me for the
- * diary entry including HTML, if any, to be made into content for an "entry"
+ * diary entry, including HTML, if any, to be made into content for an "entry"
  * node in the XML tree. This way we don't have to worry about whether the
  * HTML used is well-formed, XML-compatible markup.
  *
@@ -614,18 +659,23 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 
 
 /**
- * virgule_diary_latest_entry - return the Unix time_t value of the most
- * recent diary entry for the specified user. If the user has no diary
- * entries yet, a value of 0 is returned. This function should only be
+ * virgule_diary_latest_feed_entry - return the Unix time_t value of the most
+ * recent syndicated diary entry for the specified user. If the user has no 
+ * diary entries yet, a value of 0 is returned. This function should only be
  * called for value usernames. It does not validate the username.
+ *
+ * Note: virgule_iso_to_time_t is broken with respect to time zones. It 
+ * converts all time strings as if they were UTC. Until mod_virgule time
+ * handling can be fixed, the result is offset to the local zone here.
  **/
 time_t
-virgule_diary_latest_entry (VirguleReq *vr, char *u)
+virgule_diary_latest_feed_entry (VirguleReq *vr, char *u)
 {
   int n;
   char *diary, *key;
   xmlDoc *entry = NULL;
   xmlNode *date = NULL;
+  time_t result;
   
   diary = apr_psprintf (vr->r->pool, "acct/%s/diary", u);
   n = virgule_db_dir_max (vr->db, diary);
@@ -637,7 +687,8 @@ virgule_diary_latest_entry (VirguleReq *vr, char *u)
   if (entry == NULL)
     return 0;
     
-  date = virgule_xml_find_child (entry->xmlRootNode, "date");
-  return virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
+  date = virgule_xml_find_child (entry->xmlRootNode, "feedposttime");
+  result = virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
+  return result - vr->priv->utc_offset;
 }
 

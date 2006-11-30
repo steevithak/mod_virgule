@@ -23,6 +23,7 @@
 #include "req.h"
 #include "util.h"
 #include "acct_maint.h"
+#include "aggregator.h"
 #include "diary.h"
 #include "db_xml.h"
 #include "xml_util.h"

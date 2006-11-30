@@ -59,7 +59,7 @@ virgule_db_xml_doc_new (apr_pool_t *p)
   return result;
 }
 
-/* Calling this is optional. */
+/* Deprecated. Free is done by apr pool cleanup */
 void
 virgule_db_xml_free (apr_pool_t *p, Db *db, xmlDoc *doc)
 {

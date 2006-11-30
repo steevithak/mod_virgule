@@ -30,7 +30,7 @@ void
 virgule_remove_recent (VirguleReq *vr, const char *key, const char *val)
 {
   xmlDoc *recent;
-  xmlNode *item;
+  xmlNode *item, *next;
 
   if (key == NULL || val == NULL)
     return;
@@ -39,13 +39,14 @@ virgule_remove_recent (VirguleReq *vr, const char *key, const char *val)
   if (recent == NULL)
     return;
 
-  for (item = recent->xmlRootNode->children; item != NULL; item = item->next)
+  for (item = recent->xmlRootNode->children; item != NULL; item = next)
     {
-	if(!strcmp (val, virgule_xml_get_string_contents (item)))
-	  {
-	    xmlUnlinkNode (item);
-	    xmlFreeNode (item);
-	  }
+      next = item->next;
+      if(!strcmp (val, virgule_xml_get_string_contents (item)))
+        {
+          xmlUnlinkNode (item);
+	  xmlFreeNode (item);
+	}
     }
   virgule_db_xml_put (vr->r->pool, vr->db, key, recent);
 }
