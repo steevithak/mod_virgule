@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20040819"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20050622"
 
 #include <string.h>
 
@@ -15,11 +15,14 @@
 #include <libxml/tree.h>
 
 /* Apache includes */
-#include "httpd.h"
-#include "http_core.h"
-#include "http_config.h"
-#include "http_protocol.h"
-#include "ap_config.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
+#include <http_core.h>
+#include <http_config.h>
+#include <http_request.h>
+#include <http_protocol.h>
+#include <ap_config.h>
 
 /* mod_virgule includes */
 #include "buffer.h"
@@ -47,13 +50,13 @@
 typedef struct {
   char *dir;
   char *db;
-  array_header *topics;
-  array_header *pass_dirs;
+  apr_array_header_t *topics;
+  apr_array_header_t *pass_dirs;
 } virgule_dir_conf;
 
 /* Declare the module name so configuration routines can find it.
    Module structure is filled in at the end of this file */
-module MODULE_VAR_EXPORT virgule_module;
+module AP_MODULE_DECLARE_DATA virgule_module;
 
 /**
  * Per-directory initialization function. This creates the per-directory
@@ -61,14 +64,14 @@ module MODULE_VAR_EXPORT virgule_module;
  * will be filled in by the per-directory command handlers
  **/
 static void *
-create_virgule_dir_conf (pool *p, char *dir)
+create_virgule_dir_conf (apr_pool_t *p, char *dir)
 {
-  virgule_dir_conf *result = (virgule_dir_conf *)ap_palloc (p, sizeof (virgule_dir_conf));
+  virgule_dir_conf *result = (virgule_dir_conf *)apr_palloc (p, sizeof (virgule_dir_conf));
 
-  result->dir = ap_pstrdup (p, dir);
+  result->dir = apr_pstrdup (p, dir);
   result->db = NULL;
-  result->topics = ap_make_array(p, 16, sizeof(ArticleTopic));
-  result->pass_dirs = ap_make_array(p, 16, sizeof(char *));
+  result->topics = apr_array_make(p, 16, sizeof(ArticleTopic));
+  result->pass_dirs = apr_array_make(p, 16, sizeof(char *));
 
   return result;
 }
@@ -86,7 +89,7 @@ set_virgule_db (cmd_parms *parms, void *mconfig, char *db)
   /* temp!!! used by ad function in site.c */
   srand((unsigned int) time(NULL));
 
-  cfg->db = (char *)ap_pstrdup (parms->pool, db);
+  cfg->db = (char *)apr_pstrdup (parms->pool, db);
   return NULL;
 }
 
@@ -101,9 +104,9 @@ set_virgule_topic (cmd_parms *parms, void *mconfig, const char *name, const char
   
   virgule_dir_conf *cfg = (virgule_dir_conf *)mconfig;
 
-  topic = (ArticleTopic *)ap_push_array(cfg->topics);
-  topic->name = (char *)ap_pstrdup(parms->pool, name);
-  topic->iconURL = (char *)ap_pstrdup(parms->pool, url);
+  topic = (ArticleTopic *)apr_array_push(cfg->topics);
+  topic->name = (char *)apr_pstrdup(parms->pool, name);
+  topic->iconURL = (char *)apr_pstrdup(parms->pool, url);
   return NULL;
 }
 
@@ -118,7 +121,7 @@ set_virgule_pass (cmd_parms *parms, void *mconfig, const char *dir)
 {
   virgule_dir_conf *cfg = (virgule_dir_conf *)mconfig;
   
-  *(char **)ap_push_array(cfg->pass_dirs) = (char *)ap_pstrdup(parms->pool, dir);
+  *(char **)apr_array_push(cfg->pass_dirs) = (char *)apr_pstrdup(parms->pool, dir);
   return NULL;
 }
 
@@ -162,7 +165,7 @@ render_doc (Buffer *b, Db *db, const char *key)
 /* Counts the number of times a db key has been accessed. Appears to be
    used only in test_page(). */
 static void
-count (pool *p, Buffer *b, Db *db, const char *key)
+count (apr_pool_t *p, Buffer *b, Db *db, const char *key)
 {
   char *buf;
   int buf_size;
@@ -177,7 +180,7 @@ count (pool *p, Buffer *b, Db *db, const char *key)
   count++;
   buffer_printf (b, "<p> This page has been accessed %d time%s. </p>\n",
 		 count, count == 1 ? "" : "s");
-  buf = ap_psprintf (p, "%d\n", count);
+  buf = apr_psprintf (p, "%d\n", count);
 #if 0
   /* useful for testing locking */
   sleep (5);
@@ -194,7 +197,7 @@ test_page (VirguleReq *vr)
   virgule_dir_conf *cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
   Buffer *b = vr->b;
   Db *db = vr->db;
-  table *args_table;
+  apr_table_t *args_table;
   int i;
 
   char *args;
@@ -240,7 +243,7 @@ test_page (VirguleReq *vr)
 
       buffer_printf (b, "<p> The args are: <tt>%s</tt> </p>\n", args);
       args_table = get_args_table (vr);
-      key = ap_table_get (args_table, "key");
+      key = apr_table_get (args_table, "key");
       if (key)
 	{
 	  add_recent (r->pool, db, "test/recent.xml", key, 5, 0);
@@ -255,11 +258,11 @@ test_page (VirguleReq *vr)
 		   vr->u);
   
   buffer_puts (b, "<dl><dt>Headers in:\n");
-  ap_table_do (header_trace, b, r->headers_in, NULL);
+  apr_table_do (header_trace, b, r->headers_in, NULL);
   buffer_puts (b, "</dl>\n");
   
   buffer_puts (b, "<dl><dt>Headers out:\n");
-  ap_table_do (header_trace, b, r->headers_out, NULL);
+  apr_table_do (header_trace, b, r->headers_out, NULL);
   buffer_puts (b, "</dl>\n");
   
   render_doc (b, db, "test.xml");
@@ -338,7 +341,7 @@ test_serve (VirguleReq *vr)
     return DECLINED;
   db_lock_upgrade(vr->lock);
   max = db_dir_max (vr->db, "test/inc");
-  new_key = ap_psprintf (vr->r->pool, "test/inc/_%d", max + 1);
+  new_key = apr_psprintf (vr->r->pool, "test/inc/_%d", max + 1);
   db_put (vr->db, new_key, new_key, strlen (new_key));
   return send_error_page (vr, "Test page",
 			  "This is a test, max = %d, new_key = %s.",
@@ -402,9 +405,11 @@ test_hashtable_serve (VirguleReq *vr)
  * called once during server initialization. The module version number and
  * name is passed back to Apache at this point.
  **/
-static void virgule_init_handler(server_rec *s, pool *p)
+static int virgule_init_handler(apr_pool_t *pconf, apr_pool_t *plog,
+                                 apr_pool_t *ptemp, server_rec *s)
 {
-  ap_add_version_component(VIRGULE_VERSION);
+  ap_add_version_component(pconf, VIRGULE_VERSION);
+  return OK;
 }
 
 /* make sure this doesn't clash with any HTTP status codes */
@@ -415,7 +420,7 @@ read_site_config (VirguleReq *vr)
 {
   xmlDoc *doc;
   xmlNode *node;
-  array_header *stack;
+  apr_array_header_t *stack;
   xmlNode *child;
   char *uri;
   const char *text, *url;
@@ -471,7 +476,7 @@ read_site_config (VirguleReq *vr)
 			    "Unknown recentlog style found in site config.");
 
   /* read the cert levels */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "levels");
   if (node == NULL)
     return send_error_page (vr, "Config error",
@@ -493,7 +498,7 @@ read_site_config (VirguleReq *vr)
 	return send_error_page (vr, "Config error",
 				"Empty element in cert levels.");
 
-      c_item = (const char **)ap_push_array (stack);
+      c_item = (const char **)apr_array_push (stack);
       *c_item = text;
     }
 
@@ -501,12 +506,12 @@ read_site_config (VirguleReq *vr)
     return send_error_page (vr, "Config error",
 			    "There must be at least two cert levels.");
 
-  c_item = (const char **)ap_push_array (stack);
+  c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
   vr->cert_level_names = (const char **)stack->elts;
 
   /* read the seeds */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "seeds");
   if (node == NULL)
     return send_error_page (vr, "Config error",
@@ -528,7 +533,7 @@ read_site_config (VirguleReq *vr)
 	return send_error_page (vr, "Config error",
 				"Empty element in seeds.");
 
-      c_item = (const char **)ap_push_array (stack);
+      c_item = (const char **)apr_array_push (stack);
       *c_item = text;
     }
 
@@ -536,12 +541,12 @@ read_site_config (VirguleReq *vr)
     return send_error_page (vr, "Config error",
 			    "There must be at least one seed.");
 
-  c_item = (const char **)ap_push_array (stack);
+  c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
   vr->seeds = (const char **)stack->elts;
 
   /* read the capacities */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (int));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (int));
   node = xml_find_child (doc->xmlRootNode, "caps");
   if (node == NULL)
     return send_error_page (vr, "Config error",
@@ -563,7 +568,7 @@ read_site_config (VirguleReq *vr)
 	return send_error_page (vr, "Config error",
 				"Empty element in capacities.");
 
-      i_item = (int *)ap_push_array (stack);
+      i_item = (int *)apr_array_push (stack);
       *i_item = atoi (text);
     }
 
@@ -571,12 +576,13 @@ read_site_config (VirguleReq *vr)
     return send_error_page (vr, "Config error",
 			    "There must be at least one capacity.");
 
-  i_item = (int *)ap_push_array (stack);
+  i_item = (int *)
+  apr_array_push (stack);
   *i_item = 0;
   vr->caps = (const int *)stack->elts;
 
   /* read the special users */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "specialusers");
   if (node)
     {
@@ -597,16 +603,16 @@ read_site_config (VirguleReq *vr)
 	    return send_error_page (vr, "Config error",
 				    "Empty element in special users.");
 
-	  c_item = (const char **)ap_push_array (stack);
+	  c_item = (const char **)apr_array_push (stack);
 	  *c_item = text;
 	}
     }
-  c_item = (const char **)ap_push_array (stack);
+  c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
   vr->special_users = (const char **)stack->elts;
 
   /* read the translations */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "translations");
   if (node)
     {
@@ -622,15 +628,15 @@ read_site_config (VirguleReq *vr)
 				    child->name);
 
 	  text = xml_get_prop (vr->r->pool, child, "from");
-	  c_item = (const char **)ap_push_array (stack);
+	  c_item = (const char **)apr_array_push (stack);
 	  *c_item = text;
 
 	  text = xml_get_prop (vr->r->pool, child, "to");
-	  c_item = (const char **)ap_push_array (stack);
+	  c_item = (const char **)apr_array_push (stack);
 	  *c_item = text;
 	}
     }
-  c_item = (const char **)ap_push_array (stack);
+  c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
   buffer_set_translations (vr->b, (const char **)stack->elts);
 
@@ -649,7 +655,7 @@ read_site_config (VirguleReq *vr)
     vr->allow_account_creation = 1;
 
   /* read the sitemap navigation options */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (NavOption *));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (NavOption *));
   node = xml_find_child (doc->xmlRootNode, "sitemap");
   if (node)
     {
@@ -670,16 +676,16 @@ read_site_config (VirguleReq *vr)
           return send_error_page (vr, "Config error",
                                       "Empty element in allowed sitemap options.");
 
-        n_item = (const NavOption **)ap_push_array (stack);
+        n_item = (const NavOption **)apr_array_push (stack);
         *n_item = add_nav_option (vr, text, url);	
       }
     }
-  n_item = (const NavOption **)ap_push_array (stack);
+  n_item = (const NavOption **)apr_array_push (stack);
   *n_item = NULL;
   vr->nav_options = (const NavOption **)stack->elts;
 
   /* read the allowed tags */
-  stack = ap_make_array (vr->r->pool, 10, sizeof (AllowedTag *));
+  stack = apr_array_make (vr->r->pool, 10, sizeof (AllowedTag *));
   node = xml_find_child (doc->xmlRootNode, "allowedtags");
   if (node)
     {
@@ -704,11 +710,11 @@ read_site_config (VirguleReq *vr)
 	    return send_error_page (vr, "Config error",
 				    "Empty element in allowed tags.");
 
-	  t_item = (const AllowedTag **)ap_push_array (stack);
+	  t_item = (const AllowedTag **)apr_array_push (stack);
 	  *t_item = add_allowed_tag (vr, text, empty);
 	}
     }
-  t_item = (const AllowedTag **)ap_push_array (stack);
+  t_item = (const AllowedTag **)apr_array_push (stack);
   *t_item = NULL;
   vr->allowed_tags = (const AllowedTag **)stack->elts;
 
@@ -718,19 +724,28 @@ read_site_config (VirguleReq *vr)
 /* The sample content handler */
 static int virgule_handler(request_rec *r)
 {
-  virgule_dir_conf *cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
-  Buffer *b = buffer_new (r->pool);
+//  virgule_dir_conf *cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
+//  Buffer *b = buffer_new (r->pool);
+  virgule_dir_conf *cfg;
+  Buffer *b;
   Db *db;
   int status;
   VirguleReq *vr;
 
+  if(strcmp(r->handler, "virgule")) {
+    return DECLINED;
+  }
+
+  cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
+  b = buffer_new (r->pool);
+  
   /* Set libxml2 to old-style, incorrect handling of whitespace. This can
      be removed once all existing xml code is updated to handle blank nodes */
   xmlKeepBlanksDefault(0);
 
   db = db_new_filesystem (r->pool, cfg->db); /* hack */
 
-  vr = (VirguleReq *)ap_pcalloc (r->pool, sizeof (VirguleReq));
+  vr = (VirguleReq *)apr_pcalloc (r->pool, sizeof (VirguleReq));
 
   vr->r = r;
   vr->b = b;
@@ -755,7 +770,7 @@ static int virgule_handler(request_rec *r)
   vr->lock = NULL;
   vr->tmetric = NULL;
   vr->sitemap_rendered = 0;
-  vr->render_data = ap_make_table (r->pool, 4);
+  vr->render_data = apr_table_make (r->pool, 4);
 
   status = read_site_config (vr);
   if (status != CONFIG_READ)
@@ -825,7 +840,7 @@ static int virgule_handler(request_rec *r)
 	return status;
     }
 
-  return NOT_FOUND;
+  return HTTP_NOT_FOUND;
 }
 
 /**
@@ -849,7 +864,9 @@ xlat_handler (request_rec *r)
 		  return DECLINED;
 
       r->handler = "virgule";
-      r->filename = ap_pstrdup (r->pool, cfg->db);
+      r->filename = apr_pstrdup (r->pool, cfg->db);
+      /* this is to work around mod_dir.c */
+      r->finfo.filetype = APR_REG;
       return OK;
     }
   else
@@ -858,10 +875,15 @@ xlat_handler (request_rec *r)
 }
 
 /* Dispatch list of content handlers */
-static const handler_rec virgule_handlers[] = { 
-    { "virgule", virgule_handler }, 
-    { NULL, NULL }
+//static const handler_rec virgule_handlers[] = { 
+//    { "virgule", virgule_handler }, 
+//    { NULL, NULL }
+//};
+
+static void virgule_register_hooks(apr_pool_t *p) {
+    ap_hook_handler(virgule_handler, NULL, NULL, APR_HOOK_MIDDLE);
 };
+
 
 /* Dispatch table of functions to handle Virgule httpd.conf directives */
 static const command_rec virgule_cmds[] =
@@ -872,26 +894,23 @@ static const command_rec virgule_cmds[] =
   {NULL}
 };
 
+static void register_hooks(apr_pool_t *p)
+{
+  static const char * const aszPre[]={ "http_core.c",NULL };
+  
+  ap_hook_post_config(virgule_init_handler, NULL, NULL, APR_HOOK_MIDDLE);
+  ap_hook_handler(virgule_handler, NULL, NULL, APR_HOOK_MIDDLE);
+  ap_hook_translate_name(xlat_handler, aszPre, NULL, APR_HOOK_LAST);
+}
+
 /* Dispatch list for API hooks */
-module MODULE_VAR_EXPORT virgule_module = {
-    STANDARD_MODULE_STUFF, 
-    virgule_init_handler,  /* module initializer                  */
+module AP_MODULE_DECLARE_DATA virgule_module = {
+    STANDARD20_MODULE_STUFF, 
     create_virgule_dir_conf,      /* create per-dir    config structures */
     NULL,                  /* merge  per-dir    config structures */
     NULL,                  /* create per-server config structures */
     NULL,                  /* merge  per-server config structures */
-    virgule_cmds,          /* table of config file commands       */
-    virgule_handlers,      /* [#8] MIME-typed-dispatched handlers */
-    xlat_handler,          /* [#1] URI to filename translation    */
-    NULL,                  /* [#4] validate user id from request  */
-    NULL,                  /* [#5] check if the user is ok _here_ */
-    NULL,                  /* [#3] check access by host address   */
-    NULL,                  /* [#6] determine MIME type            */
-    NULL,                  /* [#7] pre-run fixups                 */
-    NULL,                  /* [#9] log a transaction              */
-    NULL,                  /* [#2] header parser                  */
-    NULL,                  /* child_init                          */
-    NULL,                  /* child_exit                          */
-    NULL                   /* [#0] post read-request              */
+    virgule_cmds,                    /* command table */
+    register_hooks           /* register hooks function          */
 };
 

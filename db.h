@@ -3,20 +3,20 @@ typedef struct _DbCursor DbCursor;
 typedef struct _DbLock DbLock;
 
 Db *
-db_new_filesystem (pool *p, const char *base_pathname);
+db_new_filesystem (apr_pool_t *p, const char *base_pathname);
 
 /* This one is only public for testing purposes. */
 char *
-db_mk_filename (pool *p, Db *db, const char *key);
+db_mk_filename (apr_pool_t *p, Db *db, const char *key);
 
 char *
-db_get_p (pool *p, Db *db, const char *key, int *p_size);
+db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size);
 
 char *
 db_get (Db *db, const char *key, int *p_size);
 
 int
-db_put_p (pool *p, Db *db, const char *key, const char *val, int size);
+db_put_p (apr_pool_t *p, Db *db, const char *key, const char *val, int size);
 
 int
 db_put (Db *db, const char *key, const char *val, int size);

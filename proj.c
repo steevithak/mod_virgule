@@ -1,6 +1,10 @@
 /* This file sets up a data model for projects. */
 
-#include "httpd.h"
+#include <ctype.h>
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
@@ -78,8 +82,8 @@ static DbRelation staff_db_rel = {
 static char *
 proj_url (VirguleReq *vr, const char *proj)
 {
-  pool *p = vr->r->pool;
-  return ap_pstrcat (p, vr->prefix, "/proj/", escape_uri_arg (p, proj),
+  apr_pool_t *p = vr->r->pool;
+  return apr_pstrcat (p, vr->prefix, "/proj/", escape_uri_arg (p, proj),
 		     vr->projstyle == PROJSTYLE_RAPH ? "/" : "/#lastread",
 		     NULL);
 }
@@ -87,9 +91,9 @@ proj_url (VirguleReq *vr, const char *proj)
 char *
 render_proj_name (VirguleReq *vr, const char *proj)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
 
-  return ap_pstrcat (p, "<a href=\"", proj_url (vr, proj), "\">",
+  return apr_pstrcat (p, "<a href=\"", proj_url (vr, proj), "\">",
 		     nice_text (p, proj),
 		     "</a>", NULL);
 }
@@ -106,7 +110,7 @@ render_proj_name (VirguleReq *vr, const char *proj)
 static int
 proj_ok_to_edit (VirguleReq *vr, xmlDoc *doc)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlNode *tree;
   char *creator;
   char *locked;
@@ -144,7 +148,7 @@ proj_new_serve (VirguleReq *vr)
      But for the time being, the path of least resistance is to write
      a pile of C. So here goes.
 */
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   const char *rfields[] = { "name", "url", "fmurl", "desc", "notes", NULL };
   const char *nfields[] = { "name", "url", "notes", NULL };
@@ -180,9 +184,9 @@ proj_new_serve (VirguleReq *vr)
 static int
 proj_newsub_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
-  table *args;
+  apr_table_t *args;
   const char *date;
   const char *name, *url, *fmurl, *desc, *notes;
   char *db_key;
@@ -201,11 +205,11 @@ proj_newsub_serve (VirguleReq *vr)
 
   args = get_args_table (vr);
 
-  name = ap_table_get (args, "name");
-  url = ap_table_get (args, "url");
-  fmurl = ap_table_get (args, "fmurl");
-  desc = ap_table_get (args, "desc");
-  notes = ap_table_get (args, "notes");
+  name = apr_table_get (args, "name");
+  url = apr_table_get (args, "url");
+  fmurl = apr_table_get (args, "fmurl");
+  desc = apr_table_get (args, "desc");
+  notes = apr_table_get (args, "notes");
   date = iso_now (p);
 
   if (!name[0])
@@ -224,7 +228,7 @@ proj_newsub_serve (VirguleReq *vr)
     return send_error_page (vr, "<x>Project</x> name can't have slash",
 			    "The <x>project</x> can't have a slash, sorry.");
 
-  db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+  db_key = apr_psprintf (p, "proj/%s/info.xml", name);
   doc = db_xml_get (p, db, db_key);
   if (doc != NULL)
     return send_error_page (vr,
@@ -291,8 +295,8 @@ proj_index_serve (VirguleReq *vr)
   DbCursor *dbc;
   char *proj;
   int i;
-  pool *p = vr->r->pool;
-  array_header *list;
+  apr_pool_t *p = vr->r->pool;
+  apr_array_header_t *list;
 
   auth_user (vr);
 
@@ -306,10 +310,10 @@ proj_index_serve (VirguleReq *vr)
 			    "Error reading <x>projects</x>",
 			    "There was a problem reading the <x>project</x> list due to an internal server error.");
 
-  list = ap_make_array(p, 16, sizeof(char *));
+  list = apr_array_make (p, 16, sizeof(char *));
   
   while ((proj = db_read_dir_raw (dbc)) != NULL)
-    *(char **)ap_push_array(list) = proj;
+    *(char **)apr_array_push (list) = proj;
     
   qsort(list->elts, list->nelts, sizeof(char *), proj_index_sort);
   
@@ -321,7 +325,7 @@ proj_index_serve (VirguleReq *vr)
         }
       else /* vr->projstyle == PROJSTYLE_NICK */
         {
-          char *db_key = ap_psprintf (p, "proj/%s/info.xml", ((char **)list->elts)[i]);
+          char *db_key = apr_psprintf (p, "proj/%s/info.xml", ((char **)list->elts)[i]);
           char *creator;
 	  xmlDoc *proj_doc;
 	  xmlNode *proj_tree;
@@ -368,7 +372,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 {
   Buffer *b = vr->b;
   request_rec *r = vr->r;
-  pool *p = r->pool;
+  apr_pool_t *p = r->pool;
   char *q;
   char *name;
   char *db_key;
@@ -388,9 +392,9 @@ proj_proj_serve (VirguleReq *vr, const char *path)
   q = strchr ((char *)path, '/');
   if (q == NULL)
     {
-      ap_table_add (r->headers_out, "Location",
+      apr_table_add (r->headers_out, "Location",
 		    ap_make_full_path (r->pool, r->uri, ""));
-      return REDIRECT;
+      return HTTP_MOVED_PERMANENTLY;
     }
 
   if (q[1] != '\0')
@@ -398,9 +402,9 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 			    "Extra junk",
 			    "Extra junk after <x>project</x> name not allowed.");
 
-  name = ap_pstrndup (p, path, q - path);
+  name = apr_pstrndup (p, path, q - path);
 
-  db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+  db_key = apr_psprintf (p, "proj/%s/info.xml", name);
 
   doc = db_xml_get (p, vr->db, db_key);
   if (doc == NULL)
@@ -411,12 +415,12 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 
   if (vr->projstyle == PROJSTYLE_RAPH)
     {
-      title = ap_psprintf (p, "<x>Project</x> info for %s", nice_text (p, name));
+      title = apr_psprintf (p, "<x>Project</x> info for %s", nice_text (p, name));
       render_header (vr, title, NULL);
     }
   else /* vr->projstyle == PROJSTYLE_NICK */
     {
-      title = ap_psprintf(p, "%s", nice_text (p, name));
+      title = apr_psprintf(p, "%s", nice_text (p, name));
       render_header_raw (vr, title, NULL);
     }
 
@@ -489,7 +493,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	  myrel = NULL;
 	  first = "<p> This <x>project</x> has the following developers: </p>\n"
 	    "<ul>\n";
-	  db_key = ap_psprintf (p, "proj/%s/staff-name.xml", name);
+	  db_key = apr_psprintf (p, "proj/%s/staff-name.xml", name);
 
 	  staff = db_xml_get (p, vr->db, db_key);
 	  if (staff != NULL)
@@ -529,7 +533,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       else /* vr->projstyle == PROJSTYLE_NICK */
 	{
 	  /* Render replies */
-	  proj_dir = ap_psprintf (vr->r->pool, "proj/%s", name);
+	  proj_dir = apr_psprintf (vr->r->pool, "proj/%s", name);
 	  n_replies = db_dir_max (vr->db, proj_dir) + 1;
 
 	  proj_render_replies (vr, name);
@@ -561,7 +565,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 static int
 proj_next_new_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlDoc *doc;
   xmlNode *root, *tree;
 
@@ -580,15 +584,15 @@ proj_next_new_serve (VirguleReq *vr)
       if (lastread_date != NULL)
 	if (strcmp (date, lastread_date) > 0)
 	  {
-	    char *db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+	    char *db_key = apr_psprintf (p, "proj/%s/info.xml", name);
 	    xmlDoc *testdoc = db_xml_get (p, vr->db, db_key);
 	    if (testdoc == NULL)
 	      continue;
 	    else 
 	      db_xml_free (p, vr->db, testdoc);
 
-	    ap_table_add (vr->r->headers_out, "refresh", 
-			  ap_psprintf(p, "0;URL=%s",
+	    apr_table_add (vr->r->headers_out, "refresh", 
+			  apr_psprintf(p, "0;URL=%s",
 				      proj_url(vr, name))); 
 	    return send_error_page (vr, "Next room", 
 				    "The next room is %s.",
@@ -597,7 +601,7 @@ proj_next_new_serve (VirguleReq *vr)
 	  }
     }
   db_xml_free (p, vr->db, doc);
-  ap_table_add (vr->r->headers_out, "refresh", "0;URL=/");
+  apr_table_add (vr->r->headers_out, "refresh", "0;URL=/");
   return send_error_page (vr, "Next room", "There are no more rooms with new messages.");
 }
 
@@ -605,8 +609,8 @@ static int
 proj_edit_serve (VirguleReq *vr)
 {
   Buffer *b = vr->b;
-  pool *p = vr->r->pool;
-  table *args;
+  apr_pool_t *p = vr->r->pool;
+  apr_table_t *args;
   const char *name;
   const char *fields[] = { "url", "fmurl", "desc", "notes", NULL };
   char *db_key;
@@ -616,9 +620,9 @@ proj_edit_serve (VirguleReq *vr)
     							       nproj_fields;
 
   args = get_args_table (vr);
-  name = ap_table_get (args, "proj");
+  name = apr_table_get (args, "proj");
 
-  db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+  db_key = apr_psprintf (p, "proj/%s/info.xml", name);
 
   doc = db_xml_get (p, vr->db, db_key);
   if (doc == NULL)
@@ -652,9 +656,9 @@ proj_edit_serve (VirguleReq *vr)
 static int
 proj_editsub_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
-  table *args;
+  apr_table_t *args;
   const char *date;
   char *db_key;
   xmlDoc *doc;
@@ -667,9 +671,9 @@ proj_editsub_serve (VirguleReq *vr)
 
   db_lock_upgrade(vr->lock);
   args = get_args_table (vr);
-  name = ap_table_get (args, "name");
+  name = apr_table_get (args, "name");
 
-  db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+  db_key = apr_psprintf (p, "proj/%s/info.xml", name);
 
   doc = db_xml_get (p, vr->db, db_key);
   if (doc == NULL)
@@ -710,18 +714,18 @@ proj_editsub_serve (VirguleReq *vr)
 static int
 proj_relsub_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
-  table *args;
+  apr_table_t *args;
   char *db_key;
   xmlDoc *doc;
   const char *name;
   const char *type;
 
   args = get_args_table (vr);
-  name = ap_table_get (args, "name");
+  name = apr_table_get (args, "name");
 
-  db_key = ap_psprintf (p, "proj/%s/info.xml", name);
+  db_key = apr_psprintf (p, "proj/%s/info.xml", name);
 
   doc = db_xml_get (p, db, db_key);
   if (doc == NULL)
@@ -733,7 +737,7 @@ proj_relsub_serve (VirguleReq *vr)
     return send_error_page (vr, "Not authorized",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, cert_level_to_name (vr, 1));
  
-  type = ap_table_get (args, "type");
+  type = apr_table_get (args, "type");
 
   proj_set_relation (vr, name, vr->u, type);
 
@@ -745,7 +749,7 @@ proj_relsub_serve (VirguleReq *vr)
 static void
 proj_render_reply (VirguleReq *vr, const char *name, int reply_num)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *key;
   xmlDoc *doc;
@@ -753,7 +757,7 @@ proj_render_reply (VirguleReq *vr, const char *name, int reply_num)
   if (reply_num < 0)
     return;
 
-  key = ap_psprintf (p, "proj/%s/_%d/reply.xml", name, reply_num);
+  key = apr_psprintf (p, "proj/%s/_%d/reply.xml", name, reply_num);
 
   doc = db_xml_get (p, vr->db, key);
   if (doc != NULL)
@@ -791,7 +795,7 @@ proj_render_replies (VirguleReq *vr, const char *name)
   int n_art;
   int i;
 
-  base = ap_psprintf (vr->r->pool, "proj/%s", name);
+  base = apr_psprintf (vr->r->pool, "proj/%s", name);
   n_art = db_dir_max (vr->db, base) + 1;
   lastread = acct_get_lastread (vr, "proj", name);
   num_old = acct_get_num_old (vr);
@@ -819,7 +823,7 @@ proj_render_replies (VirguleReq *vr, const char *name)
 static int
 proj_update_all_pointers_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   DbCursor *dbc;
   char *proj;
@@ -833,11 +837,11 @@ proj_update_all_pointers_serve (VirguleReq *vr)
 	char *base;
 	int n_reply;
 
-	base = ap_psprintf (p, "proj/%s", proj);
+	base = apr_psprintf (p, "proj/%s", proj);
 	n_reply = db_dir_max (db, base);
 	acct_set_lastread(vr, "proj", proj, n_reply -1);
     }
-  ap_table_add (vr->r->headers_out, "refresh", "0;URL=/");
+  apr_table_add (vr->r->headers_out, "refresh", "0;URL=/");
   return send_error_page (vr, "Updated", "Your pointers have all been updated.");
 }
 
@@ -846,9 +850,9 @@ proj_update_all_pointers_serve (VirguleReq *vr)
 static int
 proj_reply_submit_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
-  table *args;
+  apr_table_t *args;
   const char *name, *title, *body;
   const char *date;
   char *key_base, *key;
@@ -868,14 +872,14 @@ proj_reply_submit_serve (VirguleReq *vr)
     return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
   /* XXX */
-  name = ap_table_get (args, "name");
-  title = ap_table_get (args, "title");
-  body = ap_table_get (args, "body");
+  name = apr_table_get (args, "name");
+  title = apr_table_get (args, "title");
+  body = apr_table_get (args, "body");
 
   if (name == NULL)
     return send_error_page (vr, "Need <x>project</x> name", "This page requires an <x>project</x> name. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
-  key_base = ap_psprintf (p, "proj/%s", name);
+  key_base = apr_psprintf (p, "proj/%s", name);
 
   db_lock_upgrade (vr->lock);
   auth_user (vr);
@@ -896,7 +900,7 @@ proj_reply_submit_serve (VirguleReq *vr)
   nice_title = nice_text (p, title);
   nice_body = body == NULL ? NULL : nice_htext (vr, body, &body_error);
 
-  if (ap_table_get (get_args_table (vr), "preview"))
+  if (apr_table_get (get_args_table (vr), "preview"))
     {
       render_header (vr, "Reply preview", NULL);
       render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
@@ -923,7 +927,7 @@ proj_reply_submit_serve (VirguleReq *vr)
       return render_footer_send (vr);
     } 
 
-  key = ap_psprintf (p, "%s/_%d%s",
+  key = apr_psprintf (p, "%s/_%d%s",
 		     key_base,
 		     db_dir_max (vr->db, key_base) + 1,
 		     "/reply.xml");
@@ -962,12 +966,12 @@ proj_reply_submit_serve (VirguleReq *vr)
 
 
   /* I prefer to see what I've done
-     str = ap_psprintf (p, "/proj/%s", escape_uri_arg(p, name));
+     str = apr_psprintf (p, "/proj/%s", escape_uri_arg(p, name));
      return proj_proj_serve (vr, str);
   */
 
-  ap_table_add (vr->r->headers_out, "refresh", ap_psprintf(p, "0;URL=%s", proj_url(vr, name)));
-  str = ap_psprintf (p, "Ok, your <a href=\"%s\">reply was posted</a>. Thanks!", proj_url(vr, name));
+  apr_table_add (vr->r->headers_out, "refresh", apr_psprintf(p, "0;URL=%s", proj_url(vr, name)));
+  str = apr_psprintf (p, "Ok, your <a href=\"%s\">reply was posted</a>. Thanks!", proj_url(vr, name));
   return send_error_page (vr, "Posted", str);
 
 }
@@ -975,9 +979,9 @@ proj_reply_submit_serve (VirguleReq *vr)
 static int
 proj_reply_form_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
-  table *args;
+  apr_table_t *args;
   const char *name;
   char *key;
   xmlDoc *doc;
@@ -991,12 +995,12 @@ proj_reply_form_serve (VirguleReq *vr)
     return send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   args = get_args_table (vr);
-  name = ap_table_get (args, "name");
+  name = apr_table_get (args, "name");
   if (name == NULL)
     return send_error_page (vr, "Need <x>project</x> name", "Need name of <x>project</x> to reply to.");
 
 
-  key = ap_psprintf (p, "proj/%s/info.xml", name);
+  key = apr_psprintf (p, "proj/%s/info.xml", name);
   doc = db_xml_get (p, vr->db, key);
   if (doc == NULL)
     return send_error_page (vr, "<x>project</x> not found", "<x>project</x> %s not found.", name);
@@ -1043,7 +1047,7 @@ proj_set_relation (VirguleReq *vr, const char *name, const char *u, const char *
       xmlDoc *staff;
       xmlNode *tree;
 
-      db_key = ap_psprintf (vr->r->pool, "proj/%s/staff-name.xml", name);
+      db_key = apr_psprintf (vr->r->pool, "proj/%s/staff-name.xml", name);
       staff = db_xml_get (vr->r->pool, vr->db, db_key);
       if (staff != NULL)
         {

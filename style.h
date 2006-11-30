@@ -27,3 +27,6 @@ send_error_page (VirguleReq *vr, const char *error_short,
 
 char *
 render_date (VirguleReq *vr, const char *iso, int dateonly);
+
+int
+dayofweek(int d, int m, int y);

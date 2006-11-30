@@ -2,7 +2,9 @@
 
 #include <time.h>
 
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 #include <libxml/HTMLparser.h>
@@ -23,7 +25,7 @@
 static char *
 validate_key(VirguleReq *vr, const char *diary, const char *key)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   int key_val;
 
   /* Validate key */
@@ -38,19 +40,19 @@ validate_key(VirguleReq *vr, const char *diary, const char *key)
     key_val = db_dir_max (vr->db, diary) + 1;
 
   /* Create XML key */
-  return ap_psprintf (p, "acct/%s/diary/_%d", vr->u, key_val);
+  return apr_psprintf (p, "acct/%s/diary/_%d", vr->u, key_val);
 }
 
 /* renders into @vr's buffer */
 void
 diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *diary;
   int n, is_owner = 0;
 
-  diary = ap_psprintf (p, "acct/%s/diary", u);
+  diary = apr_psprintf (p, "acct/%s/diary", u);
 
   auth_user (vr);
   if (vr->u && strcmp(vr->u, u) == 0)
@@ -72,7 +74,7 @@ diary_render (VirguleReq *vr, const char *u, int max_num, int start)
       char *key;
       xmlDoc *entry;
 
-      key = ap_psprintf (p, "acct/%s/diary/_%d", u, n);
+      key = apr_psprintf (p, "acct/%s/diary/_%d", u, n);
 #if 0
       buffer_printf (b, "<p> Key: %s </p>\n", key);
       continue;
@@ -132,12 +134,12 @@ diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 void
 diary_latest_render (VirguleReq *vr, const char *u, int n)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *key;
   xmlDoc *entry;
 
-  key = ap_psprintf (p, "acct/%s/diary/_%d", u, n);
+  key = apr_psprintf (p, "acct/%s/diary/_%d", u, n);
   entry = db_xml_get (p, vr->db, key);
   if (entry != NULL)
     {
@@ -156,7 +158,7 @@ diary_latest_render (VirguleReq *vr, const char *u, int n)
 char *
 diary_get_backup(VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key, *val;
   int val_size;
 
@@ -164,7 +166,7 @@ diary_get_backup(VirguleReq *vr)
   if (vr->u == NULL)
     return NULL;
 
-  key = ap_psprintf (p, "acct/%s/diarybackup", vr->u);
+  key = apr_psprintf (p, "acct/%s/diarybackup", vr->u);
   val = db_get (vr->db, key, &val_size);
   if (val == NULL)
     return "";
@@ -175,23 +177,23 @@ diary_get_backup(VirguleReq *vr)
 static int
 diary_put_backup(VirguleReq *vr, const char *entry)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key;
 
   auth_user(vr);
   if (vr->u == NULL)
     return -1;
 
-  key = ap_psprintf (p, "acct/%s/diarybackup", vr->u);
+  key = apr_psprintf (p, "acct/%s/diarybackup", vr->u);
   return db_put (vr->db, key, entry, strlen(entry));
 }
 
 static int
 diary_preview_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
-  table *args;
+  apr_table_t *args;
   const char *key, *entry, *entry_nice;
   const char *date;
   char *diary;
@@ -203,12 +205,12 @@ diary_preview_serve (VirguleReq *vr)
 
   args = get_args_table (vr);
   date = iso_now (p);
-  diary = ap_psprintf (p, "acct/%s/diary", vr->u);
-  key = validate_key(vr, diary, ap_table_get (args, "key"));
+  diary = apr_psprintf (p, "acct/%s/diary", vr->u);
+  key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
     return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
 
-  entry = ap_table_get (args, "entry");
+  entry = apr_table_get (args, "entry");
   diary_put_backup (vr, entry);
   entry_nice = nice_htext (vr, entry, &error);
 
@@ -224,7 +226,7 @@ diary_preview_serve (VirguleReq *vr)
 		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
 		 " <input type=\"hidden\" name=key value=\"%s\">\n"
 		 "</form>\n",
-		 ap_escape_html (p, entry), ap_table_get(args, "key"));
+		 ap_escape_html (p, entry), apr_table_get(args, "key"));
 
   if (error != NULL)
     buffer_printf (b, "<p> <b>Warning:</b> %s </p>\n", error);
@@ -237,7 +239,7 @@ diary_preview_serve (VirguleReq *vr)
 int
 diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   const char *date = iso_now (p);
   xmlDoc *entry_doc, *old_entry_doc;
   xmlNode *root, *tree;
@@ -273,8 +275,8 @@ diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
 static int
 diary_post_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
-  table *args;
+  apr_pool_t *p = vr->r->pool;
+  apr_table_t *args;
   const char *entry, *diary;
   const char *key;
   int status;
@@ -285,18 +287,18 @@ diary_post_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't post a diary entry because you're not logged in.");
 
-  diary = ap_psprintf (p, "acct/%s/diary", vr->u);
+  diary = apr_psprintf (p, "acct/%s/diary", vr->u);
 
   args = get_args_table (vr);
 
-  if (ap_table_get (args, "preview"))
+  if (apr_table_get (args, "preview"))
     return diary_preview_serve (vr);
 
-  key = validate_key(vr, diary, ap_table_get (args, "key"));
+  key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
     return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
 
-  entry = ap_table_get (args, "entry");
+  entry = apr_table_get (args, "entry");
   entry = nice_htext (vr, entry, &error);
 
   status = diary_store_entry (vr, key, entry);
@@ -308,14 +310,14 @@ diary_post_serve (VirguleReq *vr)
 
   diary_put_backup (vr, "");
 
-  ap_table_add (vr->r->headers_out, "refresh", "0;URL=/recentlog.html");
+  apr_table_add (vr->r->headers_out, "refresh", "0;URL=/recentlog.html");
   return send_error_page (vr, "Diary", "Ok, your <a href=\"/recentlog.html\">diary</a> entry was posted. Thanks!");
 }
 
 static int
 diary_index_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *str;
   const char *key, *diary;
@@ -325,10 +327,10 @@ diary_index_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return send_error_page (vr, "Not logged in", "You can't access your diary page because you're not logged in.");
 
-  str = ap_psprintf (p, "Diary: %s\n", vr->u);
+  str = apr_psprintf (p, "Diary: %s\n", vr->u);
   render_header (vr, str, NULL);
-  diary = ap_psprintf (p, "acct/%s/diary", vr->u);
-  key = ap_psprintf (p, "%d", db_dir_max (vr->db, diary) + 1);
+  diary = apr_psprintf (p, "acct/%s/diary", vr->u);
+  key = apr_psprintf (p, "%d", db_dir_max (vr->db, diary) + 1);
 
   buffer_printf (b, "<p> Post a new entry: </p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
@@ -351,9 +353,9 @@ diary_index_serve (VirguleReq *vr)
 static int
 diary_edit_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
-  table *args;
+  apr_table_t *args;
   char *str;
   const char *key, *diary;
   xmlDoc *entry;
@@ -367,8 +369,8 @@ diary_edit_serve (VirguleReq *vr)
   if (args == NULL)
     return send_error_page (vr, "Need key", "Need to specify key to edit.");
 
-  diary = ap_psprintf (p, "acct/%s/diary", vr->u);
-  key = validate_key(vr, diary, ap_table_get (args, "key"));
+  diary = apr_psprintf (p, "acct/%s/diary", vr->u);
+  key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
     return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
 
@@ -384,7 +386,7 @@ diary_edit_serve (VirguleReq *vr)
       date_el = xml_find_child (entry->xmlRootNode, "date");
       if (date_el != NULL)
         {
-	  str = ap_psprintf (p, "Diary: %s\n",
+	  str = apr_psprintf (p, "Diary: %s\n",
 			     render_date (vr,
 					  xml_get_string_contents (date_el),
 					  1));
@@ -407,7 +409,7 @@ diary_edit_serve (VirguleReq *vr)
 		     " <input type=\"hidden\" name=key value=\"%s\">\n"
 		     "</form>\n",
 		     contents == NULL ? "" : ap_escape_html(p, contents),
-		     ap_table_get (args, "key"));
+		     apr_table_get (args, "key"));
     }
   else
     {
@@ -425,9 +427,9 @@ diary_serve (VirguleReq *vr)
 
   if (!strcmp (vr->uri, "/diary"))
     {
-      ap_table_add (vr->r->headers_out, "Location",
+      apr_table_add (vr->r->headers_out, "Location",
 		    ap_make_full_path (vr->r->pool, vr->r->uri, ""));
-      return REDIRECT;
+      return HTTP_MOVED_PERMANENTLY;
     }
 
   if ((p = match_prefix (vr->uri, "/diary/")) == NULL)
@@ -465,7 +467,7 @@ diary_serve (VirguleReq *vr)
 int
 diary_export (VirguleReq *vr, xmlNode *root, char *u)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlNode *tree, *subtree;
   xmlNode *content_tree;
   htmlDocPtr content_html;
@@ -474,7 +476,7 @@ diary_export (VirguleReq *vr, xmlNode *root, char *u)
   int n;
   int i;
 
-  diary = ap_psprintf (p, "acct/%s/diary", u);
+  diary = apr_psprintf (p, "acct/%s/diary", u);
   n = db_dir_max (vr->db, diary);
 
   for (i = 0; i <= n; i++)
@@ -482,7 +484,7 @@ diary_export (VirguleReq *vr, xmlNode *root, char *u)
       char *key;
       xmlDoc *entry;
 
-      key = ap_psprintf (p, "acct/%s/diary/_%d", u, i);
+      key = apr_psprintf (p, "acct/%s/diary/_%d", u, i);
       tree = xmlNewChild (root, NULL, "entry", NULL);
       entry = db_xml_get (p, vr->db, key);
       if (entry != NULL)
@@ -494,7 +496,7 @@ diary_export (VirguleReq *vr, xmlNode *root, char *u)
 	      subtree = xmlNewChild (tree, NULL, "date", xml_get_string_contents (date_el));
 	    }
 	  content_str = xml_get_string_contents (entry->xmlRootNode);
-	  content_str = ap_pstrcat (p, "<html>", content_str, "</html>", NULL);
+	  content_str = apr_pstrcat (p, "<html>", content_str, "</html>", NULL);
 	  subtree = xmlNewChild (tree, NULL, "contents", NULL);
 
 	  content_html = htmlParseDoc (content_str, NULL);
@@ -528,7 +530,7 @@ diary_export (VirguleReq *vr, xmlNode *root, char *u)
 int
 diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlNode *channel;
   char *diary;
   char *content_str;
@@ -536,16 +538,16 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
   int n;
   int i;
 
-  diary = ap_psprintf (p, "acct/%s/diary", u);
+  diary = apr_psprintf (p, "acct/%s/diary", u);
   n = db_dir_max (vr->db, diary);
 
   channel = xmlNewChild (root, NULL, "channel", NULL);
   xmlNewChild (channel, NULL, "title",
-	       ap_pstrcat (p, vr->site_name, " diary for ", u, NULL));
+	       apr_pstrcat (p, vr->site_name, " diary for ", u, NULL));
   xmlNewChild (channel, NULL, "description",
-	       ap_pstrcat (p, vr->site_name, " diary for ", u, NULL));
+	       apr_pstrcat (p, vr->site_name, " diary for ", u, NULL));
   url = ap_make_full_path (p, vr->base_uri,
-			   ap_psprintf (p, "person/%s/", u));
+			   apr_psprintf (p, "person/%s/", u));
   xmlNewChild (channel, NULL, "link", url);
 
   for (i = n; i >= 0 && i > n - 10; i--)
@@ -554,7 +556,7 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
       char *key;
       xmlDoc *entry;
 
-      key = ap_psprintf (p, "acct/%s/diary/_%d", u, i);
+      key = apr_psprintf (p, "acct/%s/diary/_%d", u, i);
       item = xmlNewChild (channel, NULL, "item", NULL);
       entry = db_xml_get (p, vr->db, key);
       if (entry != NULL)
@@ -568,14 +570,15 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 	      char *iso = xml_get_string_contents (date_el);
 	      time_t t = iso_to_time_t (iso);
 	      /* Warning: the following code incorrectly assumes a timezone. */
-	      char *rfc822_s = ap_ht_time (p, t, "%a, %d %b %Y %H:%M:%S -0700", 1);
+	      char *rfc822_s = ap_ht_time (p, (apr_time_t)t * 1000000,
+	                                   "%a, %d %b %Y %H:%M:%S -0700", 1);
 
 	      subtree = xmlNewChild (item, NULL, "title",
 				     render_date (vr, iso, 0));
 	      subtree = xmlNewChild (item, NULL, "pubDate", rfc822_s);
 	    }
 	  url = ap_make_full_path (p, vr->base_uri,
-		    ap_psprintf (p, "person/%s/diary.html?start=%d", u, i));
+		    apr_psprintf (p, "person/%s/diary.html?start=%d", u, i));
 	  xmlNewChild (item, NULL, "link", url);
 
 	  content_str = xml_get_string_contents (entry->xmlRootNode);

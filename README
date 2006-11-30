@@ -9,6 +9,9 @@ make some modifications with either if you want to run your own website
 using mod_virgule. So what does my version do that the original doesn't?
 
 Features of my fork that have not been integrated into official code yet:
+-Compiles against Apache 2.0 (roughly based on James Henstridge's patch)
+-User list is configurable, paged, and sorted by cert level
+-Article index page is a configurable template
 -The sitemap (main navigation menu) is configurable instead of hard-coded.
 -Forgotten password feature (based on Steve Kemp's patch)
 -Headers include link elements for RSS discovery (James Henstridge's patch)

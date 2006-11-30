@@ -1,4 +1,6 @@
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include "buffer.h"
 #include "db.h"
@@ -25,12 +27,12 @@ send_response (VirguleReq *vr)
  *
  * Return value: The table containing the args, or NULL if error.
  **/
-table *
+apr_table_t *
 get_args_table (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *args;
-  table *result;
+  apr_table_t *result;
   const char *arg_p, *entry;
   char *key, *val;
 
@@ -40,15 +42,15 @@ get_args_table (VirguleReq *vr)
 
   /* todo: check content-type for POSTed args */
 
-  result = ap_make_table (p, 8);
+  result = apr_table_make (p, 8);
   arg_p = args;
   while (arg_p[0] != '\0' && (entry = ap_getword (p, &arg_p, '&')))
     {
       key = ap_getword (p, &entry, '=');
-      val = ap_pstrdup (p, entry);
+      val = apr_pstrdup (p, entry);
       ap_unescape_url (key);
       unescape_url_info (val);
-      ap_table_merge (result, key, val);
+      apr_table_merge (result, key, val);
     }
   return result;
 }
@@ -112,7 +114,7 @@ req_get_tmetric_level (VirguleReq *vr, const char *u)
 	{
 	  /* found */
 	  for (j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++);
-	  result = ap_palloc (vr->r->pool, j + 1);
+	  result = apr_palloc (vr->r->pool, j + 1);
 	  memcpy (result, tmetric + i, j);
 	  result[j] = 0;
 	  return result;

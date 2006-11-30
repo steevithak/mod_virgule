@@ -1,9 +1,12 @@
 /* Eigenvector-based generic metadata engine. */
 
 #include <stdlib.h>
+#include <time.h>
 #include <math.h>
 
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 
@@ -77,7 +80,7 @@ parse4 (char *val, int val_size, int i,
 }
 
 HashTable *
-eigen_local_load (pool *p, VirguleReq *vr, const char *dbkey)
+eigen_local_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
 {
   HashTable *result;
   int val_size;
@@ -90,7 +93,7 @@ eigen_local_load (pool *p, VirguleReq *vr, const char *dbkey)
   result = hash_table_new (p);
   for (i = 0; i < val_size;)
     {
-      EigenLocal *el = (EigenLocal *)ap_palloc (p, sizeof(EigenLocal));
+      EigenLocal *el = (EigenLocal *)apr_palloc (p, sizeof(EigenLocal));
       char *ts;
       char *rt;
       char *subj;
@@ -106,7 +109,7 @@ eigen_local_load (pool *p, VirguleReq *vr, const char *dbkey)
 void
 eigen_local_store (VirguleReq *vr, HashTable *ht, const char *dbkey)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   HashTableIter *iter;
   const char *key;
   void *val;
@@ -127,19 +130,20 @@ eigen_local_store (VirguleReq *vr, HashTable *ht, const char *dbkey)
 int
 eigen_set_local (VirguleReq *vr, const char *subj, double rating)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *dbkey;
-  EigenLocal *el = (EigenLocal *)ap_palloc (p, sizeof(EigenLocal));
+  EigenLocal *el = (EigenLocal *)apr_palloc (p, sizeof(EigenLocal));
   HashTable *elt;
 
-  dbkey = ap_pstrcat (p, "eigen/local/", vr->u, NULL);
+  dbkey = apr_pstrcat (p, "eigen/local/", vr->u, NULL);
   elt = eigen_local_load (p, vr, dbkey);
 
   if (elt == NULL)
     elt = hash_table_new (p);
 
   el->rating = rating;
-  el->timestamp = ap_ht_time (p, time (NULL), "%Y%m%dT%H%M%SZ", 1);
+  el->timestamp = ap_ht_time (p, (apr_time_t) (time (NULL)) * 1000000,
+                             "%Y%m%dT%H%M%SZ", 1);
   hash_table_set (p, elt, subj, (void *)el);
 
   eigen_local_store (vr, elt, dbkey);
@@ -147,7 +151,7 @@ eigen_set_local (VirguleReq *vr, const char *subj, double rating)
 }
 
 HashTable *
-eigen_vec_load (pool *p, VirguleReq *vr, const char *dbkey)
+eigen_vec_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
 {
   HashTable *result;
   int val_size;
@@ -161,7 +165,7 @@ eigen_vec_load (pool *p, VirguleReq *vr, const char *dbkey)
 
   for (i = 0; i < val_size;)
     {
-      EigenVecEl *eve = (EigenVecEl *)ap_palloc (p, sizeof(EigenVecEl));
+      EigenVecEl *eve = (EigenVecEl *)apr_palloc (p, sizeof(EigenVecEl));
       char *conf;
       char *rt;
       char *rt_sq;
@@ -177,7 +181,7 @@ eigen_vec_load (pool *p, VirguleReq *vr, const char *dbkey)
 }
 
 static void
-eigen_vec_store (pool *p, VirguleReq *vr, HashTable *ht, const char *dbkey)
+eigen_vec_store (apr_pool_t *p, VirguleReq *vr, HashTable *ht, const char *dbkey)
 {
   HashTableIter *iter;
   const char *key;
@@ -199,7 +203,7 @@ eigen_vec_store (pool *p, VirguleReq *vr, HashTable *ht, const char *dbkey)
 
 /* Add in a vector from another user. */
 static void
-eigen_add_in (pool *p, VirguleReq *vr, HashTable *ev, const char *u)
+eigen_add_in (apr_pool_t *p, VirguleReq *vr, HashTable *ev, const char *u)
 {
   char *dbkey;
   HashTable *succ_ev;
@@ -207,7 +211,7 @@ eigen_add_in (pool *p, VirguleReq *vr, HashTable *ev, const char *u)
   const char *key;
   EigenVecEl *val;
 
-  dbkey = ap_pstrcat (p, "eigen/vec/", u, NULL);
+  dbkey = apr_pstrcat (p, "eigen/vec/", u, NULL);
   succ_ev = eigen_vec_load (p, vr, dbkey);
   for (iter = hash_table_iter (p, succ_ev);
        hash_table_iter_get (iter, &key, (void **)&val);
@@ -231,7 +235,7 @@ eigen_add_in (pool *p, VirguleReq *vr, HashTable *ev, const char *u)
 
 /* One iteration, for one particular user. */
 int
-eigen_crank (pool *p, VirguleReq *vr, const char *u)
+eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
 {
   double damping = 0.95;
   char *dbkey;
@@ -287,7 +291,7 @@ eigen_crank (pool *p, VirguleReq *vr, const char *u)
 	}
     }
 
-  dbkey = ap_pstrcat (p, "eigen/local/", u, NULL);
+  dbkey = apr_pstrcat (p, "eigen/local/", u, NULL);
   el = eigen_local_load (p, vr, dbkey);
   if (el)
     {
@@ -298,7 +302,7 @@ eigen_crank (pool *p, VirguleReq *vr, const char *u)
 	  eve = hash_table_get (ev, key);
 	  if (eve == NULL)
 	    {
-	      eve = (EigenVecEl *)ap_palloc (p, sizeof(EigenVecEl));
+	      eve = (EigenVecEl *)apr_palloc (p, sizeof(EigenVecEl));
 	      hash_table_set (p, ev, key, (void *)eve);
 	    }
 	  eve->confidence = 1.0;
@@ -307,7 +311,7 @@ eigen_crank (pool *p, VirguleReq *vr, const char *u)
 	}
     }
 
-  dbkey = ap_pstrcat (p, "eigen/vec/", u, NULL);
+  dbkey = apr_pstrcat (p, "eigen/vec/", u, NULL);
   eigen_vec_store (p, vr, ev, dbkey);
   return 0;
 }
@@ -316,14 +320,14 @@ eigen_crank (pool *p, VirguleReq *vr, const char *u)
 int
 eigen_report (VirguleReq *vr, const char *u)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *dbkey;
   HashTable *ev;
   HashTableIter *iter;
   const char *key;
   EigenVecEl *val;
 
-  dbkey = ap_pstrcat (p, "eigen/vec/", u, NULL);
+  dbkey = apr_pstrcat (p, "eigen/vec/", u, NULL);
   ev = eigen_vec_load (p, vr, dbkey);
   for (iter = hash_table_iter (p, ev);
        hash_table_iter_get (iter, &key, (void **)&val);

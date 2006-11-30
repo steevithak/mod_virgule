@@ -8,10 +8,12 @@
 
 */
 
-#include "httpd.h"
-
 #include <string.h>
 #include <ctype.h>
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
@@ -22,18 +24,23 @@
 #include "util.h"
 #include "db_xml.h"
 #include "xml_util.h"
+#include "style.h"
 
 #include "rss_export.h"
 
-/* Set the to #ifs to 0 to turn off the HREF stipping actions */
+#define RSS_091	1
+#define RSS_20	2
+
+/* Set the #ifs to 0 to turn off the HREF stipping actions */
 static void
-rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
+rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree, int vers)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlNode *root = doc->xmlRootNode;
   xmlNodePtr subtree;
   char *title;
   char *link;
+  char *pubdate, *tmpdate;
   char *raw_description;
   char *clean_description;
 #if 1
@@ -41,11 +48,13 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
 #endif
 
   title = xml_find_child_string (root, "title", "(no title)");
-  link = ap_psprintf (p, "%s/article/%d.html", vr->base_uri, art_num);
+  link = apr_psprintf (p, "%s/article/%d.html", vr->base_uri, art_num);
   raw_description = xml_find_child_string (root, "lead", "(no description)");
-
+  tmpdate = xml_find_child_string(root, "date", "(no date)");
+  pubdate = render_date (vr, tmpdate, 2);
+  
   /* strip anchor tags */
-  clean_description = ap_pstrdup (p, raw_description);  
+  clean_description = apr_pstrdup (p, raw_description);  
 #if 1
   tmp1 = raw_description;
   tmp2 = clean_description;
@@ -69,30 +78,33 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
 
   subtree = xmlNewChild (tree, NULL, "title", title);
   subtree = xmlNewChild (tree, NULL, "link", link);
+  if(vers == RSS_20)
+    subtree = xmlNewChild (tree,NULL,"pubDate", pubdate);
   subtree = xmlNewChild (tree, NULL, "description", clean_description);
+  
 }
 
 static void
-rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree)
+rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree, int vers)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   char *key;
   xmlDoc *doc;
   xmlNodePtr subtree;
 
-  key = ap_psprintf (p, "articles/_%d/article.xml", art_num);
+  key = apr_psprintf (p, "articles/_%d/article.xml", art_num);
   doc = db_xml_get (p, vr->db, key);
   if (doc != NULL)
     {
       subtree = xmlNewChild (tree, NULL, "item", NULL);
-      rss_render_from_xml (vr, art_num, doc, subtree);
+      rss_render_from_xml (vr, art_num, doc, subtree, vers);
     }
 }
 
 static int
-rss_index_serve (VirguleReq *vr)
+rss_index_serve (VirguleReq *vr, int vers)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   xmlDocPtr doc;
   xmlNodePtr tree, subtree;
@@ -107,20 +119,25 @@ rss_index_serve (VirguleReq *vr)
 		      "-//Netscape Communications//DTD RSS 0.91//EN",
 		      "http://my.netscape.com/publish/formats/rss-0.91.dtd");
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
-  xmlSetProp (doc->xmlRootNode, "version", "0.91");
+
+  if(vers == RSS_091)
+    xmlSetProp (doc->xmlRootNode, "version", "0.91");
+  else
+    xmlSetProp (doc->xmlRootNode, "version", "2.0");
+  
   tree = xmlNewChild (doc->xmlRootNode, NULL, "channel", NULL);
   subtree = xmlNewChild (tree, NULL, "title", vr->site_name);
   subtree = xmlNewChild (tree, NULL, "link", 
-			ap_psprintf (p, "%s/", vr->base_uri));
+			apr_psprintf (p, "%s/", vr->base_uri));
   subtree = xmlNewChild (tree, NULL, "description", 
-			ap_psprintf (p, "Recent %s articles", vr->site_name));
+			apr_psprintf (p, "Recent %s articles", vr->site_name));
   subtree = xmlNewChild (tree, NULL, "language", "en-us");
 
   art_num = db_dir_max (vr->db, "articles");
 
   for (n_arts = 0; n_arts < 15 && art_num >= 0; n_arts++)
     {
-      rss_render (vr, art_num, tree);
+      rss_render (vr, art_num, tree, vers);
       art_num--;
     }
 
@@ -131,6 +148,7 @@ rss_index_serve (VirguleReq *vr)
   return send_response (vr);
 }
 
+
 int
 rss_serve (VirguleReq *vr)
 {
@@ -139,7 +157,10 @@ rss_serve (VirguleReq *vr)
      return DECLINED;
 
    if (!strcmp (p, "articles.xml"))
-     return rss_index_serve (vr);
+     return rss_index_serve (vr, RSS_091);
+
+   if (!strcmp (p, "articles-2.0.xml"))
+     return rss_index_serve (vr, RSS_20);
 
    return DECLINED;
 }
@@ -267,7 +288,7 @@ rss_massage_tag (Buffer *b, const char *text, const char *baseurl)
  * relative URL's into absolute.
  **/
 char *
-rss_massage_text (pool *p, const char *text, const char *baseurl)
+rss_massage_text (apr_pool_t *p, const char *text, const char *baseurl)
 {
   Buffer *b = buffer_new (p);
   int i, end;

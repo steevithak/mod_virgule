@@ -1,6 +1,6 @@
 typedef struct _Buffer Buffer;
 
-Buffer *buffer_new (pool *p);
+Buffer *buffer_new (apr_pool_t *p);
 
 void buffer_set_translations (Buffer *b, const char **translations);
 

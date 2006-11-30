@@ -2,8 +2,11 @@
 
 #include <time.h>
 #include <ctype.h>
-#include "httpd.h"
-#include "http_log.h"
+
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
+#include <http_log.h>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -64,7 +67,7 @@ struct _NodeInfo {
 int
 acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int last_read)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   char *db_key;
   xmlDoc *profile;
@@ -81,7 +84,7 @@ acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int
   if (profile == NULL)
     return -1;
 
-  tree = xml_ensure_child (profile->xmlRootNode, ap_psprintf(p, "%spointers", section));
+  tree = xml_ensure_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
 
   for (msgptr = tree->children; msgptr != NULL; msgptr = msgptr->next)
     {
@@ -107,7 +110,7 @@ acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int
       xmlSetProp (msgptr, "location", location);
     }
 
-  xmlSetProp (msgptr, "num", ap_psprintf(p, "%d", last_read));
+  xmlSetProp (msgptr, "num", apr_psprintf(p, "%d", last_read));
   xmlSetProp (msgptr, "date", iso_now(p));
 
   status = db_xml_put (p, db, db_key, profile);
@@ -119,7 +122,7 @@ acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int
 int
 acct_get_lastread(VirguleReq *vr, const char *section, const char *location)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   char *db_key;
   xmlDoc *profile;
@@ -134,7 +137,7 @@ acct_get_lastread(VirguleReq *vr, const char *section, const char *location)
   if (profile == NULL)
     return -1;
 
-  tree = xml_find_child (profile->xmlRootNode, ap_psprintf(p, "%spointers", section));
+  tree = xml_find_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
   if (tree == NULL)
     return -1;
 
@@ -164,7 +167,7 @@ acct_get_num_old(VirguleReq *vr)
 
   if (vr->u)
     {
-      pool *p = vr->r->pool;
+      apr_pool_t *p = vr->r->pool;
       char *db_key;
       xmlDoc *profile;
       xmlNode *tree;
@@ -188,7 +191,7 @@ acct_get_num_old(VirguleReq *vr)
 char *
 acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
   char *db_key;
   xmlDoc *profile;
@@ -205,7 +208,7 @@ acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location
   if (profile == NULL)
     return NULL;
 
-  tree = xml_find_child (profile->xmlRootNode, ap_psprintf(p, "%spointers", section));
+  tree = xml_find_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
   if (tree == NULL)
     return NULL;
 
@@ -267,12 +270,12 @@ validate_username (const char *u)
 
 /* Make the db key. Sanity check the username. */
 char *
-acct_dbkey (pool *p, const char *u)
+acct_dbkey (apr_pool_t *p, const char *u)
 {
   if (validate_username (u) != NULL)
     return NULL;
 
-  return ap_pstrcat (p, "acct/", u, "/profile.xml", NULL);
+  return apr_pstrcat (p, "acct/", u, "/profile.xml", NULL);
 }
 
 static void
@@ -283,19 +286,20 @@ acct_set_cookie (VirguleReq *vr, const char *u, const char *cookie,
   char *id_cookie, *exp_date;
   time_t exp_time;
 
-  id_cookie = ap_pstrcat (r->pool, u, ":", cookie, NULL);
+  id_cookie = apr_pstrcat (r->pool, u, ":", cookie, NULL);
   exp_time = time (NULL) + lifetime;
-  exp_date = ap_ht_time (r->pool, exp_time, "%A, %d-%b-%Y %H:%M:%S %Z", 1);
+  exp_date = ap_ht_time (r->pool, (apr_time_t)exp_time * 1000000,
+                         "%A, %d-%b-%Y %H:%M:%S %Z", 1);
 
-  ap_table_add (r->headers_out, "Set-Cookie",
-		ap_psprintf (r->pool, "id=%s; path=/; Expires=%s",
+  apr_table_add (r->headers_out, "Set-Cookie",
+		apr_psprintf (r->pool, "id=%s; path=/; Expires=%s",
 			     id_cookie, exp_date));
 }
 
 static int
 acct_index_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   int i;
 
@@ -412,9 +416,9 @@ static int
 acct_newsub_serve (VirguleReq *vr)
 {
   request_rec *r = vr->r;
-  pool *p = r->pool;
+  apr_pool_t *p = r->pool;
   Db *db = vr->db;
-  table *args;
+  apr_table_t *args;
   const char *u, *pass, *pass2;
   char *db_key, *db_key_lc;
   xmlDoc *profile;
@@ -434,9 +438,9 @@ acct_newsub_serve (VirguleReq *vr)
   if (args == NULL)
     return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
 
-  u = ap_table_get (args, "u");
-  pass = ap_table_get (args, "pass");
-  pass2 = ap_table_get (args, "pass2");
+  u = apr_table_get (args, "u");
+  pass = apr_table_get (args, "pass");
+  pass2 = apr_table_get (args, "pass2");
 
 #if 0
   buffer_printf (b, "Username: %s\n", u);
@@ -458,7 +462,7 @@ acct_newsub_serve (VirguleReq *vr)
     return send_error_page (vr, "Invalid username",
 			    "Username must begin with an alphanumeric character and contain only alphanumerics, spaces, dashes, underscores, or periods.");
 
-  u_lc = ap_pstrdup (p, u);
+  u_lc = apr_pstrdup (p, u);
   ap_str_tolower (u_lc);
   db_key_lc = acct_dbkey (p, u_lc);
   profile = db_xml_get (p, db, db_key_lc);
@@ -497,7 +501,7 @@ acct_newsub_serve (VirguleReq *vr)
   for (i = 0; prof_fields[i].description; i++)
     {
       const char *val;
-      val = ap_table_get (args, prof_fields[i].attr_name);
+      val = apr_table_get (args, prof_fields[i].attr_name);
       if (val == NULL)
         continue;
       if (is_input_valid(val))
@@ -548,7 +552,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
 	    const char **ret1, const char **ret2)
 {
   request_rec *r = vr->r;
-  pool *p = r->pool;
+  apr_pool_t *p = r->pool;
   Db *db = vr->db;
   char *db_key, *stored_pass;
   xmlDoc *profile;
@@ -587,7 +591,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
       if (profile == NULL)
         {
 	  *ret1 = "Account does not exist";
-	  *ret2 = ap_psprintf (p, "Account <tt>%s</tt> does not exist. Try the <a href=\"new.html\">new account creation</a> page.", u);
+	  *ret2 = apr_psprintf (p, "Account <tt>%s</tt> does not exist. Try the <a href=\"new.html\">new account creation</a> page.", u);
 	  return 0;
         }
       
@@ -610,7 +614,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
   if (i == n_iter_max)
     {
       *ret1 = "Alias loop";
-      *ret2 = ap_psprintf (p, "More than %d levels of alias indirection from %s, indicating an alias loop. This is a problem with the server.",
+      *ret2 = apr_psprintf (p, "More than %d levels of alias indirection from %s, indicating an alias loop. This is a problem with the server.",
 			n_iter_max, u);
       return 0;
     }
@@ -620,7 +624,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
   if (tree == NULL)
     {
       *ret1 = "Account is missing auth field";
-      *ret2 = ap_psprintf (p, "Account <tt>%s</tt> is missing its auth field. This is a problem with the server.", u);
+      *ret2 = apr_psprintf (p, "Account <tt>%s</tt> is missing its auth field. This is a problem with the server.", u);
       return 0;
     }
 
@@ -637,8 +641,8 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
   xmlFree (stored_pass);
   cookie = xmlGetProp (tree, "cookie");
 
-  *ret1 = ap_pstrdup (p, u);
-  *ret2 = ap_pstrdup (p, cookie);
+  *ret1 = apr_pstrdup (p, u);
+  *ret2 = apr_pstrdup (p, cookie);
   xmlFree (cookie);
   return 1;
 }
@@ -677,7 +681,7 @@ static int
 acct_loginsub_serve (VirguleReq *vr)
 {
   request_rec *r = vr->r;
-  table *args;
+  apr_table_t *args;
   const char *u, *pass, *forgot;
   const char *ret1, *ret2;
   const char *cookie;
@@ -689,9 +693,9 @@ acct_loginsub_serve (VirguleReq *vr)
   if (args == NULL)
     return send_error_page (vr, "Need form data", " This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
 
-  u = ap_table_get (args, "u");
-  pass = ap_table_get (args, "pass");
-  forgot = ap_table_get (args, "forgot");
+  u = apr_table_get (args, "u");
+  pass = apr_table_get (args, "pass");
+  forgot = apr_table_get (args, "forgot");
 
 #if 0
   buffer_printf (b, "Username: %s\n", u);
@@ -702,7 +706,7 @@ acct_loginsub_serve (VirguleReq *vr)
   if ( forgot != NULL )
     {
       char *db_key, *db_key_lc, *mail;
-      pool *p = vr->r->pool;        
+      apr_pool_t *p = vr->r->pool;        
       xmlDoc *profile;
       xmlNode *tree;
 
@@ -797,8 +801,8 @@ acct_logout_serve (VirguleReq *vr)
 static int
 acct_update_serve (VirguleReq *vr)
 {
-  pool *p = vr->r->pool;
-  table *args;
+  apr_pool_t *p = vr->r->pool;
+  apr_table_t *args;
 
   db_lock_upgrade(vr->lock);
   auth_user (vr);
@@ -821,7 +825,7 @@ acct_update_serve (VirguleReq *vr)
       for (i = 0; prof_fields[i].description; i++)
 	{
 	  const char *val;
-	  val = ap_table_get (args, prof_fields[i].attr_name);
+	  val = apr_table_get (args, prof_fields[i].attr_name);
 	  if (val == NULL && prof_fields[i].flags & PROFILE_BOOLEAN)
 	    val = "off";
           if (is_input_valid(val))
@@ -844,8 +848,8 @@ acct_update_serve (VirguleReq *vr)
 	return send_error_page (vr,
 				"Error storing account profile",
 				"There was an error storing the account profile. This means there's something wrong with the site.");
-      ap_table_add (vr->r->headers_out, "refresh",
-		    ap_psprintf(p, "0;URL=/person/%s/", vr->u));
+      apr_table_add (vr->r->headers_out, "refresh",
+		    apr_psprintf(p, "0;URL=/person/%s/", vr->u));
       return send_error_page (vr,
 			      "Updated",
 			      "Updates to account <a href=\"../person/%s/\">%s</a> ok",
@@ -897,14 +901,14 @@ acct_person_index_serve (VirguleReq *vr, int max)
   char *uri = vr->uri;
   xmlDoc *profile;
   xmlNode *tree;
-  table *args;
+  apr_table_t *args;
 
   if (tmetric == NULL)
     return;
 
   args = get_args_table (vr);
   if (args != NULL)
-    start = atoi (ap_table_get (args, "start"));
+    start = atoi (apr_table_get (args, "start"));
 
   for (i = 0; tmetric[i] && line < (start + max); line++)
     {
@@ -917,7 +921,7 @@ acct_person_index_serve (VirguleReq *vr, int max)
         {
 	  for(j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++); /* EOL */
           for(k = j; k > 0 && tmetric[i + k] != ' '; k--); /* username */
-	  user = ap_palloc (vr->r->pool, k + 1);
+	  user = apr_palloc (vr->r->pool, k + 1);
 	  memcpy (user, tmetric + i, k);
 	  user[k] = 0;
 	  i += j;
@@ -949,9 +953,9 @@ acct_person_index_serve (VirguleReq *vr, int max)
     }
   len = strlen (vr->uri);
   if (len == 0)
-    uri = ap_pstrcat (vr->r->pool, uri, "/index.html", NULL);
+    uri = apr_pstrcat (vr->r->pool, uri, "/index.html", NULL);
   else if (len > 0 && uri[len -1] == '/')
-    uri = ap_pstrcat (vr->r->pool, uri, "index.html", NULL);
+    uri = apr_pstrcat (vr->r->pool, uri, "index.html", NULL);
   if (start-max >= 0)
     buffer_printf (vr->b, "<a href=\"%s?start=%i\"><< Previous Page</a>&nbsp;&nbsp;\n", uri, start-max);
   if (line == start+max && tmetric[i])
@@ -966,7 +970,7 @@ static int
 acct_person_graph_serve (VirguleReq *vr)
 {
   request_rec *r = vr->r;
-  pool *p = r->pool;
+  apr_pool_t *p = r->pool;
   Buffer *b = vr->b;
   Db *db = vr->db;
   DbCursor *dbc;
@@ -1068,19 +1072,19 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
 static int
 acct_person_diary_serve (VirguleReq *vr, char *u)
 {
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
   char *str;
-  table *args;
+  apr_table_t *args;
   int start;
 
   args = get_args_table (vr);
   if (args == NULL)
     start = -1;
   else
-    start = atoi (ap_table_get (args, "start"));
+    start = atoi (apr_table_get (args, "start"));
 
-  str = ap_psprintf (p, "Diary for %s", u);
+  str = apr_psprintf (p, "Diary for %s", u);
 
   render_header (vr, str, NULL);
   if (start == -1)
@@ -1099,7 +1103,7 @@ static int
 acct_person_serve (VirguleReq *vr, const char *path)
 {
   request_rec *r = vr->r;
-  pool *p = r->pool;
+  apr_pool_t *p = r->pool;
   char *q;
   char *u;
   char *db_key;
@@ -1125,12 +1129,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
   q = strchr ((char *)path, '/');
   if (q == NULL)
     {
-      ap_table_add (r->headers_out, "Location",
+      apr_table_add (r->headers_out, "Location",
 		    ap_make_full_path (p, r->uri, ""));
-      return REDIRECT;
+      return HTTP_MOVED_PERMANENTLY;
     }
 
-  u = ap_pstrndup(p, path, q - path);
+  u = apr_pstrndup(p, path, q - path);
 
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
@@ -1161,14 +1165,14 @@ acct_person_serve (VirguleReq *vr, const char *path)
   tree = xml_find_child (profile->xmlRootNode, "alias");
   if (tree != NULL)
     {
-      ap_table_add (r->headers_out, "Location",
-		    ap_pstrcat (p, vr->prefix, "/person/",
+      apr_table_add (r->headers_out, "Location",
+		    apr_pstrcat (p, vr->prefix, "/person/",
 				xml_get_prop (p, tree, "link"), "/", NULL));
-      return REDIRECT;
+      return HTTP_MOVED_PERMANENTLY;
 				
     }
 
-  str = ap_psprintf (p, "Personal info for %s", u);
+  str = apr_psprintf (p, "Personal info for %s", u);
   render_header (vr, str,
 		"<link rel=\"alternate\" type=\"application/rss+xml\" "
 		"title=\"RSS\" href=\"rss.xml\" />\n");
@@ -1200,7 +1204,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  url2 = url;
 	  colon = strchr (url, ':');
 	  if (!colon || colon[1] != '/' || colon[2] != '/')
-	    url2 = ap_pstrcat (p, "http://", url, NULL);
+	    url2 = apr_pstrcat (p, "http://", url, NULL);
 	  buffer_printf (b, "<p> Homepage: <a href=\"%s\">%s</a> </p>\n",
 			 url2, nice_text (p, url));
 	  any = 1;
@@ -1218,7 +1222,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   /* Render staff listings */
   first = "<p> This <x>person</x> is: </p>\n"
     "<ul>\n";
-  db_key = ap_psprintf (p, "acct/%s/staff-person.xml", u);
+  db_key = apr_psprintf (p, "acct/%s/staff-person.xml", u);
 
   staff = db_xml_get (p, vr->db, db_key);
   if (staff != NULL)
@@ -1249,7 +1253,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   diary_render (vr, u, 5, -1);
 
   /* Browse certifications */
-  buffer_puts (b, "<a name=\"certs\">\n");
+  buffer_puts (b, "<a name=\"certs\">&nbsp;</a>\n");
   tree = xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
@@ -1334,6 +1338,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 		     " <input type=\"submit\" value=\"Certify\">\n"
 		     " <input type=\"hidden\" name=\"subject\" value=\"%s\">\n"
 		     "</form>\n"
+		     "<p><b>Note</b>: By certifying a user you are making a "
+		     "public statment that you know this person and can "
+		     "can vouch for their identity.</p>"
 		     "<p> See the <a href=\"%s/certs.html\">Certification</a> overview for more information.</p>\n",
 		     u, vr->prefix);
 
@@ -1347,7 +1354,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 static int
 acct_certify_serve (VirguleReq *vr)
 {
-  table *args;
+  apr_table_t *args;
   const char *subject;
   const char *level;
   int status;
@@ -1359,8 +1366,8 @@ acct_certify_serve (VirguleReq *vr)
 
   if (vr->u)
     {
-      subject = ap_table_get (args, "subject");
-      level = ap_table_get (args, "level");
+      subject = apr_table_get (args, "subject");
+      level = apr_table_get (args, "level");
 
       if (!strcmp(subject,vr->u))
         return send_error_page(vr,
@@ -1374,8 +1381,8 @@ acct_certify_serve (VirguleReq *vr)
 	return send_error_page (vr,
 				"Error storing certificate",
 				"There was an error storing the certificate. This means there's something wrong with the site.");
-      ap_table_add (vr->r->headers_out, "refresh",
-		    ap_psprintf(vr->r->pool, "0;URL=/person/%s/#certs",
+      apr_table_add (vr->r->headers_out, "refresh",
+		    apr_psprintf(vr->r->pool, "0;URL=/person/%s/#certs",
 				subject));
       return send_error_page (vr,
 			      "Updated",
@@ -1400,7 +1407,7 @@ acct_kill(VirguleReq *vr, const char *u)
   int n;
   const char *user;
   char *db_key, *db_key2, *user_alias, *diary;
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   xmlDoc *profile, *staff, *entry;
   xmlNode *tree, *cert, *alias;
   
@@ -1418,7 +1425,7 @@ acct_kill(VirguleReq *vr, const char *u)
   else               /* If this is the username, check for and kill alias */
     {
       user = u;
-      user_alias = ap_pstrdup (p, u);
+      user_alias = apr_pstrdup (p, u);
       ap_str_tolower (user_alias);
       if (! (strcmp (user_alias,u) == 0))
         {
@@ -1461,7 +1468,7 @@ acct_kill(VirguleReq *vr, const char *u)
     }
 
   /* Clear staff records */
-  db_key2 = ap_psprintf (p, "acct/%s/staff-person.xml", user);
+  db_key2 = apr_psprintf (p, "acct/%s/staff-person.xml", user);
   staff = db_xml_get (p, vr->db, db_key2);
   if (staff != NULL)
     {
@@ -1476,10 +1483,10 @@ acct_kill(VirguleReq *vr, const char *u)
     }
 
   /* Clear diary entries */
-  diary = ap_psprintf (p, "acct/%s/diary", user);
+  diary = apr_psprintf(p, "acct/%s/diary", user);
   for (n = db_dir_max (vr->db, diary); n >= 0; n--)
     {
-      db_key2 = ap_psprintf (p, "acct/%s/diary/_%d", user, n);
+      db_key2 = apr_psprintf (p, "acct/%s/diary/_%d", user, n);
       entry = db_xml_get (p, vr->db, db_key2);
       if (entry != NULL)
         {
@@ -1500,7 +1507,7 @@ acct_touch(VirguleReq *vr, const char *u)
   char *db_key, *db_key_lc, *u_lc;
   xmlDoc *profile;
   xmlNode *root, *tree, *lastlogin;
-  pool *p = vr->r->pool;
+  apr_pool_t *p = vr->r->pool;
   
   db_key = acct_dbkey (p, u);
   if (db_key == NULL) return;
@@ -1512,7 +1519,7 @@ acct_touch(VirguleReq *vr, const char *u)
   tree = xml_find_child (root, "alias");
 
   if (tree != NULL) {
-    u_lc = ap_pstrdup (p, u);
+    u_lc = apr_pstrdup (p, u);
     ap_str_tolower (u_lc);
     db_key_lc = acct_dbkey (p, u_lc);
     profile = db_xml_get (p, vr->db, db_key);

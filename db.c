@@ -8,6 +8,7 @@
    to "/") may be used as a directory or a leaf key, but not both. */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -15,12 +16,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "httpd.h"
+#include <apr.h>
+#include <apr_strings.h>
+#include <httpd.h>
 
 #include "db.h"
 
 struct _Db {
-  pool *p;
+  apr_pool_t *p;
   char *base_pathname;
 };
 
@@ -31,23 +34,23 @@ struct _DbCursor {
 };
 
 struct _DbLock {
-  pool *p;
-  int fd;
+  apr_pool_t *p;
+  apr_file_t *fd;
 };
 
 Db *
-db_new_filesystem (pool *p, const char *base_pathname)
+db_new_filesystem (apr_pool_t *p, const char *base_pathname)
 {
-  Db *result = (Db *)ap_palloc (p, sizeof (Db));
+  Db *result = (Db *)apr_palloc (p, sizeof (Db));
 
   result->p = p;
-  result->base_pathname = ap_pstrdup (p, base_pathname);
+  result->base_pathname = apr_pstrdup (p, base_pathname);
 
   return result;
 }
 
 static const char *
-db_mangle_key_component (pool *p, const char *comp)
+db_mangle_key_component (apr_pool_t *p, const char *comp)
 {
   int n, log100;
   int tmp;
@@ -61,12 +64,12 @@ db_mangle_key_component (pool *p, const char *comp)
   for (tmp = n; tmp >= 100; tmp /= 100)
     log100++;
   if (log100 == 0)
-    return ap_psprintf (p, "_%02d%s", n, tail);
-  buf = ap_psprintf (p, "%02d", n % 100);
+    return apr_psprintf (p, "_%02d%s", n, tail);
+  buf = apr_psprintf (p, "%02d", n % 100);
   n /= 100;
   for (; n; n /= 100)
-      buf = ap_psprintf (p, "%02d/%s", n % 100, buf);
-  return ap_psprintf (p, "_%c/%s%s", 'a' + log100 - 1, buf, tail);
+      buf = apr_psprintf (p, "%02d/%s", n % 100, buf);
+  return apr_psprintf (p, "_%c/%s%s", 'a' + log100 - 1, buf, tail);
 }
 
 /**
@@ -86,7 +89,7 @@ db_mangle_key_component (pool *p, const char *comp)
  *
  **/
 char *
-db_mk_filename (pool *p, Db *db, const char *key)
+db_mk_filename (apr_pool_t *p, Db *db, const char *key)
 {
   const char *component;
   const char *buf;
@@ -112,7 +115,7 @@ db_mk_filename (pool *p, Db *db, const char *key)
       if (first)
 	buf = db_mangle_key_component (p, component);
       else
-	buf = ap_pstrcat (p, buf, "/", db_mangle_key_component (p, component),
+	buf = apr_pstrcat (p, buf, "/", db_mangle_key_component (p, component),
 			  NULL);
       first = 0;
     }
@@ -132,37 +135,40 @@ db_mk_filename (pool *p, Db *db, const char *key)
  * Return value: The contents of the record, or NULL if not found.
  **/
 char *
-db_get_p (pool *p, Db *db, const char *key, int *p_size)
+db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size)
 {
   char *fn;
-  int fd;
-  struct stat stat_buf;
-  int status;
-  off_t file_size;
+  apr_file_t *fd;
+  apr_finfo_t finfo;
+  apr_status_t status;
+  apr_off_t file_size;
   char *result;
-  int bytes_read;
+  apr_size_t bytes_read;
 
+  if (!key)
+    return NULL;
+    
   fn = db_mk_filename (p, db, key);
 
-  status = stat (fn, &stat_buf);
-  if (status < 0)
+  status = apr_stat(&finfo, fn, APR_FINFO_MIN, p);
+  if (status != APR_SUCCESS)
     return NULL;
 
   /* Must be regular file; so we're _not_ handling symlinks. */
-  if (!S_ISREG (stat_buf.st_mode))
+  if (finfo.filetype != APR_REG)
     return NULL;
 
-  file_size = stat_buf.st_size;
+  file_size = finfo.size;
 
-  fd = ap_popenf (p, fn, O_RDONLY, 0664);
-  if (fd == -1)
+  if (apr_file_open(&fd, fn, APR_READ,
+	APR_UREAD|APR_UWRITE|APR_GREAD|APR_GWRITE|APR_WREAD, p) != APR_SUCCESS)
     return NULL;
 
-  result = (char *)ap_palloc (p, file_size + 1);
+  result = (char *)apr_palloc (p, file_size + 1);
   /* todo: make read resistant to E_INTR. */
-  bytes_read = read (fd, result, file_size);
-
-  ap_pclosef (p, fd);
+  bytes_read = file_size;
+  apr_file_read(fd, result, &bytes_read);
+  apr_file_close(fd);
 
   if (bytes_read != file_size)
     return NULL;
@@ -171,7 +177,6 @@ db_get_p (pool *p, Db *db, const char *key, int *p_size)
   result[file_size] = 0;
 
   *p_size = file_size;
-
 
   return result;
 }
@@ -196,7 +201,7 @@ db_get (Db *db, const char *key, int *p_size)
 static int
 db_ensure_dir (Db *db, const char *fn)
 {
-  pool *p = db->p;
+  apr_pool_t *p = db->p;
   struct stat stat_buf;
   int status;
   char *parent_dir;
@@ -212,7 +217,7 @@ db_ensure_dir (Db *db, const char *fn)
       char *prefix;
       int i;
 
-      prefix = (char *)ap_palloc (p, strlen (parent_dir) + 1);
+      prefix = (char *)apr_palloc (p, strlen (parent_dir) + 1);
       for (i = 1; i <= n_dirs; i++)
 	{
 	  ap_make_dirstr_prefix (prefix, parent_dir, i);
@@ -254,25 +259,25 @@ db_ensure_dir (Db *db, const char *fn)
  * Return value: 0 on success.
  **/
 int
-db_put_p (pool *p, Db *db, const char *key, const char *val, int size)
+db_put_p (apr_pool_t *p, Db *db, const char *key, const char *val, int size)
 {
   char *fn;
-  int fd;
-  int bytes_written;
+  apr_file_t *fd;
+  apr_size_t bytes_written;
 
   fn = db_mk_filename (p, db, key);
 
   if (!db_ensure_dir (db, fn))
     return -1;
 
-  fd = ap_popenf (p, fn, O_RDWR | O_CREAT | O_TRUNC, 0664);
-  if (fd == -1)
+  if (apr_file_open(&fd, fn, APR_READ|APR_WRITE|APR_CREATE|APR_TRUNCATE,
+	APR_UREAD|APR_UWRITE|APR_GREAD|APR_GWRITE|APR_WREAD, p) != APR_SUCCESS)
     return -1;
 
   /* todo: make write resistant to E_INTR. */
-  bytes_written = write (fd, val, size);
-
-  ap_pclosef (p, fd);
+  bytes_written = size;
+  apr_file_write(fd, val, &bytes_written);
+  apr_file_close(fd);
 
   if (bytes_written != size)
     return -1;
@@ -318,7 +323,7 @@ db_del (Db *db, const char *key)
 
   status = unlink(fn);
 
-  path = ap_pstrdup (db->p, fn);
+  path = apr_pstrdup (db->p, fn);
   n = strrchr(path,'/');
   if(n != NULL) {
     *n = 0;
@@ -378,10 +383,10 @@ db_open_dir (Db *db, const char *key)
   if (dir == NULL)
     return NULL;
 
-  result = (DbCursor *)ap_palloc (db->p, sizeof (DbCursor));
+  result = (DbCursor *)apr_palloc (db->p, sizeof (DbCursor));
 
   result->db = db;
-  result->dir_pathname = ap_pstrdup (db->p, key);
+  result->dir_pathname = apr_pstrdup (db->p, key);
   result->dir = dir;
 
   return result;
@@ -426,7 +431,7 @@ db_read_dir_raw (DbCursor *dbc)
 	return NULL;
     }
   while (de->d_name[0] == '.');
-  return ap_pstrdup (dbc->db->p, de->d_name);
+  return apr_pstrdup (dbc->db->p, de->d_name);
 }
 
 int
@@ -500,7 +505,7 @@ db_dir_max_in_level (const char *fn, int top)
 int
 db_dir_max (Db *db, const char *key)
 {
-  pool *p = db->p;
+  apr_pool_t *p = db->p;
   char *fn;
   int result;
   int level_max;
@@ -513,7 +518,7 @@ db_dir_max (Db *db, const char *key)
   if (level_max >= -1)
     return level_max;
   n_levels = -level_max;
-  fn = ap_psprintf (p, "%s/_%c", fn, n_levels + 'a' - 2);
+  fn = apr_psprintf (p, "%s/_%c", fn, n_levels + 'a' - 2);
   result = 0;
   for (i = 0; i < n_levels; i++)
     {
@@ -521,7 +526,7 @@ db_dir_max (Db *db, const char *key)
       if (level_max < 0)
 	return -1; /* error! */
       result = (result * 100) + level_max;
-      fn = ap_psprintf (p, "%s/%02d", fn, level_max);
+      fn = apr_psprintf (p, "%s/%02d", fn, level_max);
     }
   return result;
 }
@@ -529,11 +534,10 @@ db_dir_max (Db *db, const char *key)
 DbLock *
 db_lock_key (Db *db, const char *key, int cmd)
 {
-  pool *p = db->p;
+  apr_pool_t *p = db->p;
   char *fn;
-  int fd;
-  struct flock fl;
-  int status;
+  apr_file_t *fd;
+  apr_status_t status;
   DbLock *result;
 
   fn = db_mk_filename (p, db, key);
@@ -541,22 +545,24 @@ db_lock_key (Db *db, const char *key, int cmd)
   if (!db_ensure_dir (db, fn))
     return NULL;
 
-  fd = ap_popenf (p, fn, O_RDWR | O_CREAT, 0664);
-
-  if (fd == -1)
+  if (apr_file_open(&fd, fn, APR_READ|APR_WRITE|APR_CREATE|APR_TRUNCATE,
+        APR_UREAD|APR_UWRITE|APR_GREAD|APR_GWRITE|APR_WREAD, p) != APR_SUCCESS)
     return NULL;
 
-  fl.l_type = F_RDLCK;
-  fl.l_whence = SEEK_SET;
-  fl.l_start = 0;
-  fl.l_len = 0;
-  status = fcntl (fd, cmd, &fl);
-  if (status)
+  if (cmd == F_SETLK) {
+    status = apr_file_lock(fd, APR_FLOCK_SHARED | APR_FLOCK_NONBLOCK);
+  } else if (cmd == F_SETLKW) {
+    status = apr_file_lock(fd, APR_FLOCK_SHARED);
+  } else {
+    status = APR_EGENERAL; /* shouldn't happen */
+  }
+  if (status != APR_SUCCESS)
     {
-      ap_pclosef (p, fd);
+      apr_file_close (fd);
       return NULL;
     }
-  result = (DbLock *)ap_palloc (p, sizeof (DbLock));
+
+  result = (DbLock *)apr_palloc (p, sizeof (DbLock));
   result->p = p;
   result->fd = fd;
   return result;
@@ -566,15 +572,9 @@ db_lock_key (Db *db, const char *key, int cmd)
 int
 db_lock_upgrade (DbLock *dbl)
 {
-  struct flock fl;
-  int status;
-
-  fl.l_type = F_WRLCK;
-  fl.l_whence = SEEK_SET;
-  fl.l_start = 0;
-  fl.l_len = 0;
-  status = fcntl (dbl->fd, F_SETLKW, &fl);
-  return status;
+  apr_status_t status;
+  status = apr_file_lock(dbl->fd, APR_FLOCK_EXCLUSIVE);
+  return (status == APR_SUCCESS) ? 0 : -1;
 }
 
 DbLock *
@@ -586,15 +586,9 @@ db_lock (Db *db)
 int
 db_unlock (DbLock *dbl)
 {
-  struct flock fl;
-  int status;
-
-  fl.l_type = F_UNLCK;
-  fl.l_whence = SEEK_SET;
-  fl.l_start = 0;
-  fl.l_len = 0;
-  status = fcntl (dbl->fd, F_SETLKW, &fl);
-  ap_pclosef (dbl->p, dbl->fd);
-  return status;
+  apr_status_t status;
+  status = apr_file_unlock(dbl->fd);
+  apr_file_close (dbl->fd);
+  return (status == APR_SUCCESS) ? 0 : -1;
 }
 

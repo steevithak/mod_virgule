@@ -17,7 +17,7 @@ char *
 validate_username (const char *u);
 
 char *
-acct_dbkey (pool *p, const char *u);
+acct_dbkey (apr_pool_t *p, const char *u);
 
 int
 acct_login (VirguleReq *vr, const char *u, const char *pass,

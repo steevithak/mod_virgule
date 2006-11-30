@@ -1,3 +1,56 @@
+2005-06-22 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Fixed a very old HTML coding
+	error - a missing close tag on the #cert fragment identifier.
+	
+2005-06-16 R. Steven Rainwater <steve@ncc.com>
+
+	* db.c (db_get_p): A segfault was caused if db_get_p was called with
+	a NULL key. It now handles this condition gracefully by returning a
+	NULL result. This was causing occasional segfaults for trustmetric
+	computations on user profiles that had damaged or incorrect names.
+	
+	* tmetric (tmetric_run): The main loop skips files which return a
+	NULL db_key value. This is usually caused by a damaged or incorrect
+	profile name. Previously, the NULL key value was passed to db_get_p()
+	resulting in a segfault.
+
+2005-06-12 R. Steven Rainwater <steve@ncc.com>
+
+	* (general): Ported mod_virgule to the Apache 2 module API. Changes
+	to includes and code in all *.c files were required.
+
+2005-02-27 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Punched up the wording below the
+	certify form to try to cut down on incorrect or inflated certs.
+	
+2005-01-29 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render): Added check for a "start" argument on pages
+	that use <articles> tag to allow paging of an external template.
+	
+	* articles.c (article_older_serve): Removed. No longer needed now
+	that article_recent_render() handles paging correctly. Also, note
+	that the site/article/index.xml and site/article/older.xml template
+	are essentially identical now for stock mod_virgule sites. The only
+	difference is that index.xml starts with the most recent articles
+	by default and older.xml starts one page back. This was done because
+	the user may wish to customize the two page to be slightly different
+	in some cases.
+
+	* style.c (dayofweek): Added a function that returns the day of week
+	so that we can do full RFC 822 dates as needed by RSS 2.0.
+
+	* style.c (render_date): Added a third date format for full RFC 822
+	date strings.
+
+	* rss_export.c (rss_serve, rss_render, rss_render_from_xml): Added 
+	RSS 2.0 support to the existing RSS 0.91 code. The URLs are:
+
+	RSS 0.91 - /rss/articles.xml
+	RSS 2.0  - /rss/articles-2.0.xml
+		
 2004-10-22 R. Steven Rainwater <steve@ncc.com>
 
 	* site.c (site_render): Added a <userlist> tag that will place a 

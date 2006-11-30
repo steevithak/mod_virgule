@@ -4,8 +4,7 @@
 ##
 
 #   the used tools
-APXS=/usr/bin/apxs
-#APACHECTL=apachectl
+APXS=/usr/sbin/apxs
 
 APACHECTL=sudo /etc/rc.d/init.d/httpd
 
@@ -13,11 +12,12 @@ APACHECTL=sudo /etc/rc.d/init.d/httpd
 #DEF=-Dmy_define=my_value
 
 
-CFLAGS=-Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags`
-LD=`$(APXS) -q LD_SHLIB`
-LDLIBS=`$(APXS) -q LIBS_SHLIB` `glib-config --libs` `xml2-config --libs`
-LDFLAGS=`$(APXS) -q LDFLAGS_SHLIB`
-
+CFLAGS=-Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags` `apr-config --cflags` `apr-config --includes` -fPIC
+# Original Makefile used LD_SHLIB here but it doesn't work for me
+#LD=`$(APXS) -q LD_SHLIB`
+LD=ld
+LDLIBS=`$(APXS) -q LIBS_SHLIB` `glib-config --libs` `xml2-config --libs` `apr-config --link-ld` `apr-config --libs`
+LDFLAGS=`$(APXS) -q LDFLAGS_SHLIB` `apr-config --ldflags` -shared
 
 OBJS = mod_virgule.o buffer.o site.o apache_util.o \
 	hashtable.o \
