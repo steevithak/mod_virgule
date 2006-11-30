@@ -1,0 +1,42 @@
+This is mod_virgule, the source code to Advogato,
+http://www.advogato.org/ . I am releasing it under GPL with the hope
+that members of the free software community will:
+
+* Enhance Advogato.
+
+* Develop mod_virgule as a generic tool for creating community web
+  sites.
+
+* Learn from mod_virgule's design and implementation, which is unusual
+  in a number of respects.
+
+mod_virgule is implemented as an Apache C module, using gnome-xml to
+store the state as a XML files in the filesystem. There is an
+abstraction layer, however, which means that using a different backend
+(such as a "real" database) should be possible.
+
+Right now, there's quite a bit of stuff in the C code that's specific
+to Advogato. A medium-term goal is to push most of that stuff into the
+XML, so the code itself is more generic. There are a fair number of
+core changes here, so it's probably not a good place to hack in
+without coordinating with me.
+
+Raph Levien
+13 Nov 1999
+
+Development continues slowly. There's a new canonical home for
+mod_virgule in ghostscript cvs. You can access it thus:
+
+cvs -z3 -d:pserver:anonymous@cvs.ghostscript.com:/cvs/mod_virgule login
+[just press 'enter' if asked for a password]
+cvs -z3 -d:pserver:anonymous@cvs.ghostscript.com:/cvs/mod_virgule \
+	checkout mod_virgule
+
+There's also a discussion mailing list (virgule-dev) hosted at zork.net.
+You can sign up in the usual way, or visit the web interface at
+
+http://zork.net/mailman/listinfo/virgule-dev
+
+Happy Hacking,
+rillian
+2002 March 25
