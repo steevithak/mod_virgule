@@ -10,6 +10,7 @@
 
 #include <libxml/tree.h>
 
+#include "private.h"
 #include "db.h"
 #include "buffer.h"
 #include "req.h"

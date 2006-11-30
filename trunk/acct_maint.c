@@ -12,6 +12,7 @@
 #include <libxml/parser.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -331,7 +332,7 @@ acct_index_serve (VirguleReq *vr)
       buffer_puts (b, "</p><p>At this level you can:</p>\n<ul>");
 
       buffer_printf (b, "<li>Link to your <a href=\"%s/person/%s\">publicly accessible page</a></li>",vr->prefix,ap_escape_uri(vr->r->pool,vr->u));
-      buffer_printf (b, "<li><a href=\"%s/diary/\">Post a diary entry</a></li>\n",vr->prefix);
+      buffer_printf (b, "<li><a href=\"%s/diary/\">Post a weblog entry</a></li>\n",vr->prefix);
 
       if (req_ok_to_reply (vr))
         {
@@ -350,13 +351,13 @@ acct_index_serve (VirguleReq *vr)
 	}
 	
       buffer_puts (b, "<li><a href=\"logout.html\">Logout</a></li>\n");
-      if (vr->projstyle == PROJSTYLE_NICK)
+      if (vr->priv->projstyle == PROJSTYLE_NICK)
         buffer_puts (b, "<li><a href=\"/proj/updatepointers.html\">Mark all messags as read</a></li>\n");
       buffer_puts (b, "</ul><p> Or you can update your account info: </p>\n");
       buffer_puts (b, "<form method=\"POST\" action=\"update.html\" accept-charset=\"UTF-i\">\n");
       for (i = 0; prof_fields[i].description; i++)
 	{
-	  if (vr->projstyle == PROJSTYLE_RAPH &&
+	  if (vr->priv->projstyle == PROJSTYLE_RAPH &&
 	      !strcmp(prof_fields[i].attr_name, "numold"))
 	    continue;
 
@@ -429,7 +430,7 @@ acct_newsub_serve (VirguleReq *vr)
   const char *date;
   char *u_lc;
 
-  if (!vr->allow_account_creation)
+  if (!vr->priv->allow_account_creation)
     return send_error_page (vr, "Account creation forbidden", "No new accounts may be created at this time.\n");
 
   db_lock_upgrade(vr->lock);
@@ -664,9 +665,9 @@ send_email(VirguleReq *vr, const char *mail, const char *u, const char *pass)
 
   fprintf(fp,"To: %s\n", mail);
   fprintf(fp,"From: %s\n", from);
-  fprintf(fp,"Subject: Your %s password\n\n", vr->site_name);
+  fprintf(fp,"Subject: Your %s password\n\n", vr->priv->site_name);
   fprintf(fp,"You, or someone else, recently asked for a password ");
-  fprintf(fp,"reminder to be sent for your %s account.\n\n", vr->site_name);
+  fprintf(fp,"reminder to be sent for your %s account.\n\n", vr->priv->site_name);
   fprintf(fp, "Your username is: %s\n", u);
   fprintf(fp, "Your password is: %s\n\n", pass);
   fprintf(fp, "If you did not request this reminder don't worry, as ");
@@ -1061,7 +1062,6 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
   xmlSetProp (doc->xmlRootNode, "version", "0.91");
   diary_rss_export (vr, doc->xmlRootNode, u);
-
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
   buffer_write (b, mem, size);
   xmlFree (mem);
@@ -1088,10 +1088,10 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
 
   render_header (vr, str, NULL);
   if (start == -1)
-    buffer_printf (b, "<p> Recent diary entries for <a href=\"%s/person/%s/\">%s</a>: </p>\n",
+    buffer_printf (b, "<p> Recent weblog entries for <a href=\"%s/person/%s/\">%s</a>: </p>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u);
   else
-    buffer_printf (b, "<p> Older diary entries for <a href=\"%s/person/%s/\">%s</a> (starting at number %d): </p>\n",
+    buffer_printf (b, "<p> Older weblog entries for <a href=\"%s/person/%s/\">%s</a> (starting at number %d): </p>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u, start);
 
   diary_render (vr, u, 10, start);
@@ -1247,7 +1247,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (first[0] == 0)
     buffer_puts (b, "</ul>\n");
 
-  buffer_printf (b, "<p> Recent diary entries for %s: <br />\n", u);
+  buffer_printf (b, "<p> Recent weblog entries for %s: <br />\n", u);
   buffer_printf (b, "<a href=\"rss.xml\"><img src=\"/images/rss.png\" width=36 height=20 border=0 alt=\"RSS\" /></a></p>\n", u);
 
   diary_render (vr, u, 5, -1);
@@ -1344,7 +1344,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 		     "<p> See the <a href=\"%s/certs.html\">Certification</a> overview for more information.</p>\n",
 		     u, vr->prefix);
 
-      if (vr->render_diaryratings) 
+      if (vr->priv->render_diaryratings) 
 	rating_diary_form (vr, u);
     }
 

@@ -9,6 +9,7 @@
 
 #include <libxml/tree.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -36,7 +37,7 @@ rating_diary_form (VirguleReq *vr, const char *u)
 
   /* todo: report rating if present in db */
   buffer_printf (b, "<form method=\"POST\" action=\"%s/rating/rate_diary.html\">\n"
-		 "How interesting is %s's diary, on a 1 to 10 scale?\n"
+		 "How interesting is %s's weblog, on a 1 to 10 scale?\n"
 		 " <select name=\"rating\" value=\"rating\">\n"
 		 " <option selected>--\n",
 		 vr->prefix, u);
@@ -74,7 +75,7 @@ rating_rate_diary (VirguleReq *vr)
       subj = apr_pstrcat (vr->r->pool, "d/", subject, NULL);
       eigen_set_local (vr, subj, (double)rating);
       return send_error_page (vr, "Submitted",
-			     "Your rating of %s's diary page as %d is noted. Thanks.",
+			     "Your rating of %s's weblog as %d is noted. Thanks.",
 			     subject, rating);
     }
   else

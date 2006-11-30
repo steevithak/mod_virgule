@@ -12,6 +12,7 @@
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -243,14 +244,14 @@ tmetric_index_serve (VirguleReq *vr)
     return send_error_page (vr, "Lock taken", "The tmetric lock is taken by another process.");
 
   for (n_seeds = 0;; n_seeds++)
-    if (!vr->seeds[n_seeds])
+    if (!vr->priv->seeds[n_seeds])
       break;
   for (n_caps = 0;; n_caps++)
-    if (!vr->caps[n_caps])
+    if (!vr->priv->caps[n_caps])
       break;
 
   render_header (vr, "Trust Metric", NULL);
-  nodeinfo = tmetric_run (vr, vr->seeds, n_seeds, vr->caps, n_caps);
+  nodeinfo = tmetric_run (vr, vr->priv->seeds, n_seeds, vr->priv->caps, n_caps);
   buffer_puts (b, "<table>\n");
 
   qsort (nodeinfo->elts, nodeinfo->nelts, sizeof(NodeInfo),

@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20050622"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20050727"
 
 #include <string.h>
 
@@ -18,6 +18,7 @@
 #include <apr.h>
 #include <apr_strings.h>
 #include <httpd.h>
+#include <http_log.h>
 #include <http_core.h>
 #include <http_config.h>
 #include <http_request.h>
@@ -25,6 +26,7 @@
 #include <ap_config.h>
 
 /* mod_virgule includes */
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -45,6 +47,12 @@
 #include "xml_util.h"
 #include "rating.h"
 #include "hashtable.h" /* for unit testing */
+
+/* Process specific pool */
+static apr_pool_t *ppool;
+
+/* Thread private key */
+static apr_threadkey_t *tkey;
 
 /* Per-directory configuration record structure. */
 typedef struct {
@@ -199,7 +207,7 @@ test_page (VirguleReq *vr)
   Db *db = vr->db;
   apr_table_t *args_table;
   int i;
-
+  char tm[APR_CTIME_LEN];
   char *args;
 
   r->content_type = "text/html; charset=UTF-8";
@@ -210,6 +218,8 @@ test_page (VirguleReq *vr)
 	      "</title></head>\n"
 	      "<body bgcolor=white>");
   buffer_puts (b, "<h1>Virgule test</h1>\n");
+  apr_ctime(tm,vr->priv->mtime);
+  buffer_printf (b, "<p> Timestamp of loaded configuration: <tt>%s</tt> </p>\n", tm);
   buffer_printf (b, "<p> The unparsed uri is: <tt>%s</tt> </p>\n", r->unparsed_uri);
   buffer_printf (b, "<p> The uri (r->uri): <tt>%s</tt> </p>\n", r->uri);
   buffer_printf (b, "<p> The adjusted uri (vr->uri) is: <tt>%s</tt></p>\n",vr->uri);
@@ -219,6 +229,7 @@ test_page (VirguleReq *vr)
   buffer_printf (b, "<p> Browser requested protocol: <tt>%s</tt></p>\n", r->protocol);
   buffer_printf (b, "<p> Browser requested host: <tt>%s</tt></p>\n", r->hostname);
   buffer_printf (b, "<p> Requested Apache handler is: <tt>%s</tt></p>\n", r->handler);
+  buffer_printf (b, "<p> Apache thread/process ID: <tt>%lu</tt></p>\n", apr_os_thread_current());
   if (cfg)
     buffer_printf (b, "<p> cfg->db=\"%s\", cfg->dir=\"%s\"\n",
 		   cfg->db, cfg->dir);
@@ -270,56 +281,59 @@ test_page (VirguleReq *vr)
 //  if(db_lock_upgrade (vr->lock) == -1) return SERVER_ERROR;
   db_lock_upgrade (vr->lock);
 	   
-  buffer_printf (b, "<p> The site name is <tt>%s</tt> \n", vr->site_name);
-  buffer_printf (b, "and it lives at <tt>%s</tt> </p> \n", vr->base_uri);
+  buffer_printf (b, "<p> The site name is <tt>%s</tt> \n", vr->priv->site_name);
+  buffer_printf (b, "and it lives at <tt>%s</tt> </p> \n", vr->priv->base_uri);
 
-  if (*vr->cert_level_names)
+  if (*vr->priv->cert_level_names)
     {
       const char **l;
 
       buffer_puts (b, "<p> The certification levels are: </p>\n<ol>");
-      for (l = vr->cert_level_names; *l; l++)
+      for (l = vr->priv->cert_level_names; *l; l++)
 	buffer_printf (b, "<li> %s </li>\n", *l);
       buffer_puts (b, "</ol>\n");
     }
 
-  if (*vr->seeds)
+  if (*vr->priv->seeds)
     {
       const char **s;
 
       buffer_puts (b, "<p> The seeds are: </p>\n<ul>");
-      for (s = vr->seeds; *s; s++)
+      for (s = vr->priv->seeds; *s; s++)
 	buffer_printf (b, "<li> %s </li>\n", *s);
       buffer_puts (b, "</ul>\n");
     }
 
-  if (*vr->caps)
+  if (*vr->priv->caps)
     {
       const int *c;
 
       buffer_puts (b, "<p> The capacities are: </p>\n<ol>");
-      for (c = vr->caps; *c; c++)
+      for (c = vr->priv->caps; *c; c++)
 	buffer_printf (b, "<li> %d </li>\n", *c);
       buffer_puts (b, "</ol>\n");
     }
 
-  if (*vr->special_users)
+  if (*vr->priv->special_users)
     {
       const char **u;
 
       buffer_puts (b, "<p> The following users are special: </p>\n<ul>");
-      for (u = vr->special_users; *u; u++)
+      for (u = vr->priv->special_users; *u; u++)
 	buffer_printf (b, "<li> %s </li>\n", *u);
       buffer_puts (b, "</ul>\n");
     }
 
-  if (vr->render_diaryratings)
+  if (vr->priv->render_diaryratings)
     buffer_puts (b, "<p>Diary rating system is active</p>\n");
   else
     buffer_puts (b, "<p>Diary rating system is inactive</p>\n");
 
   buffer_printf (b, "<p>Recentlog style is %s</p>\n",
-		 vr->recentlog_as_posted ? "As Posted" : "Unique");
+		 vr->priv->recentlog_as_posted ? "As Posted" : "Unique");
+
+  buffer_printf (b, "<p>Account creation is %s</p>\n",
+		 vr->priv->allow_account_creation ? "allowed" : "not allowed");
 
   count (r->pool, b, db, "misc/admin/counter/count");
   
@@ -400,6 +414,33 @@ test_hashtable_serve (VirguleReq *vr)
 }
 #endif
 
+
+/**
+ * private_destroy: Destroys the virgule thread specific pool
+ **/
+static void private_destroy(void *data)
+{
+  apr_pool_destroy(((virgule_private_t *)data)->pool);
+}
+
+
+/**
+ * virgule_child_init: Called immediately have child initialization is
+ * started during the process start up. 
+ **/
+static void virgule_child_init(apr_pool_t *p, server_rec *s)
+{
+  ppool = s->process->pool;
+  apr_status_t status;
+  
+  /* Create a thread private key for later use */
+  if((status = apr_threadkey_private_create(&tkey, private_destroy, ppool))
+     != APR_SUCCESS)
+    ap_log_error(APLOG_MARK,APLOG_CRIT,status,s,"mod_virgule: Unable to create thread private key");
+}
+
+
+
 /**
  * virgule_init_handler: Module Initialization Handler. This function is
  * called once during server initialization. The module version number and
@@ -415,6 +456,12 @@ static int virgule_init_handler(apr_pool_t *pconf, apr_pool_t *plog,
 /* make sure this doesn't clash with any HTTP status codes */
 #define CONFIG_READ 1000
 
+/**
+ * read_site_config - Reads the config.xml file containing the site
+ * configuration data. The temporary request pool is used during the read
+ * but the actual config data is moved to the thread private pool so it
+ * will be available for later requests.
+ **/
 static int
 read_site_config (VirguleReq *vr)
 {
@@ -428,15 +475,24 @@ read_site_config (VirguleReq *vr)
   int *i_item;
   const AllowedTag **t_item;
   const NavOption **n_item;
+  apr_pool_t *privpool;
 
+  /* Allocate thread private data struct and memory pool */
+  if (apr_pool_create(&privpool,ppool) != APR_SUCCESS)
+    return send_error_page (vr, "Config error",
+                            "Unable to create thread private memory pool");
+  vr->priv = apr_pcalloc(privpool,sizeof(virgule_private_t));
+  vr->priv->pool = privpool;
+
+  /* Load and parse the site configuration */
   doc = db_xml_get (vr->r->pool, vr->db, "config.xml");
   if (doc == NULL)
     return send_error_page (vr, "Config error",
 			    "Unable to read the site config.");
 
   /* read the site name */
-  vr->site_name = xml_find_child_string (doc->xmlRootNode, "name", "");
-  if (!strlen (vr->site_name))
+  vr->priv->site_name = apr_pstrdup(vr->priv->pool, xml_find_child_string (doc->xmlRootNode, "name", ""));
+  if (!strlen (vr->priv->site_name))
     return send_error_page (vr, "Config error",
 			    "No name found in site config.");
 
@@ -453,14 +509,14 @@ read_site_config (VirguleReq *vr)
       uri[len - 1] = 0;
     }
   while (1);
-  vr->base_uri = uri;
+  vr->priv->base_uri = apr_pstrdup(vr->priv->pool, uri);
 
   /* read the project style */
   text = xml_find_child_string (doc->xmlRootNode, "projstyle", "raph");
   if (!strcasecmp (text, "Raph"))
-    vr->projstyle = PROJSTYLE_RAPH;
+    vr->priv->projstyle = PROJSTYLE_RAPH;
   else if (!strcasecmp (text, "Nick"))
-    vr->projstyle = PROJSTYLE_NICK;
+    vr->priv->projstyle = PROJSTYLE_NICK;
   else
     return send_error_page (vr, "Config error",
 			    "Unknown project style found in site config.");
@@ -468,15 +524,15 @@ read_site_config (VirguleReq *vr)
   /* read the recentlog style */
   text = xml_find_child_string (doc->xmlRootNode, "recentlogstyle", "Unique");
   if (!strcasecmp (text, "Unique"))
-    vr->recentlog_as_posted = 0;
+    vr->priv->recentlog_as_posted = 0;
   else if (!strcasecmp (text, "As posted"))
-    vr->recentlog_as_posted = 1;
+    vr->priv->recentlog_as_posted = 1;
   else
     return send_error_page (vr, "Config error",
 			    "Unknown recentlog style found in site config.");
 
   /* read the cert levels */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "levels");
   if (node == NULL)
     return send_error_page (vr, "Config error",
@@ -499,7 +555,7 @@ read_site_config (VirguleReq *vr)
 				"Empty element in cert levels.");
 
       c_item = (const char **)apr_array_push (stack);
-      *c_item = text;
+      *c_item = apr_pstrdup(vr->priv->pool, text);
     }
 
   if (stack->nelts < 2)
@@ -508,10 +564,10 @@ read_site_config (VirguleReq *vr)
 
   c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
-  vr->cert_level_names = (const char **)stack->elts;
+  vr->priv->cert_level_names = (const char **)stack->elts;
 
   /* read the seeds */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "seeds");
   if (node == NULL)
     return send_error_page (vr, "Config error",
@@ -534,7 +590,7 @@ read_site_config (VirguleReq *vr)
 				"Empty element in seeds.");
 
       c_item = (const char **)apr_array_push (stack);
-      *c_item = text;
+      *c_item = apr_pstrdup(vr->priv->pool, text);
     }
 
   if (stack->nelts < 1)
@@ -543,10 +599,10 @@ read_site_config (VirguleReq *vr)
 
   c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
-  vr->seeds = (const char **)stack->elts;
+  vr->priv->seeds = (const char **)stack->elts;
 
   /* read the capacities */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (int));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (int));
   node = xml_find_child (doc->xmlRootNode, "caps");
   if (node == NULL)
     return send_error_page (vr, "Config error",
@@ -576,13 +632,12 @@ read_site_config (VirguleReq *vr)
     return send_error_page (vr, "Config error",
 			    "There must be at least one capacity.");
 
-  i_item = (int *)
-  apr_array_push (stack);
+  i_item = (int *)apr_array_push (stack);
   *i_item = 0;
-  vr->caps = (const int *)stack->elts;
+  vr->priv->caps = (const int *)stack->elts;
 
   /* read the special users */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "specialusers");
   if (node)
     {
@@ -604,15 +659,15 @@ read_site_config (VirguleReq *vr)
 				    "Empty element in special users.");
 
 	  c_item = (const char **)apr_array_push (stack);
-	  *c_item = text;
+          *c_item = apr_pstrdup(vr->priv->pool, text);
 	}
     }
   c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
-  vr->special_users = (const char **)stack->elts;
+  vr->priv->special_users = (const char **)stack->elts;
 
   /* read the translations */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (char *));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = xml_find_child (doc->xmlRootNode, "translations");
   if (node)
     {
@@ -629,33 +684,33 @@ read_site_config (VirguleReq *vr)
 
 	  text = xml_get_prop (vr->r->pool, child, "from");
 	  c_item = (const char **)apr_array_push (stack);
-	  *c_item = text;
+          *c_item = apr_pstrdup(vr->priv->pool, text);
 
 	  text = xml_get_prop (vr->r->pool, child, "to");
 	  c_item = (const char **)apr_array_push (stack);
-	  *c_item = text;
+          *c_item = apr_pstrdup(vr->priv->pool, text);
 	}
     }
   c_item = (const char **)apr_array_push (stack);
   *c_item = NULL;
-  buffer_set_translations (vr->b, (const char **)stack->elts);
+  vr->priv->trans = (const char **)stack->elts;
 
   /* read the diary rating selection */
   text = xml_find_child_string (doc->xmlRootNode, "diaryrating", "");
   if (!strcasecmp (text, "on"))
-    vr->render_diaryratings = 1;
+    vr->priv->render_diaryratings = 1;
   else
-    vr->render_diaryratings = 0;
+    vr->priv->render_diaryratings = 0;
 
   /* read the new accounts allowed selection */
   text = xml_find_child_string (doc->xmlRootNode, "accountcreation", "");
   if (!strcasecmp (text, "off"))
-    vr->allow_account_creation = 0;
+    vr->priv->allow_account_creation = 0;
   else
-    vr->allow_account_creation = 1;
+    vr->priv->allow_account_creation = 1;
 
   /* read the sitemap navigation options */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (NavOption *));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (NavOption *));
   node = xml_find_child (doc->xmlRootNode, "sitemap");
   if (node)
     {
@@ -682,10 +737,10 @@ read_site_config (VirguleReq *vr)
     }
   n_item = (const NavOption **)apr_array_push (stack);
   *n_item = NULL;
-  vr->nav_options = (const NavOption **)stack->elts;
+  vr->priv->nav_options = (const NavOption **)stack->elts;
 
   /* read the allowed tags */
-  stack = apr_array_make (vr->r->pool, 10, sizeof (AllowedTag *));
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (AllowedTag *));
   node = xml_find_child (doc->xmlRootNode, "allowedtags");
   if (node)
     {
@@ -716,20 +771,25 @@ read_site_config (VirguleReq *vr)
     }
   t_item = (const AllowedTag **)apr_array_push (stack);
   *t_item = NULL;
-  vr->allowed_tags = (const AllowedTag **)stack->elts;
+  vr->priv->allowed_tags = (const AllowedTag **)stack->elts;
+
+ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"Debug: read config.xml");
 
   return CONFIG_READ;
 }
 
-/* The sample content handler */
+
+/**
+ * virgule_handler: Generates the content to fill a request
+ */
 static int virgule_handler(request_rec *r)
 {
-//  virgule_dir_conf *cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
-//  Buffer *b = buffer_new (r->pool);
   virgule_dir_conf *cfg;
   Buffer *b;
   Db *db;
   int status;
+  apr_finfo_t finfo;
+  apr_status_t ap_status;
   VirguleReq *vr;
 
   if(strcmp(r->handler, "virgule")) {
@@ -772,9 +832,51 @@ static int virgule_handler(request_rec *r)
   vr->sitemap_rendered = 0;
   vr->render_data = apr_table_make (r->pool, 4);
 
-  status = read_site_config (vr);
-  if (status != CONFIG_READ)
-    return status;
+  /* Get our thread private data, if any */
+  if((ap_status = apr_threadkey_private_get((void *)(&vr->priv),tkey))  
+    != APR_SUCCESS)
+  {
+    ap_log_rerror(APLOG_MARK, APLOG_CRIT, ap_status, r,
+                 "mod_virgule: Cannot get thread private data");
+    return HTTP_INTERNAL_SERVER_ERROR;
+  }
+
+  /* Stat the site config file in case it got updated */
+  apr_stat(&finfo, ap_make_full_path (r->pool, cfg->db, "/config.xml"),
+           APR_FINFO_MIN, r->pool);
+
+  /* If config file was updated, dump and reload private data */
+  if(vr->priv && (finfo.mtime != vr->priv->mtime))
+  {
+    apr_pool_destroy(vr->priv->pool);
+    vr->priv = NULL;
+  }
+
+  if(!vr->priv)
+  {
+    /* read and parse config.xml */
+    if(read_site_config (vr) != CONFIG_READ)
+    {
+      ap_log_rerror(APLOG_MARK, APLOG_CRIT, ap_status, r,
+                   "mod_virgule: Cannot load site config file");
+      return HTTP_INTERNAL_SERVER_ERROR;
+    }
+    
+    /* Save config to thread private data area */
+    if(apr_threadkey_private_set(vr->priv, tkey) != APR_SUCCESS)
+    {
+      apr_pool_destroy(vr->priv->pool);
+      ap_log_rerror(APLOG_MARK, APLOG_CRIT, ap_status, r,
+                   "mod_virgule: Cannot set thread private data");
+      return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    /* set mtime for config file */
+    vr->priv->mtime = finfo.mtime;
+  }
+
+  /* set buffer translations */
+  buffer_set_translations (vr->b, vr->priv->trans);
 
   vr->lock = db_lock (db);
   if (vr->lock == NULL)
@@ -833,7 +935,7 @@ static int virgule_handler(request_rec *r)
   if (status != DECLINED)
     return status;
 
-  if (vr->render_diaryratings)
+  if (vr->priv->render_diaryratings)
     {
       status = rating_serve (vr);
       if (status != DECLINED)
@@ -874,16 +976,6 @@ xlat_handler (request_rec *r)
 
 }
 
-/* Dispatch list of content handlers */
-//static const handler_rec virgule_handlers[] = { 
-//    { "virgule", virgule_handler }, 
-//    { NULL, NULL }
-//};
-
-static void virgule_register_hooks(apr_pool_t *p) {
-    ap_hook_handler(virgule_handler, NULL, NULL, APR_HOOK_MIDDLE);
-};
-
 
 /* Dispatch table of functions to handle Virgule httpd.conf directives */
 static const command_rec virgule_cmds[] =
@@ -894,10 +986,11 @@ static const command_rec virgule_cmds[] =
   {NULL}
 };
 
+
 static void register_hooks(apr_pool_t *p)
 {
   static const char * const aszPre[]={ "http_core.c",NULL };
-  
+  ap_hook_child_init(virgule_child_init, NULL, NULL, APR_HOOK_MIDDLE);
   ap_hook_post_config(virgule_init_handler, NULL, NULL, APR_HOOK_MIDDLE);
   ap_hook_handler(virgule_handler, NULL, NULL, APR_HOOK_MIDDLE);
   ap_hook_translate_name(xlat_handler, aszPre, NULL, APR_HOOK_LAST);
@@ -906,11 +999,11 @@ static void register_hooks(apr_pool_t *p)
 /* Dispatch list for API hooks */
 module AP_MODULE_DECLARE_DATA virgule_module = {
     STANDARD20_MODULE_STUFF, 
-    create_virgule_dir_conf,      /* create per-dir    config structures */
-    NULL,                  /* merge  per-dir    config structures */
-    NULL,                  /* create per-server config structures */
-    NULL,                  /* merge  per-server config structures */
-    virgule_cmds,                    /* command table */
-    register_hooks           /* register hooks function          */
+    create_virgule_dir_conf,  /* create per-dir    config structures */
+    NULL,                     /* merge  per-dir    config structures */
+    NULL,                     /* create per-server config structures */
+    NULL,                     /* merge  per-server config structures */
+    virgule_cmds,             /* command table */
+    register_hooks            /* register hooks function */
 };
 

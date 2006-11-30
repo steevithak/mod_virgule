@@ -9,6 +9,7 @@
 #include <libxml/tree.h>
 #include <libxml/HTMLparser.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -201,20 +202,20 @@ diary_preview_serve (VirguleReq *vr)
 
   auth_user (vr);
   if (vr->u == NULL)
-    return send_error_page (vr, "Not logged in", "You can't post a diary entry because you're not logged in.");
+    return send_error_page (vr, "Not logged in", "You can't post a weblog entry because you're not logged in.");
 
   args = get_args_table (vr);
   date = iso_now (p);
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
-    return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
+    return send_error_page (vr, "Invalid Key", "An invalid weblog key was submitted.");
 
   entry = apr_table_get (args, "entry");
   diary_put_backup (vr, entry);
   entry_nice = nice_htext (vr, entry, &error);
 
-  render_header (vr, "Diary preview", NULL);
+  render_header (vr, "Weblog preview", NULL);
 
   buffer_printf (b, "<p> %s </p>\n", entry_nice);
 
@@ -256,7 +257,7 @@ diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
       tree = xmlNewChild (root, NULL, "date", date);
 
       add_recent (p, vr->db, "recent/diary.xml", vr->u, 100,
-		  vr->recentlog_as_posted);
+		  vr->priv->recentlog_as_posted);
     }
   else
     {
@@ -285,7 +286,7 @@ diary_post_serve (VirguleReq *vr)
   db_lock_upgrade(vr->lock);
   auth_user (vr);
   if (vr->u == NULL)
-    return send_error_page (vr, "Not logged in", "You can't post a diary entry because you're not logged in.");
+    return send_error_page (vr, "Not logged in", "You can't post a weblog entry because you're not logged in.");
 
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
 
@@ -296,7 +297,7 @@ diary_post_serve (VirguleReq *vr)
 
   key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
-    return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
+    return send_error_page (vr, "Invalid Key", "An invalid weblog key was submitted.");
 
   entry = apr_table_get (args, "entry");
   entry = nice_htext (vr, entry, &error);
@@ -305,13 +306,13 @@ diary_post_serve (VirguleReq *vr)
   
   if (status)
     return send_error_page (vr,
-			    "Error storing diary entry",
-			    "There was an error storing the diary entry. This means there's something wrong with the site.");
+			    "Error storing weblog entry",
+			    "There was an error storing the weblog entry. This means there's something wrong with the site.");
 
   diary_put_backup (vr, "");
 
   apr_table_add (vr->r->headers_out, "refresh", "0;URL=/recentlog.html");
-  return send_error_page (vr, "Diary", "Ok, your <a href=\"/recentlog.html\">diary</a> entry was posted. Thanks!");
+  return send_error_page (vr, "Weblog", "Ok, your <a href=\"/recentlog.html\">weblog</a> entry was posted. Thanks!");
 }
 
 static int
@@ -325,9 +326,9 @@ diary_index_serve (VirguleReq *vr)
   auth_user (vr);
 
   if (vr->u == NULL)
-    return send_error_page (vr, "Not logged in", "You can't access your diary page because you're not logged in.");
+    return send_error_page (vr, "Not logged in", "You can't access your weblog page because you're not logged in.");
 
-  str = apr_psprintf (p, "Diary: %s\n", vr->u);
+  str = apr_psprintf (p, "Weblog: %s\n", vr->u);
   render_header (vr, str, NULL);
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = apr_psprintf (p, "%d", db_dir_max (vr->db, diary) + 1);
@@ -343,7 +344,7 @@ diary_index_serve (VirguleReq *vr)
 
   render_acceptable_html (vr);
 
-  buffer_printf (b, "<p> Recent diary entries for %s: </p>\n", vr->u);
+  buffer_printf (b, "<p> Recent weblog entries for %s: </p>\n", vr->u);
 
   diary_render (vr, vr->u, 5, -1);
 
@@ -362,7 +363,7 @@ diary_edit_serve (VirguleReq *vr)
 
   auth_user (vr);
   if (vr->u == NULL)
-    return send_error_page (vr, "Not logged in", "You can't access your diary page because you're not logged in.");
+    return send_error_page (vr, "Not logged in", "You can't access your weblog page because you're not logged in.");
 
   args = get_args_table (vr);
 
@@ -372,7 +373,7 @@ diary_edit_serve (VirguleReq *vr)
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
-    return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
+    return send_error_page (vr, "Invalid Key", "An invalid weblog key was submitted.");
 
   entry = db_xml_get (p, vr->db, key);
 
@@ -386,7 +387,7 @@ diary_edit_serve (VirguleReq *vr)
       date_el = xml_find_child (entry->xmlRootNode, "date");
       if (date_el != NULL)
         {
-	  str = apr_psprintf (p, "Diary: %s\n",
+	  str = apr_psprintf (p, "Weblog: %s\n",
 			     render_date (vr,
 					  xml_get_string_contents (date_el),
 					  1));
@@ -413,7 +414,7 @@ diary_edit_serve (VirguleReq *vr)
     }
   else
     {
-      return send_error_page (vr, "Invalid Key", "An invalid diary key was submitted.");
+      return send_error_page (vr, "Invalid Key", "An invalid weblog key was submitted.");
     }
 
   return render_footer_send (vr);
@@ -453,7 +454,7 @@ diary_serve (VirguleReq *vr)
 
   return DECLINED;
 #if 0
-  return send_error_page (vr, "Diary", "Welcome to your diary.");
+  return send_error_page (vr, "Weblog", "Welcome to your weblog.");
 #endif
 }
 
@@ -543,10 +544,10 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 
   channel = xmlNewChild (root, NULL, "channel", NULL);
   xmlNewChild (channel, NULL, "title",
-	       apr_pstrcat (p, vr->site_name, " diary for ", u, NULL));
+	       apr_pstrcat (p, vr->priv->site_name, " weblog for ", u, NULL));
   xmlNewChild (channel, NULL, "description",
-	       apr_pstrcat (p, vr->site_name, " diary for ", u, NULL));
-  url = ap_make_full_path (p, vr->base_uri,
+	       apr_pstrcat (p, vr->priv->site_name, " weblog for ", u, NULL));
+  url = ap_make_full_path (p, vr->priv->base_uri,
 			   apr_psprintf (p, "person/%s/", u));
   xmlNewChild (channel, NULL, "link", url);
 
@@ -577,14 +578,15 @@ diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 				     render_date (vr, iso, 0));
 	      subtree = xmlNewChild (item, NULL, "pubDate", rfc822_s);
 	    }
-	  url = ap_make_full_path (p, vr->base_uri,
+	  url = ap_make_full_path (p, vr->priv->base_uri,
 		    apr_psprintf (p, "person/%s/diary.html?start=%d", u, i));
 	  xmlNewChild (item, NULL, "link", url);
-
 	  content_str = xml_get_string_contents (entry->xmlRootNode);
-	  content_str = rss_massage_text (p, content_str, vr->base_uri);
-	  subtree = xmlNewChild (item, NULL, "description", content_str);
-
+	  if (content_str != NULL)
+	    {
+	      content_str = rss_massage_text (p, content_str, vr->priv->base_uri);
+	      subtree = xmlNewChild (item, NULL, "description", content_str);
+            }
 	}
     }
 

@@ -6,6 +6,7 @@
 #include <apr_file_io.h>
 #include <httpd.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -280,13 +281,19 @@ struct _NavOption {
   char *url;
 };
 
+
+/**
+ * add_nav_option - Allocates a NavOption structures during loading
+ * of the site configuration. This information must survive across
+ * multiple requests so it uses the thread private pool.
+ */
 const NavOption *
 add_nav_option (VirguleReq *vr, const char *label, const char *url)
 {
   NavOption *option;
-  option = apr_palloc (vr->r->pool, sizeof(NavOption));
-  option->label = apr_pstrdup (vr->r->pool, label);
-  option->url = apr_pstrdup (vr->r->pool, url);
+  option = apr_palloc (vr->priv->pool, sizeof(NavOption));
+  option->label = apr_pstrdup (vr->priv->pool, label);
+  option->url = apr_pstrdup (vr->priv->pool, url);
   return option;
 }
 
@@ -304,6 +311,12 @@ static AllowedTag special_allowed_tags[] = {
   { "wiki", 0, wiki_link }
 };
 
+
+/**
+ * add_allowed_tag - Allocates an AllowedTag structures during loading
+ * of the site configuration. This information must survive across
+ * multiple requests so it uses the thread private pool.
+ */
 const AllowedTag *
 add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
 {
@@ -315,8 +328,8 @@ add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
       if (!strcmp(special_allowed_tags[i].tagname, tagname))
 	return &special_allowed_tags[i];
 
-  tag = apr_palloc (vr->r->pool, sizeof(AllowedTag));
-  tag->tagname = apr_pstrdup  (vr->r->pool, tagname);
+  tag = apr_palloc (vr->priv->pool, sizeof(AllowedTag));
+  tag->tagname = apr_pstrdup  (vr->priv->pool, tagname);
   tag->empty = can_be_empty;
   tag->handler = NULL;
 
@@ -331,7 +344,7 @@ render_acceptable_html (VirguleReq *vr)
   buffer_printf (vr->b, "<p> The following <a href=\"%s/html.html\">HTML</a> "
 		 "is accepted: ", vr->prefix);
 
-  for (tag = vr->allowed_tags; *tag; tag++)
+  for (tag = vr->priv->allowed_tags; *tag; tag++)
     buffer_printf (vr->b, "&lt;%s&gt; ", (*tag)->tagname);
 
   buffer_puts (vr->b, "</p>\n");
@@ -482,7 +495,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 	      int tos_idx;
 
 	      /* just skip closing tag for empty elements */
-	      for (tag = vr->allowed_tags; *tag; tag++)
+	      for (tag = vr->priv->allowed_tags; *tag; tag++)
 		if ((*tag)->empty &&
 		    (tail = match_tag (raw + end + 1, (*tag)->tagname)) != NULL)
 		    break;
@@ -518,7 +531,7 @@ nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 	    }
 	  else
 	    {
-	      for (tag = vr->allowed_tags; *tag; tag++)
+	      for (tag = vr->priv->allowed_tags; *tag; tag++)
 		{
 		  tail = match_tag (raw + end, (*tag)->tagname);
 		  if (tail != NULL)
