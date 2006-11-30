@@ -34,7 +34,7 @@
 
 /* Set the #ifs to 0 to turn off the HREF stipping actions */
 static void
-rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree, int vers)
+rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
 {
   apr_pool_t *p = vr->r->pool;
   xmlNode *root = doc->xmlRootNode;
@@ -77,16 +77,15 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree, 
   *tmp2=0;
 #endif
 
-  subtree = xmlNewChild (tree, NULL, "title", title);
+  subtree = xmlNewTextChild (tree, NULL, "title", title);
   subtree = xmlNewChild (tree, NULL, "link", link);
-  if(vers == RSS_20)
-    subtree = xmlNewChild (tree,NULL,"pubDate", pubdate);
-  subtree = xmlNewChild (tree, NULL, "description", clean_description);
+  subtree = xmlNewChild (tree,NULL,"pubDate", pubdate);
+  subtree = xmlNewTextChild (tree, NULL, "description", clean_description);
   
 }
 
 static void
-rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree, int vers)
+rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree)
 {
   apr_pool_t *p = vr->r->pool;
   char *key;
@@ -98,7 +97,7 @@ rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree, int vers)
   if (doc != NULL)
     {
       subtree = xmlNewChild (tree, NULL, "item", NULL);
-      rss_render_from_xml (vr, art_num, doc, subtree, vers);
+      rss_render_from_xml (vr, art_num, doc, subtree);
     }
 }
 
@@ -138,7 +137,7 @@ rss_index_serve (VirguleReq *vr, int vers)
 
   for (n_arts = 0; n_arts < 15 && art_num >= 0; n_arts++)
     {
-      rss_render (vr, art_num, tree, vers);
+      rss_render (vr, art_num, tree);
       art_num--;
     }
 

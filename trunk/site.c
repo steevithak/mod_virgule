@@ -26,14 +26,13 @@
 #include "certs.h"
 #include "auth.h"
 #include "aggregator.h"
+#include "hashtable.h"
+#include "eigen.h"
 #include "diary.h"
 #include "proj.h"
 #include "wiki.h"
 #include "auth.h"
 #include "acct_maint.h"
-
-#include "hashtable.h"
-#include "eigen.h"
 
 #include "site.h"
 
@@ -68,14 +67,14 @@ site_render_children (RenderCtx *ctx, xmlNode *node)
 }
 
 /**
- * site_render_person_link: Render a link to a person.
+ * virgule_site_render_person_link: Render a link to a person.
  * @vr: #VirguleReq context.
  * @name: The person's name.
  *
  * Renders the link to the person, outputting to @vr's buffer.
  **/
-static void
-site_render_person_link (VirguleReq *vr, const char *name)
+void
+virgule_site_render_person_link (VirguleReq *vr, const char *name)
 {
   virgule_buffer_printf (vr->b, "<a href=\"%s/person/%s/\" style=\"text-decoration: none\">%s</a>\n",
 		 vr->prefix, ap_escape_uri(vr->r->pool, name), name);
@@ -170,7 +169,7 @@ site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
       char *date = virgule_xml_get_prop (p, tree, "date");
       virgule_render_cert_level_begin (vr, name, CERT_STYLE_SMALL);
       virgule_buffer_printf (vr->b, " %s ", virgule_render_date (vr, date, 0));
-      site_render_person_link (vr, name);
+      virgule_site_render_person_link (vr, name);
       virgule_render_cert_level_text (vr, name);
       virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
       n++;
@@ -179,8 +178,8 @@ site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
 
 /* It would make more sense to use log(), but I didn't feel like adding
    -lm to the build process. */
-static int
-conf_to_gray (double confidence)
+int
+virgule_conf_to_gray (double confidence)
 {
   int gray = 0;
 
@@ -233,7 +232,6 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
   for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
     {
       char *name = virgule_xml_get_string_contents (tree);
-      char *date = virgule_xml_get_prop (p, tree, "date");
       EigenVecEl *eve = NULL;
       int entry;
 
@@ -252,21 +250,6 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 	    }
 	}
 
-      date = virgule_xml_get_prop (p, tree, "date");
-      virgule_buffer_puts (vr->b, "<br>");
-      virgule_render_cert_level_begin (vr, name, CERT_STYLE_MEDIUM);
-      virgule_buffer_printf (vr->b, " %s ", virgule_render_date (vr, date, 0));
-      site_render_person_link (vr, name);
-      if (eve)
-	{
-	  int gray = conf_to_gray (eve->confidence);
-
-	  virgule_buffer_printf (vr->b,
-			 " <span style=\"{color: #%02x%02x%02x}\">(%.2g)</span>",
-			 gray, gray, gray,
-			 eve->rating);
-	}
-
       if (vr->priv->recentlog_as_posted)
 	{
 	  const char *result = apr_table_get (entries, name);
@@ -280,18 +263,8 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
       else
 	entry = virgule_db_dir_max (vr->db, apr_psprintf (p, "acct/%s/diary", name));
 
-      virgule_buffer_printf (vr->b, " <a href=\"%s/person/%s/diary.html?start=%u\" style=\"text-decoration: none\">&raquo;</a>",
-		     vr->prefix, name, entry);
-
-      if (vr->u && strcmp(vr->u, name) == 0)
-	virgule_buffer_printf (vr->b, " &nbsp; <a href=\"%s/diary/edit.html?key=%u\" style=\"text-decoration: none\">[ Edit ]</a>",
-		       vr->prefix, entry);
-
-      virgule_render_cert_level_text (vr, name);
-      virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
-
       if (entry >= 0)
-	virgule_diary_latest_render (vr, name, entry);
+	virgule_diary_entry_render (vr, name, entry, eve, 1);
       n++;
     }
 

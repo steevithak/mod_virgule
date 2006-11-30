@@ -19,6 +19,8 @@
 #include "xml_util.h"
 #include "style.h"
 #include "aggregator.h"
+#include "hashtable.h"
+#include "eigen.h"
 #include "diary.h"
 #include "acct_maint.h"
 
@@ -82,7 +84,7 @@ aggregator_identify_feed_type (VirguleReq *vr, xmlDoc *feedbuffer)
   /* Check for variants of RSS feeds */
   if (xmlStrcasecmp (root->name, (xmlChar *)"rss") == 0)
     {
-      version = virgule_xml_get_prop (vr->r->pool, root, (xmlChar *)"version");
+      version = (xmlChar *)virgule_xml_get_prop (vr->r->pool, root, (xmlChar *)"version");
       if (xmlStrcmp (version, (xmlChar *)"0.91") == 0)
         return FEED_RSS_091;
       else if (xmlStrcmp (version, (xmlChar *)"0.92") == 0)
@@ -224,6 +226,9 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
       item->blogauthor = author;
       item->bloglink = link;
       item->link = virgule_xml_find_child_string (entry, "link", NULL);
+      if(item->link == NULL)
+        item->link = virgule_xml_find_child_string (entry, "guid", NULL);
+      
       item->title = virgule_xml_find_child (entry, "title");
 
       item->content = virgule_xml_find_child (entry, "encoded");
@@ -393,6 +398,8 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
   if (post == 1)
     virgule_add_recent (vr->r->pool, vr->db, "recent/diary.xml", (char *)user,
 			100, vr->priv->recentlog_as_posted);
+
+  return TRUE;
 }
 
 
@@ -406,8 +413,8 @@ aggregator_getfeeds_serve(VirguleReq *vr)
 {
   xmlDoc *agglist;
   xmlNode *feed;
-  xmlChar *user, *feedurl;
-  char *feedbuffer;
+  xmlChar *user;
+  char *feedbuffer, *feedurl;
   int status;
   
   virgule_db_lock_upgrade(vr->lock);
@@ -424,7 +431,7 @@ aggregator_getfeeds_serve(VirguleReq *vr)
     
   for (feed = agglist->xmlRootNode->children; feed != NULL; feed = feed->next)
     {
-        user = virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"user");
+        user = (xmlChar *)virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"user");
         feedurl = virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"feedurl");
         feedbuffer = apr_psprintf (vr->r->pool, "/acct/%s/feed.xml", (char *)user);
         virgule_db_del (vr->db, feedbuffer);
@@ -481,7 +488,7 @@ virgule_update_aggregator_list (VirguleReq *vr)
   if(syndicate == NULL)
     return FALSE;
 
-  if (!xmlStrcmp (syndicate, (xmlChar *)"on"))
+  if (!strcmp (syndicate, "on"))
     {
       feedurl = virgule_xml_get_prop (vr->r->pool, aggregate, (xmlChar *)"feedurl");
       sflag = TRUE;
@@ -492,7 +499,7 @@ virgule_update_aggregator_list (VirguleReq *vr)
   if (agglist == NULL)
     {
       agglist = virgule_db_xml_doc_new (vr->r->pool);
-      agglist->xmlRootNode = xmlNewDocNode (agglist, NULL, "feedlist", NULL);
+      agglist->xmlRootNode = xmlNewDocNode (agglist, NULL, (xmlChar *)"feedlist", NULL);
     }
 
   if (agglist == NULL)
@@ -500,7 +507,7 @@ virgule_update_aggregator_list (VirguleReq *vr)
 
   for (feed = agglist->xmlRootNode->children; feed != NULL; feed = feed->next)
     {
-        if(!xmlStrcmp (vr->u, virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"user")))
+        if(!strcmp (vr->u, virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"user")))
 	  {
 	    fflag = TRUE;
 	    xmlUnlinkNode (feed);
@@ -511,11 +518,11 @@ virgule_update_aggregator_list (VirguleReq *vr)
     
   if(sflag == TRUE)
     {
-      feed = xmlNewTextChild (agglist->xmlRootNode, NULL, "feed", NULL);
+      feed = xmlNewTextChild (agglist->xmlRootNode, NULL, (xmlChar *)"feed", NULL);
       if (feed == NULL)
         return FALSE;
-      xmlSetProp (feed, "user", vr->u);
-      xmlSetProp (feed, "feedurl", feedurl);
+      xmlSetProp (feed, (xmlChar *)"user", (xmlChar *)vr->u);
+      xmlSetProp (feed, (xmlChar *)"feedurl", (xmlChar *)feedurl);
     }
       
   /* Write the updated feed list */

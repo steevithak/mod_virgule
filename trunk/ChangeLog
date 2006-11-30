@@ -1,3 +1,57 @@
+2006-11-22 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_index_rss_20): Added support for <guid>
+	tag as an alternate blog entry permalink when the <link> tag is
+	missing. 
+
+	* diary.c (virgule_diary_entry_render): Created a new function to
+	render a diary entry and associated header. This combines a lot of 
+	redundant code from several functions in diary.c and site.c, making
+	it easier to maintain. Diary/blog entries will now include the entry
+	title if it exists. At present only syndicated entries have titles.
+
+	* diary.c (virgule_diary_latest_render): Removed this function. It
+	has been entirely replaced by virgule_diary_entry_render().
+
+	* diary.c (virgule_diary_render): Removed duplicate diary rendering 
+	code from this function. It now relies on the new function,
+	virgule_diary_entry_render(). 
+
+	* site.c (site_render_person_link): Added virgule_ prefix.
+	
+	* site.c (site_render_recent_changelog): Removed duplicate diary
+	rendering code from this function. It now relies on the new function,
+	virgule_diary_entry_render().
+
+
+2006-11-20 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c: Added xmlChar/char casts to fix gcc 4.x warnings.
+	* certs.c:  Added xmlChar/char casts to fix gcc 4.x warnings.
+
+	* rss_export.c (rss_render_from_xml): pubDate is now added to RSS 0.91
+	feed to make it easier to sort items. The description content is now 
+	properly escaped.
+
+
+2006-11-16 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (virgule_UTF8ToHtml): This is a local, static copy of the
+	UTF8ToHTML function from libxml2. It has a couple of minor changes
+	that allow it to handle ALL UTF-8 character correctly rather than
+	only UTF-8 characters for which named entity values exist in HTML.
+	Numeric entity values are used if a named entity is not available.
+
+	* util.c (virgule_nice_utf8): Now relies on our fixed version of the
+	UTF8ToHTML code.
+
+	* util.c (virgule_nice_htext): Now calls virgule_nice_utf8 to make
+	sure HTML is in the form of ASCII + entity values or numerical 
+	character values before	processing. This should fix the bug with 
+	Chinese (and other) character sets not being saved and rendered 
+	correctly.
+
+
 2006-11-15 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_index_atom_10): Now handles missing link
@@ -14,6 +68,7 @@
 	tag contents if found. Alternate formats that use dc:date in place
 	of pubDate are also supported. 
 
+
 2006-11-14 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_index_rdf_site_summary_10): RDF Site Summary
@@ -21,6 +76,7 @@
 	Dublin Core module for dates and a draft version of the Content
 	module for content encoding has been tested. Other variants are 
 	unlikely to work.
+
 
 2006-11-13 R. Steven Rainwater <steve@ncc.com>
 
@@ -40,12 +96,14 @@
 	* util.c (virgule_rfc822_to_time_t): Converts an RFC-822 encoded
 	time to a time_t value.
 
+
 2006-11-12 R. Steven Rainwater <steve@ncc.com>
 
 	* diary.c (virgule_diary_store_feed_item): Stores an item from a 
 	syndicated feed in a user's local blog. Several elements are added 
 	to the XML document that are not included when a local diary entry 
 	is made, such as the permalink to the original (remote) blog post.
+
 
 2006-11-11 R. Steven Rainwater <steve@ncc.com>
 
@@ -55,6 +113,7 @@
 	* mod_virgule.c (read_site_config): Added computation of the local
 	server's time offset from UTC in seconds. We aren't using this yet
 	but will need it in the near future.	
+
 
 2006-11-10 R. Steven Rainwater <steve@ncc.com>
 
@@ -90,11 +149,13 @@
 	of entries from recent files to the initial instance. Now all 
 	instances of an entry will be removed.
 	
+
 2006-11-07 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_identify_feed_type): Attempts to identify
 	the format of a blog feed by examining the XML file. Initially it
 	works on most versions of Atom, RSS, and RDF Site Summary formats.
+
 
 2006-11-05 R. Steven Rainwater <steve@ncc.com>
 
@@ -105,17 +166,20 @@
 	* aggregator.c (aggregator_post_feed): Attempts to identify new blog
 	posts in the user's feed buffer and appends them to the user's blog.
 
+
 2006-11-03 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (virgule_aggregator_serve, aggregator_getfeeds_serve):
 	When /aggregator/getfeeds.html is hit, the feedlist will be opened
 	and each listed feed will be retrieved, buffered, and processed.
 
+
 2006-11-02 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (virgule_update_aggregator_list): Created this function
 	to check the specified user account and add them to or delete them 
 	from the aggregation list depending on their current account settings.
+
 
 2006-11-01 R. Steven Rainwater <steve@ncc.com>
 
@@ -135,6 +199,7 @@
 	can now edit and save blog aggregation info to profile.xml. Syndicate
 	status is forced to OFF for users who are not certified at a level 
 	allowed to use syndication.
+
 
 2006-10-31 R. Steven Rainwater <steve@ncc.com>
 
@@ -170,6 +235,7 @@
 
 	* acct_maint.c (acct_person_serve): Added a "member since" field to 
 	the user profile page.
+
 
 2006-10-25 R. Steven Rainwater <steve@ncc.com>
 
@@ -215,6 +281,7 @@
 
 	* tmetric.c (virgule_tmetric_get): Removed some debugging cruft.
 	
+
 2006-10-16 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_index_serve): Separated login and password
