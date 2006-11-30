@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<config>
+  <name>Advogato</name>
+  <baseuri>http://www.advogato.org/</baseuri>
+  <adminemail>webmaster@advogato.org</adminemail>
+  <diaryrating>off</diaryrating>
+  <accountcreation>on</accountcreation>
+  <recentlogstyle>Unique</recentlogstyle>
+  
+  <articletopics>off</articletopics>
+  <topics>
+    <topic url="/path/to/default/image1.png">Description 1</topic>
+    <topic url="/path/to/default/image2.png">Description 2</topic>
+  </topics>
+  
+
+  <sitemap>
+    <option url="/">Home</option>
+    <option url="/article/index.html">Articles</option>
+    <option url="/acct/">Account</option>
+    <option url="/person/">People</option>
+    <option url="/proj/">Projects</option>
+  </sitemap>
+
+  <levels>
+    <level>Observer</level>
+    <level>Apprentice</level>
+    <level>Journeyer</level>
+    <level>Master</level>
+  </levels>
+
+  <seeds>
+    <seed>miguel</seed>
+    <seed>raph</seed>
+    <seed>federico</seed>
+    <seed>alan</seed>
+  </seeds>
+
+  <caps>
+    <cap>800</cap>
+    <cap>200</cap>
+    <cap>50</cap>
+    <cap>12</cap>
+    <cap>4</cap>
+    <cap>2</cap>
+    <cap>1</cap>
+  </caps>
+
+  <translations>
+    <translate from="person" to="human" />
+    <translate from="people" to="humans" />
+    <translate from="Person" to="Human" />
+    <translate from="People" to="Humans" />
+    <translate from="a person" to="a human" />
+  </translations>
+
+  <specialusers>
+    <specialuser>advogato</specialuser>
+  </specialusers>
+
+  <allowedtags>
+    <tag>a</tag>
+    <tag>b</tag>
+    <tag>blockquote</tag>
+    <tag canbeempty="yes">br</tag>
+    <tag>cite</tag>
+    <tag>div</tag>
+    <tag>em</tag>
+    <tag>i</tag>
+    <tag canbeempty="yes">li</tag>
+    <tag>ol</tag>
+    <tag canbeempty="yes">p</tag>
+    <tag>pre</tag>
+    <tag>strong</tag>
+    <tag>tt</tag>
+    <tag>ul</tag>
+    <tag>person</tag>
+    <tag>proj</tag>
+    <tag>wiki</tag>
+  </allowedtags>
+
+</config>
