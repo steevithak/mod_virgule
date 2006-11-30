@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20060929"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061016"
 
 #include <string.h>
 
@@ -756,6 +756,12 @@ read_site_config (VirguleReq *vr)
   else
     vr->priv->article_post_by_seeds_only = 0;
 
+  /* read the max article title size setting */
+  text = virgule_xml_find_child_string (doc->xmlRootNode, "articletitlesize", "");
+  vr->priv->article_title_maxsize = atoi (text);
+  if(vr->priv->article_title_maxsize == 0)
+    vr->priv->article_title_maxsize = 80; 
+
   /* read the article topic setting */
   text = virgule_xml_find_child_string (doc->xmlRootNode, "articletopics", "");
   if (!strcasecmp (text, "off"))
@@ -792,6 +798,12 @@ read_site_config (VirguleReq *vr)
   at_item = (const Topic **)apr_array_push (stack);
   *at_item = NULL;
   vr->priv->topics = (const Topic **)stack->elts;
+
+  /* read the account spam score threshold setting */
+  text = virgule_xml_find_child_string (doc->xmlRootNode, "accountspamthreshold", "");
+  vr->priv->acct_spam_threshold = atoi (text);
+  if(vr->priv->acct_spam_threshold == 0)
+    vr->priv->acct_spam_threshold = 15; 
 
   /* read the sitemap navigation options */
   stack = apr_array_make (vr->priv->pool, 10, sizeof (NavOption *));

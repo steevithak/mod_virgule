@@ -8,6 +8,9 @@ virgule_match_prefix (const char *url, const char *prefix);
 char *
 virgule_nice_text (apr_pool_t *p, const char *raw);
 
+char *
+virgule_nice_utf8 (apr_pool_t *p, const unsigned char *raw);
+
 const NavOption *
 virgule_add_nav_option (VirguleReq *vr, const char *label, const char *url);
 
@@ -19,6 +22,12 @@ virgule_add_allowed_tag (VirguleReq *vr, const char *tag, int can_be_empty);
 
 int
 virgule_render_acceptable_html (VirguleReq *vr);
+
+int
+virgule_user_is_special (VirguleReq *vr, const char *user);
+
+char *
+virgule_add_nofollow (VirguleReq *vr, const char *raw);
 
 char *
 virgule_strip_a (VirguleReq *vr, const char *raw);
@@ -47,8 +56,3 @@ virgule_escape_html_attr (apr_pool_t *p, const char *raw);
 int
 virgule_is_input_valid(const char *val);
 
-//int
-//virgule_is_legal_XML(unsigned char *c);
-
-//int
-//is_legal_UTF8(unsigned char *source, char length);

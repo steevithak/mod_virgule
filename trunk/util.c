@@ -6,6 +6,9 @@
 #include <apr_file_io.h>
 #include <httpd.h>
 
+#include <libxml/entities.h>
+#include <libxml/HTMLparser.h>
+
 #include "private.h"
 #include "buffer.h"
 #include "db.h"
@@ -172,7 +175,6 @@ escape_noniso_char (char c)
     case 0x9F:
       return "Y";
     default:
-      /* Unrecognized, just toss. */
       return "";
     }
 }
@@ -229,6 +231,37 @@ nice_text_helper (const char *raw, char *buf)
     }
   return j;
 }
+
+
+/**
+ * virgule_nice_UTF8: Convert raw UTF8 into nice HTML.
+ * @raw: Raw UTF8
+ *
+ * Return value: HTML formatted text
+ **/
+char *
+virgule_nice_utf8 (apr_pool_t *p, const unsigned char *raw)
+{
+  int inlen = strlen(raw);
+  int outlen = inlen * 4;
+  char *out = NULL;
+   
+  if (raw == NULL)
+     return NULL;
+
+  out = apr_palloc (p, outlen + 1);
+  if(out == NULL)
+    return NULL;
+//  memset(out,0,outlen);
+//  if(UTF8ToHtml (out,&outlen,raw,&inlen) == 0)
+  if(htmlEncodeEntities (out,&outlen,raw,&inlen,0) == 0)
+    {
+      out[outlen] = 0;
+      return out;
+    }
+  return NULL;
+}
+ 
 
 /**
  * nice_text: Convert raw text into nice HTML.
@@ -427,9 +460,85 @@ find_end_tag (const char *str, const char *tag, const char **after)
   return NULL;
 }
 
+/**
+ * virgule_user_is_special: Test whether or not the current user, if any, is
+ * on the list of special (admin) users. Returns TRUE if the user is special.
+ */
+int
+virgule_user_is_special (VirguleReq *vr, const char *user)
+{
+  const char **u = NULL;
+  
+  if (user)
+    {
+      for (u = vr->priv->special_users; *u; u++)
+        if (!strcmp (user, *u))
+          break;
+
+      if (*u)
+        return TRUE;
+    }
+    
+  return FALSE;
+}
+
 
 /**
- * strip_a: Remove any anchor tags found in the string
+ * virgule_add_nofollow: Add a nofollow relationship attribute
+ * to any anchor tags found in the string.
+ */
+char *
+virgule_add_nofollow (VirguleReq *vr, const char *raw)
+{
+  const char *rel = " rel=\"nofollow\"";
+  const char *c = NULL;
+  char *out = NULL;
+  char *tmp = NULL;
+  int i = 0;
+  
+  /* count the anchor tags */
+  for(c=raw;*c;c++)
+    {
+      if(*c == '<' && (*(c+1) == 'a' || *(c+1) == 'A'))
+        {
+	  i++;
+	  c++;
+	}
+    }
+
+  if(i == 0)
+    return (char *)raw;
+
+  /* allocate a new buffer or fail silently */
+  out = apr_palloc (vr->priv->pool, (apr_size_t)((i*15)+strlen(raw)+1));
+  if(out == NULL)
+    return (char *)raw;
+
+  /* add the nofollow relations */
+  for(tmp=out,c=raw;*c;c++)
+    {
+      if(*c == '<' && (*(c+1) == 'a' || *(c+1) == 'A'))
+        {
+	  while(*c && *c!='>')
+	    *tmp++ = *c++;
+	  if(*c == '>')
+	    {
+	      memcpy(tmp,rel,15);
+	      tmp+=15;
+	    }
+	  *tmp++ = *c;
+	}
+      else
+        *tmp++ = *c;
+    }
+  *tmp=0;
+    
+  return out;
+}
+
+
+/**
+ * virgule_strip_a: Remove any anchor tags found in the string
  */
 char *
 virgule_strip_a (VirguleReq *vr, const char *raw)

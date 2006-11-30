@@ -14,6 +14,7 @@
 #include "db.h"
 #include "req.h"
 #include "util.h"
+#include "certs.h"
 #include "style.h"
 #include "auth.h"
 #include "db_xml.h"
@@ -117,7 +118,11 @@ virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start)
 	  if (contents != NULL)
 	    {
 	      virgule_buffer_puts (b, "<blockquote>\n");
-	      virgule_buffer_puts (b, contents);
+              if (strcmp (virgule_req_get_tmetric_level (vr, u),
+	           virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) == 0)
+	        virgule_buffer_puts (b, virgule_add_nofollow (vr, contents));
+	      else
+	        virgule_buffer_puts (b, contents);
 	      virgule_buffer_puts (b, "</blockquote>\n");
 	    }
 	}
@@ -150,7 +155,11 @@ virgule_diary_latest_render (VirguleReq *vr, const char *u, int n)
       virgule_buffer_puts (b, "<blockquote>\n");
       if (contents != NULL)
 	{
-	  virgule_buffer_puts (b, contents);
+          if (strcmp (virgule_req_get_tmetric_level (vr, u),
+	      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) == 0)
+	    virgule_buffer_puts (b, virgule_add_nofollow (vr, contents));
+	  else
+	    virgule_buffer_puts (b, contents);
 	}
       virgule_buffer_puts (b, "</blockquote>\n");
     }

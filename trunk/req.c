@@ -10,6 +10,7 @@
 #include "certs.h"
 #include "auth.h"
 #include "tmetric.h"
+#include "util.h"
 
 /* Send http header and buffer. Also releases the lock. */
 int
@@ -97,10 +98,17 @@ const char *
 virgule_req_get_tmetric_level (VirguleReq *vr, const char *u)
 {
   char *result;
-  char *user = ap_escape_uri(vr->r->pool,u);
-  char *tmetric = virgule_req_get_tmetric (vr);
+  char *user = NULL;
+  char *tmetric = NULL;
   int i, j;
 
+  if (u == NULL || *u == 0)
+    return virgule_cert_level_to_name (vr, CERT_LEVEL_NONE);
+
+  user = ap_escape_uri(vr->r->pool,u);
+
+  tmetric = virgule_req_get_tmetric (vr);
+  
   if (tmetric == NULL)
     return virgule_cert_level_to_name (vr, CERT_LEVEL_NONE);
 
@@ -150,6 +158,9 @@ virgule_req_ok_to_post (VirguleReq *vr)
   if (vr->u == NULL)
     return 0;
 
+  if(virgule_user_is_special(vr, vr->u))
+    return 1;
+
   if(vr->priv->article_post_by_seeds_only && *vr->priv->seeds)
     {
       const char **s;
@@ -184,6 +195,9 @@ virgule_req_ok_to_reply (VirguleReq *vr)
   if (virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, vr->u)) >= vr->priv->level_articlereply)
     return 1;
 
+  if(virgule_user_is_special(vr, vr->u))
+    return 1;
+
   return 0;
 }
 
@@ -206,6 +220,9 @@ virgule_req_ok_to_create_project (VirguleReq *vr)
     return 0;
 
   if (virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, vr->u)) >= vr->priv->level_projectcreate)
+    return 1;
+
+  if(virgule_user_is_special(vr, vr->u))
     return 1;
 
   return 0;

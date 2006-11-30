@@ -28,6 +28,8 @@
 #include "db_ops.h"
 #include "proj.h"
 #include "rating.h"
+#include "hashtable.h"
+#include "eigen.h"
 #include "acct_maint.h"
 
 typedef struct _ProfileField ProfileField;
@@ -63,6 +65,218 @@ struct _NodeInfo {
   const char *givenname;
   const char *surname;
 };
+
+
+/**
+ * acct_kill: Remove a user account. Before an account is removed, all cert
+ * and cert-in records are cleared. An account or account-alias is accepted 
+ * as an argument. Account profile, alias (if any), certs, staff records, 
+ * diary entries, eigen data, and any entries in recent lists  will be 
+ * removed. Deletion is not reversible!
+ **/
+static int
+acct_kill(VirguleReq *vr, const char *u)
+{
+  int n;
+  const char *user = NULL;
+  char *db_key, *db_key2, *user_alias, *diary;
+  apr_pool_t *p = vr->r->pool;
+  xmlDoc *profile, *staff, *entry;
+  xmlNode *tree, *cert, *alias;
+
+  virgule_db_lock_upgrade(vr->lock);
+
+  db_key = virgule_acct_dbkey(vr, u);
+  profile = virgule_db_xml_get(p, vr->db, db_key);
+  
+  if (profile == NULL)
+    return FALSE;
+  
+  alias = virgule_xml_find_child (profile->xmlRootNode, "alias");
+
+  if (alias != NULL) /* If this is the alias, get username and kill profile */
+    {
+      user = virgule_xml_get_prop (p, alias, "link");
+      virgule_db_xml_free (p, vr->db, profile);
+      virgule_db_del (vr->db, db_key);
+      db_key = virgule_acct_dbkey (vr, user);
+    }
+  else               /* If this is the username, check for lc alias */
+    {
+      user = u;
+      user_alias = apr_pstrdup (p, u);
+      ap_str_tolower (user_alias);
+      if (! (strcmp (user_alias,u) == 0))
+        {
+          db_key2 = virgule_acct_dbkey (vr, user_alias);
+          if (db_key2 != NULL)
+            virgule_db_del (vr->db, db_key2);
+	}
+    }
+    
+  /* Clear cert records */
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
+  if (tree)
+    {
+      char *subject, *level;
+      for (cert = tree->children; cert != NULL; cert = cert->next)
+        if (cert->type == XML_ELEMENT_NODE && ! strcmp (cert->name, "cert"))
+	  {
+            subject = xmlGetProp (cert, "subj");
+	    level = xmlGetProp (cert, "level");
+	    virgule_cert_set (vr, user, subject, CERT_LEVEL_NONE);
+	    xmlFree(subject);
+	    xmlFree(level);
+	  }
+    }  
+
+  /* Clear cert-in records */
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs-in");
+  if (tree)
+    {
+      char *issuer, *level;
+      for (cert = tree->children; cert != NULL; cert = cert->next)
+        if (cert->type == XML_ELEMENT_NODE && ! strcmp (cert->name, "cert"))
+	  {
+	    issuer = xmlGetProp (cert, "issuer");
+	    level = xmlGetProp (cert, "level");
+	    virgule_cert_set (vr, issuer, user, CERT_LEVEL_NONE);
+	    xmlFree(issuer);
+	    xmlFree(level);
+	  }
+    }
+
+  /* Clear staff records */
+  db_key2 = apr_psprintf (p, "acct/%s/staff-person.xml", user);
+  staff = virgule_db_xml_get (p, vr->db, db_key2);
+  if (staff != NULL)
+    {
+      for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
+        {
+	  char *name;
+	  name = virgule_xml_get_prop (p, tree, "name");
+	  virgule_proj_set_relation(vr,name,user,"None");
+	}
+      virgule_db_xml_free (p, vr->db, staff);
+      virgule_db_del (vr->db, db_key2);
+    }
+
+  /* Clear diary entries */
+  diary = apr_psprintf(p, "acct/%s/diary", user);
+  for (n = virgule_db_dir_max (vr->db, diary); n >= 0; n--)
+    {
+      db_key2 = apr_psprintf (p, "acct/%s/diary/_%d", user, n);
+      entry = virgule_db_xml_get (p, vr->db, db_key2);
+      if (entry != NULL)
+        {
+	  virgule_db_del (vr->db, db_key2);
+          virgule_db_xml_free (p, vr->db, entry);
+	}
+    }
+
+  /* <articlepointers>, <auth>, and <info> tags don't need attention */
+
+  /* Remove diary backup, if any */
+  diary = apr_psprintf (p, "acct/%s/diarybackup", user);
+  virgule_db_del (vr->db, diary);
+
+  /* Remove user from recent lists (if present) */
+  virgule_remove_recent (vr, "recent/acct.xml", user);
+  virgule_remove_recent (vr, "recent/diary.xml", user);
+
+  /* Remove eigen data (if any) */
+  virgule_eigen_cleanup (vr, user);
+
+  /* Remove the profile and account */
+  virgule_db_del (vr->db, db_key);
+  virgule_db_xml_free(p, vr->db, profile);
+
+  return TRUE;
+}
+
+
+/**
+ * virgule_acct_flag_as_spam: Flag the passed user's account as spam. A tag
+ * will be added with the flagging user's name and a score of 1, 2, or 3 
+ * depending on flagger's cert level. If a flag with the current users name
+ * already exist, no action will be taken (you can only flag an account as
+ * spam once. After adding the tag, the total spam score will be evaluated.
+ * If the spam score exceeds the configured threshold, the account is killed.
+ **/
+static int
+acct_flag_as_spam(VirguleReq *vr, const char *u)
+{
+  int score = 0;
+  int flagged = FALSE;
+  char *scorestr;
+  char *db_key;
+  xmlDoc *profile;
+  xmlNode *spamtree;
+  xmlNode *flag;
+  xmlNode *spamscore;
+  virgule_auth_user (vr);
+
+  if(vr->u == NULL)
+    return virgule_send_error_page (vr, "Not Logged In", "You must be logged in to use the spam reporting system.\n");
+
+  if(u == NULL)
+    return virgule_send_error_page (vr, "Invalid Account", "The specified user account was not found.\n");
+
+  if (strcmp (virgule_req_get_tmetric_level (vr, u),
+	      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) != 0)
+    return virgule_send_error_page (vr, "Trusted Account", "Only untrusted observer accounts may be reported as spam.\n");
+
+  db_key = virgule_acct_dbkey (vr, u);
+  profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
+  if (profile == NULL)
+    return virgule_send_error_page (vr, "Account Not Found", "The specified user account was not found.\n");
+
+  spamtree = virgule_xml_ensure_child (profile->xmlRootNode, "spamflags");
+
+  /* search for an existing flag from vr->u while tallying the spam score */
+  for (flag = spamtree->children; flag != NULL; flag = flag->next)
+    {
+      if (flag->type == XML_ELEMENT_NODE && !strcmp (flag->name, "flag"))
+        {
+	  char *issuer = xmlGetProp (flag, "issuer");
+	  if(issuer)
+	    {
+	      score += virgule_cert_level_from_name (vr, 
+	    		virgule_req_get_tmetric_level (vr, issuer));
+	      if(!strcmp (issuer, vr->u))
+	        flagged = TRUE;
+	      xmlFree (issuer);
+	    }
+	}
+    }
+
+  if (flagged)
+    return virgule_send_error_page (vr, "Account Already Flagged", "You have already flagged this account as spam.\n");
+
+  /* add a new spam flag and increment score */
+  flag = xmlNewChild (spamtree, NULL, "flag", NULL);
+  xmlSetProp (flag, "issuer", vr->u);
+
+  score += virgule_cert_level_from_name (vr, virgule_req_get_tmetric_level (vr, vr->u));
+  scorestr = apr_itoa (vr->r->pool, score);
+  spamscore = virgule_xml_find_child(profile->xmlRootNode, "spamscore");
+  if(spamscore == NULL)
+    spamscore = xmlNewChild (profile->xmlRootNode, NULL, "spamscore", scorestr);
+  else
+    xmlNodeSetContent (spamscore, scorestr);
+  
+  virgule_db_xml_put (vr->r->pool, vr->db, db_key, profile);
+  virgule_db_xml_free (vr->r->pool, vr->db, profile);
+
+  if(score > vr->priv->acct_spam_threshold)
+    {
+      acct_kill(vr, u);
+      return virgule_send_error_page (vr, "Account Deleted", "<blockquote><p>User account [%s] has been deleted.</p><p>Your spam report pushed the total spam score for this account to [%i].</p><p>Accounts are automatically deleted if their spam score exceeds the currently configured score threshold of [%i].</p><p>Thanks for taking the time to help keep %s free of spam!</p><blockquote>\n", u, score, vr->priv->acct_spam_threshold, vr->priv->site_name);
+    }
+  else 
+    return virgule_send_error_page (vr, "Account Flagged", "<blockquote><p>User account [%s] has been flagged as spam.</p><p>Total spam score for this account is [%i].</p><p>Accounts are automatically deleted if their spam score exceeds the currently configured score threshold of [%i].</p><p>Thanks for taking the time to help keep %s free of spam!</p><blockquote>\n", u, score, vr->priv->acct_spam_threshold, vr->priv->site_name);
+}
+
 
 /* update an arbitrary pointer */
 int
@@ -370,7 +584,7 @@ acct_index_serve (VirguleReq *vr)
       if (vr->priv->projstyle == PROJSTYLE_NICK)
         virgule_buffer_puts (b, "<li><a href=\"/proj/updatepointers.html\">Mark all messags as read</a></li>\n");
       virgule_buffer_puts (b, "</ul><p> Or you can update your account info: </p>\n");
-      virgule_buffer_puts (b, "<form method=\"POST\" action=\"update.html\" accept-charset=\"UTF-i\">\n");
+      virgule_buffer_puts (b, "<form method=\"POST\" action=\"update.html\" accept-charset=\"UTF-8\">\n");
       for (i = 0; prof_fields[i].description; i++)
 	{
 	  if (vr->priv->projstyle != PROJSTYLE_NICK &&
@@ -406,24 +620,32 @@ acct_index_serve (VirguleReq *vr)
   else
     {
       virgule_render_header (vr, "Login", NULL);
-      virgule_buffer_puts (b, "<p> Please login if you have an account.\n"
+      virgule_buffer_puts (b, "<p>Please login if you have an account.\n"
 		   "Otherwise, feel free to <a href=\"new.html\">create a new account</a>. </p>\n"
 		   "<p>If you have forgotten your password, fill in your user name, check the "
 		   "\"forgot password\" box, and then click the login button. Your password "
-		   "be mailed to the email address for your account.</p>\n"
-		   "\n"
+		   "will be mailed to the email address found in your account profile.</p>\n"
+		   "<p>Note: This site uses cookies to store authentication\n"
+		   "information. </p>\n"
+		   "<div class=\"login\">Login"
 		   "<form method=\"POST\" action=\"loginsub.html\" accept-charset=\"UTF-8\">\n"
-		   " <p> User name: <br/>\n"
-		   "  <input name=\"u\" size=\"20\"/> \n"
-		   " </p>\n"
-		   " <p> Password: <br/>\n"
-		   "  <input name=\"pass\" size=\"20\" type=\"password\"/> \n"
-		   " </p>\n"
-		   "<p> <input name=\"forgot\" type=\"checkbox\"> I forgot my password</p>"
-		   " <input type=\"submit\" value=\"Login\"/>\n"
-		   "</form>\n"
-		   "<p> Note: This site uses cookies to store authentication\n"
-		   "information. </p>\n");
+		   "<p>User name: <br/>\n"
+		   "<input name=\"u\" size=\"20\"/ type=\"text\"> \n"
+		   "</p>\n"
+		   "<p> Password: <br/>\n"
+		   "<input name=\"pass\" size=\"20\" type=\"password\"/> \n"
+		   "</p>\n"
+//		   "<p><input name=\"forgot\" type=\"checkbox\"> I forgot my password</p>"
+		   "<input type=\"submit\" value=\"Login\"/>\n"
+		   "</form></div>\n"
+		   "<div class=\"login\">Password Reminder"
+		   "<form method=\"POST\" action=\"loginsub.html\" accept-charset=\"UTF-8\">\n"
+		   "<p> User name: <br/>\n"
+		   "<input name=\"u\" size=\"20\"/> \n"
+		   "</p>\n"
+		   "<input type=\"hidden\" name=\"forgot\" value=\"checked\"/>"
+		   "<input type=\"submit\" value=\"Forgot Password\"/>\n"
+		   "</form></div>\n");
 
       return virgule_render_footer_send (vr);
     }
@@ -682,10 +904,13 @@ send_email(VirguleReq *vr, const char *mail, const char *u, const char *pass)
      return virgule_send_error_page (vr, "Error", "There was an error sending mail to <tt>%s</tt>.\n", mail);
 
   fprintf(fp,"To: %s\n", mail);
+#if 1
+  fprintf(fp,"Bcc: %s\n", vr->priv->admin_email);
+#endif
   fprintf(fp,"From: %s\n", vr->priv->admin_email);
   fprintf(fp,"Subject: Your %s password\n\n", vr->priv->site_name);
-  fprintf(fp,"You, or someone else, recently asked for a password ");
-  fprintf(fp,"reminder to be sent for your %s account.\n\n", vr->priv->site_name);
+  fprintf(fp,"Someone at IP address %s requested a ", vr->r->connection->remote_ip);
+  fprintf(fp,"password reminder for your %s account.\n\n", vr->priv->site_name);
   fprintf(fp, "Your username is: %s\n", u);
   fprintf(fp, "Your password is: %s\n\n", pass);
   fprintf(fp, "If you did not request this reminder don't worry, as ");
@@ -777,7 +1002,7 @@ acct_loginsub_serve (VirguleReq *vr)
 
       /* Tell the user */
       return virgule_send_error_page( vr, "Password mailed.",
-			      "The password for <tt>%s</tt> has now been mailed to <tt>%s</tt>", 
+			      "The password for <tt>%s</tt> has been mailed to <tt>%s</tt>", 
 			      u, mail );
   }
 
@@ -948,10 +1173,16 @@ virgule_acct_person_index_serve (VirguleReq *vr, int max)
           ap_unescape_url(user);
           db_key = virgule_acct_dbkey (vr, user);
 	  if (db_key == NULL)
-	    continue;
+	    {
+	      i++;
+	      continue;
+	    }
           profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
           if (profile == NULL)
-            continue;
+	    {
+	      i++;
+	      continue;
+	    }
           tree = virgule_xml_find_child (profile->xmlRootNode, "info");
           if (tree != NULL)
 	    {
@@ -1165,6 +1396,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);
 
+  if (!strcmp (q + 1, "spam"))
+    return acct_flag_as_spam (vr, u);
+
   if (q[1] != '\0')
     return virgule_send_error_page (vr,
 			    "Extra junk",
@@ -1194,8 +1428,23 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   str = apr_psprintf (p, "Personal info for %s", u);
   virgule_render_header (vr, str,
+		"<script language=\"JavaScript\" type=\"text/javascript\">\n"
+		"<!-- \n"
+		"function confirmdel(name)\n"
+		"{\n"
+		"  var rc = confirm(\"Are you sure you want to delete user account: \"+name+\"?\");\n"
+		"  return rc;\n"
+		"}\n"
+		"// -->\n"
+		"</script>\n"
 		"<link rel=\"alternate\" type=\"application/rss+xml\" "
-		"title=\"RSS\" href=\"rss.xml\" />\n");
+		"title=\"RSS\" href=\"rss.xml\" />\n"
+		);
+
+  if (virgule_user_is_special(vr,vr->u))
+    {
+      virgule_buffer_printf (b, "<div class=\"adminbox\">Admin Functions <form action=\"/acct/killsub.html\" method=\"POST\" accept-charset=\"UTF-8\" onSubmit=\"return confirmdel('%s');\"><input type=\"hidden\" name=\"u\" value=\"%s\" /><input type=\"submit\" value=\" Delete User \" /></form></div>", u, u);
+    }
 
   if (strcmp (virgule_req_get_tmetric_level (vr, u),
 	       virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
@@ -1205,14 +1454,25 @@ acct_person_serve (VirguleReq *vr, const char *path)
       virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
     }
   else
-    observer = TRUE;
+    {
+      observer = TRUE;
+      if (strcmp (virgule_req_get_tmetric_level (vr, vr->u),
+    		  virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) != 0)
+        {
+          virgule_buffer_printf(b, "<div class=\"spamscore\">Spam rating: %s "
+	                           "&nbsp;<form method=\"POST\" action=\"/person/%s/spam\">"
+				   "<input type=\"submit\" value=\"Flag account as spam\"></form></div>\n",
+    				   virgule_xml_find_child_string (profile->xmlRootNode, "spamscore", "not spam"),
+				   ap_escape_uri(p, u));
+	}
+    }
 
   lastlogin = virgule_xml_find_child(profile->xmlRootNode, "lastlogin");
   if(lastlogin) 
     date = virgule_xml_get_prop (p, lastlogin, "date");
   if(!date)
     date = "N/A";
-  
+
   any = 0;
   tree = virgule_xml_find_child (profile->xmlRootNode, "info");
   if (tree)
@@ -1220,8 +1480,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
       givenname = virgule_xml_get_prop (p, tree, "givenname");
       surname = virgule_xml_get_prop (p, tree, "surname");
       virgule_buffer_printf (b, "<p> Name: %s %s<br />Last login: %s</p>\n",
-		     givenname ? virgule_nice_text(p, givenname) : "",
-		     surname ? virgule_nice_text(p, surname) : "", date);
+// rsr		     givenname ? virgule_nice_utf8(p, givenname) : "",
+//		     surname ? virgule_nice_utf8(p, surname) : "", date);
+// raph		     givenname ? virgule_nice_text(p, givenname) : "",
+//		     surname ? virgule_nice_text(p, surname) : "", date);
+		     givenname ? givenname : "",
+		     surname ? surname : "", date);
 
       url = virgule_xml_get_prop (p, tree, "url");
       if (url && url[0])
@@ -1233,8 +1497,11 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  colon = strchr (url, ':');
 	  if (!colon || colon[1] != '/' || colon[2] != '/')
 	    url2 = apr_pstrcat (p, "http://", url, NULL);
-	  virgule_buffer_printf (b, "<p> Homepage: <a href=\"%s\">%s</a> </p>\n",
-			 url2, virgule_nice_text (p, url));
+
+	  virgule_buffer_printf (b, "<p> Homepage: <a href=\"%s\"", url2);
+	  if(observer)
+	    virgule_buffer_puts (b, " rel=\"nofollow\"");
+	  virgule_buffer_printf (b, ">%s</a></p>\n", virgule_nice_text (p, url));
 	  any = 1;
 	}
       notes = virgule_xml_get_prop (p, tree, "notes");
@@ -1426,111 +1693,45 @@ acct_certify_serve (VirguleReq *vr)
 			    "You need to be logged in to certify another <x>person</x>.");
 }
 
+
+
 /**
- * acct_kill: Remove a user account. Before an account is removed, all cert
- * and cert-in records are cleared. An account or account-alias may be
- # passed to this function as an argument. If an account-alias exists for
- * the account, it will also be removed.
+ * acct_killsub_serve: Sanity checks a web request for account deletion.
+ * Only requests submitted by a logged in, special user will be honored.
  **/
-static void
-acct_kill(VirguleReq *vr, const char *u)
+static int
+acct_killsub_serve(VirguleReq *vr)
 {
-  int n;
-  const char *user;
-  char *db_key, *db_key2, *user_alias, *diary;
-  apr_pool_t *p = vr->r->pool;
-  xmlDoc *profile, *staff, *entry;
-  xmlNode *tree, *cert, *alias;
+  const char *u = NULL;
+  apr_table_t *args;
+
+  args = virgule_get_args_table (vr);
+
+  /* do a few sanity checks before going any further */
+  if (args == NULL)
+    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission.\n");
+
+  virgule_auth_user (vr);
+  if (vr->u == NULL)
+    return virgule_send_error_page (vr, "Not logged in", "You must log in to access admin fucntions!");
+
+  if (!virgule_user_is_special(vr,vr->u))
+    return virgule_send_error_page (vr, "Unauthorized Access", "You are not authorized to use admin functions!\n");
   
-  db_key = virgule_acct_dbkey(vr, u);
-  profile = virgule_db_xml_get(p, vr->db, db_key);
-  alias = virgule_xml_find_child (profile->xmlRootNode, "alias");
+  u = apr_table_get (args, "u");
+  
+  if (u == NULL)
+    return virgule_send_error_page (vr, "Bad Username", "The user name was bad!\n");
 
-  if (alias != NULL) /* If this is the alias, kill it and find the username */
-    {
-      user = virgule_xml_get_prop (p, alias, "link");
-      virgule_db_xml_free (p, vr->db, profile);
-      virgule_db_del (vr->db, db_key);
-      db_key = virgule_acct_dbkey (vr, user);
-    }
-  else               /* If this is the username, check for and kill alias */
-    {
-      user = u;
-      user_alias = apr_pstrdup (p, u);
-      ap_str_tolower (user_alias);
-      if (! (strcmp (user_alias,u) == 0))
-        {
-          db_key2 = virgule_acct_dbkey (vr, user_alias);
-          if (db_key2 != NULL)
-            virgule_db_del (vr->db, db_key2);
-	}
-    }
-    
-  /* Clear cert records */
-  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
-  if (tree)
-    {
-      char *subject, *level;
-      for (cert = tree->children; cert != NULL; cert = cert->next)
-        if (cert->type == XML_ELEMENT_NODE && ! strcmp (cert->name, "cert"))
-	  {
-            subject = xmlGetProp (cert, "subj");
-	    level = xmlGetProp (cert, "level");
-	    virgule_cert_set (vr, user, subject, CERT_LEVEL_NONE);
-	    xmlFree(subject);
-	    xmlFree(level);
-	  }
-    }  
-
-  /* Clear cert-in records */
-  tree = virgule_xml_find_child (profile->xmlRootNode, "certs-in");
-  if (tree)
-    {
-      char *issuer, *level;
-      for (cert = tree->children; cert != NULL; cert = cert->next)
-        if (cert->type == XML_ELEMENT_NODE && ! strcmp (cert->name, "cert"))
-	  {
-	    issuer = xmlGetProp (cert, "issuer");
-	    level = xmlGetProp (cert, "level");
-	    virgule_cert_set (vr, issuer, user, CERT_LEVEL_NONE);
-	    xmlFree(issuer);
-	    xmlFree(level);
-	  }
-    }
-
-  /* Clear staff records */
-  db_key2 = apr_psprintf (p, "acct/%s/staff-person.xml", user);
-  staff = virgule_db_xml_get (p, vr->db, db_key2);
-  if (staff != NULL)
-    {
-      for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
-        {
-	  char *name;
-	  name = virgule_xml_get_prop (p, tree, "name");
-	  virgule_proj_set_relation(vr,name,user,"None");
-	}
-      virgule_db_xml_free (p, vr->db, staff);
-      virgule_db_del (vr->db, db_key2);
-    }
-
-  /* Clear diary entries */
-  diary = apr_psprintf(p, "acct/%s/diary", user);
-  for (n = virgule_db_dir_max (vr->db, diary); n >= 0; n--)
-    {
-      db_key2 = apr_psprintf (p, "acct/%s/diary/_%d", user, n);
-      entry = virgule_db_xml_get (p, vr->db, db_key2);
-      if (entry != NULL)
-        {
-	  virgule_db_del (vr->db, db_key2);
-          virgule_db_xml_free (p, vr->db, entry);
-	}
-    }
-
-  /* Remove the profile and account */
-  virgule_db_del (vr->db, db_key);
-  virgule_db_xml_free(p, vr->db, profile);
+  if (acct_kill (vr, u))
+    return virgule_send_error_page (vr, "Account Deleted", "User account: [%s] has been deleted!\n", u);
+  else     
+    return virgule_send_error_page (vr, "Error", "User account: [%s] was not deleted. acct_kill() failed!\n", u);
 }
 
+/**
+ * virgule_acct_touch: Touch user profile to record timestamp of this visit
+ **/
 void
 virgule_acct_touch(VirguleReq *vr, const char *u)
 {
@@ -1589,6 +1790,8 @@ virgule_acct_maint_serve (VirguleReq *vr)
     return acct_logout_serve (vr);
   if (!strcmp (vr->uri, "/acct/update.html"))
     return acct_update_serve (vr);
+  if (!strcmp (vr->uri, "/acct/killsub.html"))
+    return acct_killsub_serve (vr);
   if ((p = virgule_match_prefix (vr->uri, "/person/")) != NULL)
     return acct_person_serve (vr, p);
   if (!strcmp (vr->uri, "/acct/certify.html"))

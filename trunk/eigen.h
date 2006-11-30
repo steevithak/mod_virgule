@@ -22,4 +22,6 @@ virgule_eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u);
 int
 virgule_eigen_report (VirguleReq *vr, const char *u);
 
+void
+virgule_eigen_cleanup (VirguleReq *vr, const char *u);
 
