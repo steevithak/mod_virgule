@@ -4,6 +4,7 @@
 #include <apr.h>
 #include <apr_strings.h>
 #include <apr_file_io.h>
+#include <apr_date.h>
 #include <httpd.h>
 
 #include <libxml/entities.h>
@@ -815,10 +816,37 @@ virgule_nice_htext (VirguleReq *vr, const char *raw, char **p_error)
 }
 
 /**
+ * virgule_time_t_to_iso: Converts a Unix time_t value to string in an ISO
+ * format ("YYYY-MM-DD hh:mm:ss"). Returned time will be in the local time
+ * zone. For a time_t value of 0 or -1, the current time is returned.
+ *
+ * ToDo: It would probably be wise to add a timezone and use either the
+ * full ISO 8661 or RFC-3339 formats. This would require conversion of all
+ * the existing dates in the XML database, however.
+ **/
+char *
+virgule_time_t_to_iso (VirguleReq *vr, time_t t)
+{
+  apr_time_t time = 0;
+
+  if(t < 1)
+    time = apr_time_now();
+  else 
+    apr_time_ansi_put (&time, t);
+  
+  return ap_ht_time (vr->r->pool, time, "%Y-%m-%d %H:%M:%S", 0);
+}
+
+
+/**
  * iso_now: Current date/time in iso format.
  * Return value: Time in "YY-MM-DD hh:mm:ss" format.
  *
  * Note: we should at least be adding a timezone.
+ * 
+ * Steve's notes:
+ * Need to investigate whether or not ap_ht_time compensates for the local
+ * time zone.
  **/
 char *
 virgule_iso_now (apr_pool_t *p)
@@ -827,6 +855,74 @@ virgule_iso_now (apr_pool_t *p)
                      "%Y-%m-%d %H:%M:%S", 0);
 }
 
+
+/**
+ * virgule_rfc822_to_time_t: Translates an RFC-822 encoded time string into
+ * a Unix time_t value. We rely on the APR function apr_date_parse_rfc to
+ * do the dirtywork. It claims to parse true RFC-822 strings as well as
+ * nine common variants that are known to occur in the wild. 
+ **/
+time_t
+virgule_rfc822_to_time_t (VirguleReq *vr, const char *time_string)
+{
+  apr_time_t at;
+  
+  if(time_string == NULL)
+    return -1;
+
+  at = apr_date_parse_rfc (time_string);
+
+  return apr_time_sec(at);
+}
+
+
+
+/**
+ * virgule_rfc3339_to_time_t: Translates an RFC-3339 encoded time string
+ * into a Unix time_t value. RFC-3339 is equivalent to the ISO 8601 time
+ * encoding format. This format is used in Atom (RFC-4278) XML files.
+ *
+ * Both mktime and timegm ignore the timezone in the tm struct, so we have
+ * to adjust if needed, based on the offset in the encoded string.
+ **/
+time_t
+virgule_rfc3339_to_time_t (VirguleReq *vr, const char *time_string)
+{
+  const char *c;
+  int mm = 0;
+  int hh = 0;
+  int n = 0;
+  time_t t;
+  struct tm tm;
+
+  if(time_string == NULL)
+    return -1;
+
+  memset(&tm, 0, sizeof(struct tm));
+  strptime(time_string, "%FT%T%z", &tm);
+  t = timegm(&tm);
+
+  /* Explicit UTC designation */
+  c = time_string + strlen(time_string);
+  if (*c == 'Z' || *c == 'z')
+    return t;
+
+  /* Explicit UTC offset designation */
+  c = time_string + strlen(time_string) - 6;
+  if (*c == '-' || *c == '+')
+    {
+      if (*c == '-')
+        n = -1;
+      else
+        n = 1;
+      hh = atoi (c+1);
+      mm = atoi (c+4);
+    }
+
+  return t - (((mm * 60) + (hh * 60 * 60)) * n);
+}
+
+
 /**
  * iso_to_time_t: Compute Unix time from ISO date string.
  * @iso: String in ISO format (usually from iso_now).
@@ -834,6 +930,10 @@ virgule_iso_now (apr_pool_t *p)
  * Return value: Unix time, roughly number of seconds since 1970-01-01.
  *
  * Note: we should recognize and parse timezone code also.
+ *
+ * Steve's notes:
+ * This code is currently broken in that it assumes the ISO time zone is UTC.
+ * The resulting time_t value will be off by the amount of local time offset.
  **/
 time_t
 virgule_iso_to_time_t (const char *iso)
@@ -843,7 +943,7 @@ virgule_iso_to_time_t (const char *iso)
 		     184, 214, 245, 275, 306, 337 }; /* march-relative */
   time_t result;
 
-  if (strlen (iso) < 10 || iso[4] != '-' || iso[7] != '-')
+  if (iso == NULL || strlen (iso) < 10 || iso[4] != '-' || iso[7] != '-')
     return 0;
   year = atoi (iso);
   month = atoi (iso + 5);

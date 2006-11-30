@@ -104,19 +104,8 @@ virgule_req_get_tmetric (VirguleReq *vr)
     }
 
   return vr->priv->tmetric;
-
-/* old 
-  char *result;
-  if (vr->tmetric)
-    return vr->tmetric;
-
-  result = virgule_tmetric_get (vr);
-  vr->tmetric = result;
-
-  return result;
-*/
-
 }
+
 
 /**
  * req_get_tmetric_level: Get the trust metric level of a user.

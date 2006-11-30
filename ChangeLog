@@ -1,8 +1,106 @@
-2006-11-05 R. Steven Rainwtaer <steve@ncc.com>
+2006-11-15 R. Steven Rainwater <steve@ncc.com>
 
-	* diary.c (virgule_diary_latest_entry): Returns a Unix time_t value
-	reflecting the timestamp of the most recent diary entry for the
-	specified user.
+	* aggregator.c (aggregator_index_atom_10): Now handles missing link
+	within items correctly.
+
+        * xml_util.c (virgule_xml_get_string_contents): Bug fix. Now handles
+	CDATA sections correctly.
+
+	* acct.c (acct_kill): The aggregator feedlist is checked during
+	account deletion and the user's feed is removed if it is present.
+
+	* aggregator.c (aggregator_index_rss_20): Now checks for the presence
+	of a content:encoded tag and uses that in place of the description
+	tag contents if found. Alternate formats that use dc:date in place
+	of pubDate are also supported. 
+
+2006-11-14 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_index_rdf_site_summary_10): RDF Site Summary
+	parsing is now working. Only one variant using a combination of the 
+	Dublin Core module for dates and a draft version of the Content
+	module for content encoding has been tested. Other variants are 
+	unlikely to work.
+
+2006-11-13 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_index_rss_20): RSS parsing is now working.
+	Most versions should work but older versions will need the optional
+	pubDate tag in order to be parsed correctly.
+
+	* acct.c (acct_newsub_serve): Increased recent account listings from
+	50 to 100 for admin reasons. It's helpful to keep a month or so of
+	listings since some spammers wait for while before doing anything
+	interesting.
+
+	* util.c (virgule_time_t_to_iso): Converts a time_t value to an
+	virgule-style ISO string. If no time_t value is given, the current
+	time is rendered. 
+
+	* util.c (virgule_rfc822_to_time_t): Converts an RFC-822 encoded
+	time to a time_t value.
+
+2006-11-12 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (virgule_diary_store_feed_item): Stores an item from a 
+	syndicated feed in a user's local blog. Several elements are added 
+	to the XML document that are not included when a local diary entry 
+	is made, such as the permalink to the original (remote) blog post.
+
+2006-11-11 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (item_compare): A simple qsort function to compare
+	the timestamps of blog items.
+
+	* mod_virgule.c (read_site_config): Added computation of the local
+	server's time offset from UTC in seconds. We aren't using this yet
+	but will need it in the near future.	
+
+2006-11-10 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_normalize_feed): Takes whatever kind of
+	feed you've got and returns a normalized structure with normalized
+	timestamps, with items sorted by posting time.
+
+	* aggregator.c (aggregator_index_atom_10, aggregator_index_rss_20,
+	aggregator_index_rdf_site_summary_10): Functions to normalize and
+	index Atom, RSS, and RDF Site Summary feeds. At present we use a
+	small subset of the tags in each, so it seems safe enough to use
+	these for other versions of their kind (e.g. the rss_20 function
+	should work fine on RSS 0.91 feeds, etc.)
+
+        * xml_util.c (virgule_xml_get_string_contents): Verifies that the
+	passed xmlNode is non-NULL before using it. May have been the
+	source of some segfaults.
+
+	* util.c (virgule_rfc3339_to_time_t): Converts an RFC-3339 encoded
+	time to a time_t value.
+
+
+2006-11-09 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (diary_edit_serve): Minor correction to error message
+	text. Added missing quotes to attributes in HTML tags.
+
+	* proj.c (proj_proj_serve): Fixed bug that caused all the projects
+	to vanish. A missing bracket on an if statement was causing all
+	project pages to return a 404.
+
+	* db_ops.c (virgule_remove_recent): Fixed bug that limited removal
+	of entries from recent files to the initial instance. Now all 
+	instances of an entry will be removed.
+	
+2006-11-07 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_identify_feed_type): Attempts to identify
+	the format of a blog feed by examining the XML file. Initially it
+	works on most versions of Atom, RSS, and RDF Site Summary formats.
+
+2006-11-05 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (virgule_diary_latest_feed_entry): Returns a Unix time_t 
+	value reflecting the timestamp of the most recent syndicated diary 
+	entry for the specified user.
 
 	* aggregator.c (aggregator_post_feed): Attempts to identify new blog
 	posts in the user's feed buffer and appends them to the user's blog.
@@ -16,8 +114,8 @@
 2006-11-02 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (virgule_update_aggregator_list): Created this function
-	to check the specified users account and add or delete them from the
-	aggregation list depending on their current account settings.
+	to check the specified user account and add them to or delete them 
+	from the aggregation list depending on their current account settings.
 
 2006-11-01 R. Steven Rainwater <steve@ncc.com>
 

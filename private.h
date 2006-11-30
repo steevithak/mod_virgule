@@ -56,6 +56,7 @@ struct virgule_private {
   int		     level_projectcreate;
   int		     level_blogsyndicate;
   int		     acct_spam_threshold;
+  long		     utc_offset;  /* Local offset of from UTC in seconds */
   const Topic	   **topics;
   const NavOption  **nav_options;
   const AllowedTag **allowed_tags;

@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061105"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061115"
 
 #include <string.h>
 
@@ -33,6 +33,7 @@
 #include "site.h"
 #include "apache_util.h"
 #include "acct_maint.h"
+#include "aggregator.h"
 #include "diary.h"
 #include "article.h"
 #include "proj.h"
@@ -47,7 +48,6 @@
 #include "xml_util.h"
 #include "rating.h"
 #include "certs.h"
-#include "aggregator.h"
 #include "hashtable.h" /* for unit testing */
 
 /* Process specific pool */
@@ -472,6 +472,8 @@ read_site_config (VirguleReq *vr)
   const NavOption **n_item;
   const Topic **at_item;
   apr_pool_t *privpool = NULL;
+  time_t now;
+  struct tm tm;
 
   /* Allocate thread private data struct and memory pool */
   if (apr_pool_create(&privpool,ppool) != APR_SUCCESS)
@@ -485,6 +487,11 @@ read_site_config (VirguleReq *vr)
   /* Don't bother reading in the tmetric data until we need it */
   vr->priv->tmetric = NULL;
   vr->priv->tm_pool = NULL;
+
+  /* Figure out the local time zone offset using thread-safe POSIX func */
+  now = time(NULL);
+  localtime_r(&now, &tm);
+  vr->priv->utc_offset = tm.tm_gmtoff;
 
   /* Load and parse the site configuration */
   doc = virgule_db_xml_get (vr->r->pool, vr->db, "config.xml");
