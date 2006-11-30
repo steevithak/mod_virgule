@@ -9,6 +9,7 @@
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -84,7 +85,7 @@ proj_url (VirguleReq *vr, const char *proj)
 {
   apr_pool_t *p = vr->r->pool;
   return apr_pstrcat (p, vr->prefix, "/proj/", escape_uri_arg (p, proj),
-		     vr->projstyle == PROJSTYLE_RAPH ? "/" : "/#lastread",
+		     vr->priv->projstyle == PROJSTYLE_RAPH ? "/" : "/#lastread",
 		     NULL);
 }
 
@@ -152,8 +153,8 @@ proj_new_serve (VirguleReq *vr)
   Buffer *b = vr->b;
   const char *rfields[] = { "name", "url", "fmurl", "desc", "notes", NULL };
   const char *nfields[] = { "name", "url", "notes", NULL };
-  const char **fields = vr->projstyle == PROJSTYLE_RAPH ? rfields : nfields;
-  SchemaField *proj_fields = vr->projstyle == PROJSTYLE_RAPH ? rproj_fields :
+  const char **fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rfields : nfields;
+  SchemaField *proj_fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rproj_fields :
     							       nproj_fields;
 
   auth_user (vr);
@@ -259,7 +260,7 @@ proj_newsub_serve (VirguleReq *vr)
 
   add_recent (p, db, "recent/proj-c.xml", name, 50, 0);
   add_recent (p, db, "recent/proj-m.xml", name,
-              vr->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
+              vr->priv->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
 
   return send_error_page (vr,
 			  "<x>Project</x> created",
@@ -301,7 +302,7 @@ proj_index_serve (VirguleReq *vr)
   auth_user (vr);
 
   render_header (vr, "<x>Project</x> index", NULL);
-  if (vr->projstyle == PROJSTYLE_RAPH)
+  if (vr->priv->projstyle == PROJSTYLE_RAPH)
     buffer_puts (b, "<ul>\n");
   dbc = db_open_dir (db, "proj");
   
@@ -319,11 +320,11 @@ proj_index_serve (VirguleReq *vr)
   
   for(i = 0; i < list->nelts; i++)
     {
-      if (vr->projstyle == PROJSTYLE_RAPH)
+      if (vr->priv->projstyle == PROJSTYLE_RAPH)
         {
           buffer_printf (b, "<li>%s\n", render_proj_name (vr, ((char **)list->elts)[i]));
         }
-      else /* vr->projstyle == PROJSTYLE_NICK */
+      else /* vr->priv->projstyle == PROJSTYLE_NICK */
         {
           char *db_key = apr_psprintf (p, "proj/%s/info.xml", ((char **)list->elts)[i]);
           char *creator;
@@ -357,7 +358,7 @@ proj_index_serve (VirguleReq *vr)
         }
     }
     
-  if (vr->projstyle == PROJSTYLE_RAPH)
+  if (vr->priv->projstyle == PROJSTYLE_RAPH)
     buffer_puts (b, "</ul>\n");
 
   if (vr->u != NULL)
@@ -413,12 +414,12 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 			    "<x>Project</x> <tt>%s</tt> was not found.",
 			    nice_text (p, name));
 
-  if (vr->projstyle == PROJSTYLE_RAPH)
+  if (vr->priv->projstyle == PROJSTYLE_RAPH)
     {
       title = apr_psprintf (p, "<x>Project</x> info for %s", nice_text (p, name));
       render_header (vr, title, NULL);
     }
-  else /* vr->projstyle == PROJSTYLE_NICK */
+  else /* vr->priv->projstyle == PROJSTYLE_NICK */
     {
       title = apr_psprintf(p, "%s", nice_text (p, name));
       render_header_raw (vr, title, NULL);
@@ -440,7 +441,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       creator = xml_get_prop (p, tree, "creator");
       lastmodby = xml_get_prop (p, tree, "lastmodby");
 
-      if (vr->projstyle == PROJSTYLE_NICK)
+      if (vr->priv->projstyle == PROJSTYLE_NICK)
 	{
 	  render_cert_level_begin (vr, creator, CERT_STYLE_LARGE);
 	  buffer_puts (b, title);
@@ -467,7 +468,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       if (url && url[0])
 	{
 	  buffer_printf (b, render_url (p,
-					vr->projstyle == PROJSTYLE_RAPH ?
+					vr->priv->projstyle == PROJSTYLE_RAPH ?
 					" Homepage: " :
 					" URL: ",
 					url));
@@ -487,7 +488,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       if (desc && desc[0])
 	buffer_printf (b, "<p> Description: %s </p>\n", nice_text (p, desc));
 
-      if (vr->projstyle == PROJSTYLE_RAPH)
+      if (vr->priv->projstyle == PROJSTYLE_RAPH)
 	{
 	  /* Render staff listings */
 	  myrel = NULL;
@@ -530,7 +531,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 			   "</form>\n");
 	    }
 	}
-      else /* vr->projstyle == PROJSTYLE_NICK */
+      else /* vr->priv->projstyle == PROJSTYLE_NICK */
 	{
 	  /* Render replies */
 	  proj_dir = apr_psprintf (vr->r->pool, "proj/%s", name);
@@ -616,7 +617,7 @@ proj_edit_serve (VirguleReq *vr)
   char *db_key;
   xmlDoc *doc;
   xmlNode *tree;
-  SchemaField *proj_fields = vr->projstyle == PROJSTYLE_RAPH ? rproj_fields :
+  SchemaField *proj_fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rproj_fields :
     							       nproj_fields;
 
   args = get_args_table (vr);
@@ -666,7 +667,7 @@ proj_editsub_serve (VirguleReq *vr)
   int status;
   const char *fields[] = { "url", "fmurl", "desc", "notes", NULL };
   const char *name;
-  SchemaField *proj_fields = vr->projstyle == PROJSTYLE_RAPH ? rproj_fields :
+  SchemaField *proj_fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rproj_fields :
     							       nproj_fields;
 
   db_lock_upgrade(vr->lock);
@@ -703,7 +704,7 @@ proj_editsub_serve (VirguleReq *vr)
 			    "There was an error storing the <x>project</x>. This means there's something wrong with the site.");
 
   add_recent (p, db, "recent/proj-m.xml", name, 
-	      vr->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
+	      vr->priv->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
 
   return send_error_page (vr,
 			  "<x>Project</x> updated",
@@ -1087,7 +1088,7 @@ proj_serve (VirguleReq *vr)
   if (!strcmp (p, "newsub.html"))
     return proj_newsub_serve (vr);
 
-  if (vr->projstyle == PROJSTYLE_NICK && !strcmp (p, "reply.html"))
+  if (vr->priv->projstyle == PROJSTYLE_NICK && !strcmp (p, "reply.html"))
     return proj_reply_form_serve (vr);
     
   if (!strcmp (p, "edit.html"))
@@ -1099,13 +1100,13 @@ proj_serve (VirguleReq *vr)
   if (!strcmp (p, "relsub.html"))
     return proj_relsub_serve (vr);
 
-  if (vr->projstyle == PROJSTYLE_NICK && !strcmp (p, "replysubmit.html"))
+  if (vr->priv->projstyle == PROJSTYLE_NICK && !strcmp (p, "replysubmit.html"))
       return proj_reply_submit_serve(vr);
 
-  if (vr->projstyle == PROJSTYLE_NICK && !strcmp (p, "nextnew.html"))
+  if (vr->priv->projstyle == PROJSTYLE_NICK && !strcmp (p, "nextnew.html"))
       return proj_next_new_serve (vr);
 
-  if (vr->projstyle == PROJSTYLE_NICK && !strcmp (p, "updatepointers.html"))
+  if (vr->priv->projstyle == PROJSTYLE_NICK && !strcmp (p, "updatepointers.html"))
       return proj_update_all_pointers_serve (vr);
 
  if (!strcmp (p, ""))

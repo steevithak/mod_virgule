@@ -5,6 +5,7 @@
 #include <apr_strings.h>
 #include <httpd.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -23,7 +24,6 @@ render_header_raw (VirguleReq *vr, const char *title, const char *head_content)
   buffer_printf (b, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
                  "<html>\n<head><title>%s</title>\n", title);
                  
-#ifdef STYLE
   buffer_printf (b, "<link rel=\"stylesheet\" type=\"text/css\" "
                  "href=\"%s/css/global.css\">\n"
 		 "<link rel=\"shortcut icon\" href=\"/images/favicon.ico\" />"
@@ -31,26 +31,16 @@ render_header_raw (VirguleReq *vr, const char *title, const char *head_content)
                  "@import \"%s/css/notns4.css\"; --></style>\n",
                  vr->prefix, vr->prefix);
 
-    buffer_printf (b,"<script language=\"JavaScript\" type=\"text/javascript\">\n"
-		     "<!-- \n"
-		     "if (top != self) { top.location = self.location } \n"
-		     "//-->\n"
-		     "</script>\n");
-
-#endif
+  buffer_printf (b,"<script language=\"JavaScript\" type=\"text/javascript\">\n"
+	         "<!-- \n"
+		 "if (top != self) { top.location = self.location } \n"
+		 "//-->\n"
+		 "</script>\n");
 
   if (head_content)
     buffer_puts (b, head_content);
 
-  buffer_puts (b, "</head>\n\n");
-
-#ifdef STYLE
-  buffer_puts (b, "<body>\n");
-#endif
-#ifndef STYLE
-  buffer_puts (b, "<body bgcolor=white>\n"
-               "<font face=\"lucida,helvetica,sans-serif\">\n");
-#endif
+  buffer_puts (b, "</head>\n\n<body>\n");
 
   vr->raw = 1;
 }
@@ -61,15 +51,7 @@ render_header (VirguleReq *vr, const char *title, const char *head_content)
   Buffer *b = vr->b;
   
   render_header_raw (vr, title, head_content);
-// RSR test code begin
-  buffer_puts (b, "<table bgcolor=\"#406690\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">\n");
-  buffer_puts (b, "<tr><td><a href=\"http://robots.net/\"><img src=\"/images/logo160.png\" width=\"160\" height=\"49\" border=\"0\">");
-  buffer_puts (b, "</a></td><td width=\"100%\" align=\"center\">");
-  site_render_banner_ad(vr);
-  buffer_puts (b, "</td></tr><tr><td colspan=\"2\" align=\"right\" class=\"sitemap\">");
-  render_sitemap(vr,0);
-  buffer_puts (b, "</td></tr></table><div class=\"main\" style=\"margin: 2em;\">");
-// RSR test code end
+  buffer_puts (b, "<div class=\"main\" style=\"margin: 2em;\">");
   vr->raw = 0;
 }
 
@@ -79,6 +61,10 @@ struct _NavOption {
   char *url;
 };
 
+
+/*
+ * The enclose option is for backward compatibility with advogato.org only
+ */
 void
 render_sitemap (VirguleReq *vr, int enclose)
 {
@@ -88,13 +74,11 @@ render_sitemap (VirguleReq *vr, int enclose)
   if (vr->sitemap_rendered)
     return;
     
-//  if (enclose)
-//    buffer_puts (vr->b, "<p align=center>");
-#ifdef STYLE
-  buffer_puts (vr->b, "<span class=\"sitemap\">&nbsp;[ ");
-#endif
+  if (enclose)
+    buffer_puts (vr->b, "<p align=center>");
 
-  for (option = vr->nav_options; *option; option++)
+  buffer_puts (vr->b, "<span class=\"sitemap\">&nbsp;[ ");
+  for (option = vr->priv->nav_options; *option; option++)
     {
       if(!*(option+1)) { separator = ""; }
       buffer_printf (vr->b, "<a href=\"%s\">%s</a>%s",
@@ -102,54 +86,22 @@ render_sitemap (VirguleReq *vr, int enclose)
 		     (*option)->label,
 		     separator);
     }
-
-#ifdef STYLE
   buffer_puts (vr->b, " ]&nbsp;</span>");
-#endif    
-//  if (enclose)
-//    buffer_puts (vr->b, "</p>");
+
+  if (enclose)
+    buffer_puts (vr->b, "</p>");
+
   vr->sitemap_rendered = 1;
-}
-
-void
-render_footer (VirguleReq *vr)
-{
-  Buffer *b = vr->b;
-
-  if (!vr->raw)
-    buffer_puts (b, "</div>\n");
-
-  render_sitemap (vr, 1);
-  buffer_puts (b,
-#ifndef STYLE
-	       "</font>\n"
-#endif
-	       "</body>\n"
-	       "</html>\n");
-}
-
-int
-render_table_open (VirguleReq *vr)
-{
-#ifndef STYLE
-  buffer_puts (vr->b, "<font face=\"lucida,helvetica,sans-serif\">\n");
-#endif
-  return 0;
-}
-
-int
-render_table_close (VirguleReq *vr)
-{
-#ifndef STYLE
-  buffer_puts (vr->b, "</font>\n");
-#endif
-  return 0;
 }
 
 int
 render_footer_send (VirguleReq *vr)
 {
-  render_footer (vr);
+  if (!vr->raw)
+    buffer_puts (vr->b, "</div>\n");
+
+  render_sitemap (vr, 1);  /* needed for advogato.org compatibility */  
+  buffer_puts (vr->b, "</body>\n</html>\n");
   return send_response (vr);
 }
 

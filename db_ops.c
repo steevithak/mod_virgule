@@ -11,6 +11,7 @@
 
 #include <libxml/tree.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"

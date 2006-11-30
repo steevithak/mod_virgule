@@ -15,6 +15,7 @@
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -215,13 +216,13 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
     }
 
   auth_user (vr);
-  if (vr->render_diaryratings && vr->u)
+  if (vr->priv->render_diaryratings && vr->u)
     {
         char *eigen_key = apr_pstrcat (p, "eigen/vec/", vr->u, NULL);
 	ev = eigen_vec_load (p, vr, eigen_key);
     }
 
-  if (vr->recentlog_as_posted)
+  if (vr->priv->recentlog_as_posted)
     entries = apr_table_make (p, 4);
 
   root = doc->xmlRootNode;
@@ -263,7 +264,7 @@ site_render_recent_changelog (VirguleReq *vr, int n_max)
 			 eve->rating);
 	}
 
-      if (vr->recentlog_as_posted)
+      if (vr->priv->recentlog_as_posted)
 	{
 	  const char *result = apr_table_get (entries, name);
 	  if (result)
@@ -320,7 +321,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
       char *name = xml_get_string_contents (tree);
       char *date = xml_get_prop (p, tree, "date");
       
-      if (vr->projstyle == PROJSTYLE_RAPH)
+      if (vr->priv->projstyle == PROJSTYLE_RAPH)
         {
 	  buffer_printf (vr->b, "<div class=\"recentproj\"> %s %s</div>\n",
 			 render_date (vr, date, 0), render_proj_name (vr, name));
@@ -583,12 +584,12 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	}
       else if (!strcmp (node->name, "newaccountsallowed"))
         {
-	    if (vr->allow_account_creation)
+	    if (vr->priv->allow_account_creation)
 	        site_render_children (ctx, node);
 	}
       else if (!strcmp (node->name, "nonewaccountsallowed"))
         {
-	    if (!vr->allow_account_creation)
+	    if (!vr->priv->allow_account_creation)
 	        site_render_children (ctx, node);
 	}
       else if (!strcmp (node->name, "canpost"))
@@ -644,15 +645,7 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	      buffer_puts (b, "\"");
 	    }
 	  buffer_puts (b, ">");
-#ifdef noSTYLE	  
-	  if (!strcmp (node->name, "td"))
-	    render_table_open (vr);
-#endif
 	  site_render_children (ctx, node);
-#ifdef noSTYLE	  
-	  if (!strcmp (node->name, "td"))
-	    render_table_close (vr);
-#endif
 	  if (strcmp (node->name, "input") && strcmp (node->name, "img"))
 	    buffer_append (b, "</", node->name, ">", NULL);
 	}

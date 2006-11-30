@@ -1,3 +1,68 @@
+2005-07-27 R. Steven Rainwater <steve@ncc.com>
+
+	* Makefile: Added --strip-debug to linker options to keep filesize
+	reasonable. This is done already on some distros depending on how
+	they build Apache. Explicitly adding the option just makes sure it
+	gets done consistently on all builds.
+	
+2005-07-25 R. Steven Rainwater <steve@ncc.com>
+
+	* certs.c (render_cert_level_begin, render_cert_level_end): Removed
+	unneed calls to render_table_open() and render_table_close().
+
+	* site.c (render_footer): Removed this redundant function. The
+	function render_footer_send now does it all.
+
+	* site.c (site_render): Removed unneeded calls to render_table_open()
+	and render_table_close().
+
+	* style.c (render_header_raw, render_footer): Removed unneeded STYLE
+	ifdefs and related code used to render old-style <FONT> tags.
+	
+	* style.c (render_table_open, render_table_close): Removed these
+	unused functions.
+	
+	* style.c (renders_sitemap): Removed unneeded STYLE ifdefs while
+	retaining the enclosed flag for advogato compatiblity.
+
+	* general: Added a sample data/intermap.txt file to the sample_db
+	directory so that wiki tags will work on new installs.
+
+2005-07-22 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (diary_rss_export): Fixed segfault that occured on if an
+	RSS XML file was built from an empty diary entry.
+
+2005-07-20 R. Steven Rainwater <steve@ncc.com>
+
+	* Makefile: Added -fno-strict-aliasing flag to get around the
+	type-punned pointer problem in eigen.c that prevents compilation
+	by gcc 3.4.3.
+	
+2005-07-10 R. Steven Rainwater <steve@ncc.com>
+
+	* private.h: Created an include for mod_virgule thread private data
+	structures. Moved some elements of the VirguleReq data structure
+	found in req.h to a virgule_private data structure in this file.
+
+	* (general): Modified the site configuration handling to use a thread
+	private data pool that persists across requests. The site config.xml
+	file is now loaded into virgule_private once for each Apache thread
+	instead of into req once for each request. If the config.xml file is
+	update, it will be reloaded as needed.
+
+	* mod_virgule.c (test_page): Now displays status of the new account
+	creation setting of the configuration. The time stamp of the config
+	file in use is also displayed.
+	
+2005-07-01 R. Steven Rainwater <steve@ncc.com>
+
+	* (general): Diaries are known as weblogs today by just about everyone
+	and it seems to confuse users to refer to them as anything else. So
+	I'm updating all textual references throughout the code from "diary"
+	to "weblog". For now, I'm leaving "diary" in the underlying code and
+	URL references but that should probably be modernized at some point.
+
 2005-06-22 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Fixed a very old HTML coding

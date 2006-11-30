@@ -2,6 +2,7 @@
 #include <apr_strings.h>
 #include <httpd.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "apache_util.h"
@@ -149,10 +150,10 @@ req_ok_to_post (VirguleReq *vr)
   if (vr->u == NULL)
     return 0;
 
-  if (*vr->seeds)
+  if (*vr->priv->seeds)
     {
       const char **s;
-      for (s = vr->seeds; *s; s++)
+      for (s = vr->priv->seeds; *s; s++)
 	if(strcmp(vr->u,*s) == 0)
 	  return 1;
     }

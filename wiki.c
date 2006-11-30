@@ -5,6 +5,7 @@
 #include <apr_strings.h>
 #include <httpd.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"

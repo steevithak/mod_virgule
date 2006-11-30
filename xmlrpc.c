@@ -6,6 +6,7 @@
 #include <libxml/parser.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"

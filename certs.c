@@ -6,6 +6,7 @@
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -22,7 +23,7 @@ cert_num_levels (VirguleReq *vr)
   int count;
 
   for (count = 0;; count++)
-    if (!vr->cert_level_names[count])
+    if (!vr->priv->cert_level_names[count])
       break;
 
   return count;
@@ -34,9 +35,9 @@ cert_level_from_name (VirguleReq *vr, const char *name)
   int i;
 
   for (i = 0;; i++) {
-    if (!vr->cert_level_names[i])
+    if (!vr->priv->cert_level_names[i])
       break;
-    if (!strcmp (name, vr->cert_level_names[i]))
+    if (!strcmp (name, vr->priv->cert_level_names[i]))
       return i;
   }
   return CERT_LEVEL_NONE;
@@ -46,7 +47,7 @@ const char *
 cert_level_to_name (VirguleReq *vr, CertLevel level)
 {
   if (level >= 0 && level < cert_num_levels (vr))
-    return vr->cert_level_names[level];
+    return vr->priv->cert_level_names[level];
   return "None";
 }
 
@@ -206,12 +207,11 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
 void
 render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
 {
-  Buffer *b = vr->b;
   const char *level;
   CertLevel cert_level;
   const char **u;
 
-  for (u = vr->special_users; *u; u++)
+  for (u = vr->priv->special_users; *u; u++)
     if (!strcmp (user, *u))
       break;
 
@@ -222,8 +222,7 @@ render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
       level = req_get_tmetric_level (vr, user);
       cert_level = cert_level_from_name (vr, level);
     }
-  buffer_printf (b, "<%s class=\"level%d\">", cs, cert_level);
-  render_table_open (vr);
+  buffer_printf (vr->b, "<%s class=\"level%d\">", cs, cert_level);
 }
 
 /**
@@ -236,10 +235,7 @@ render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
 void
 render_cert_level_end (VirguleReq *vr, CertStyle cs)
 {
-  Buffer *b = vr->b;
-
-  render_table_close (vr);
-  buffer_printf (b, "</%s>\n", cs);
+  buffer_printf (vr->b, "</%s>\n", cs);
 }
 
 void

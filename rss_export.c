@@ -18,6 +18,7 @@
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
 
+#include "private.h"
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
@@ -48,7 +49,7 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree, 
 #endif
 
   title = xml_find_child_string (root, "title", "(no title)");
-  link = apr_psprintf (p, "%s/article/%d.html", vr->base_uri, art_num);
+  link = apr_psprintf (p, "%s/article/%d.html", vr->priv->base_uri, art_num);
   raw_description = xml_find_child_string (root, "lead", "(no description)");
   tmpdate = xml_find_child_string(root, "date", "(no date)");
   pubdate = render_date (vr, tmpdate, 2);
@@ -126,11 +127,11 @@ rss_index_serve (VirguleReq *vr, int vers)
     xmlSetProp (doc->xmlRootNode, "version", "2.0");
   
   tree = xmlNewChild (doc->xmlRootNode, NULL, "channel", NULL);
-  subtree = xmlNewChild (tree, NULL, "title", vr->site_name);
+  subtree = xmlNewChild (tree, NULL, "title", vr->priv->site_name);
   subtree = xmlNewChild (tree, NULL, "link", 
-			apr_psprintf (p, "%s/", vr->base_uri));
+			apr_psprintf (p, "%s/", vr->priv->base_uri));
   subtree = xmlNewChild (tree, NULL, "description", 
-			apr_psprintf (p, "Recent %s articles", vr->site_name));
+			apr_psprintf (p, "Recent %s articles", vr->priv->site_name));
   subtree = xmlNewChild (tree, NULL, "language", "en-us");
 
   art_num = db_dir_max (vr->db, "articles");
