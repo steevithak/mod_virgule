@@ -43,13 +43,20 @@ struct virgule_private {
   const char       **trans;
   int                render_diaryratings;
   int                allow_account_creation;
+  int		     allow_account_extendedcharset;
+  int		     use_article_title_links;
   int		     use_article_topics;
+  int		     article_post_by_seeds_only;
+  int	             level_articlepost;
+  int		     level_articlereply;
+  int		     level_projectcreate;
   const Topic	   **topics;
   const NavOption  **nav_options;
   const AllowedTag **allowed_tags;
   enum {
     PROJSTYLE_RAPH,
-    PROJSTYLE_NICK
+    PROJSTYLE_NICK,
+    PROJSTYLE_STEVE
   }               projstyle;
 };
 

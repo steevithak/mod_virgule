@@ -23,7 +23,7 @@ struct _NetFlowPriv {
 };
 
 NetFlow *
-net_flow_new (void)
+virgule_net_flow_new (void)
 {
   NetFlow *result = g_new (NetFlow, 1);
 
@@ -47,7 +47,7 @@ net_flow_free_helper (gpointer key, gpointer value, gpointer user_data)
 }
 
 void
-net_flow_free (NetFlow *self)
+virgule_net_flow_free (NetFlow *self)
 {
   NetFlowPriv *priv;
   int i;
@@ -95,7 +95,7 @@ net_flow_free (NetFlow *self)
 }
 
 gint
-net_flow_find_node (NetFlow *self, const char *name)
+virgule_net_flow_find_node (NetFlow *self, const char *name)
 {
   gpointer resultptr;
 
@@ -142,10 +142,12 @@ net_flow_node_name_helper (gpointer key, gpointer value, gpointer user_data)
  * Finds the name of the numbered node. Note: this is intended primarily
  * for debugging and is certainly not coded for speed.
  *
+ * Not used in the live code.
+ *
  * Return value: The name of the node, or NULL if not found.
  **/
 char *
-net_flow_node_name (NetFlow *self, int node)
+virgule_net_flow_node_name (NetFlow *self, int node)
 {
 
   /* todo: doesn't gracefully handle new names after first call of this
@@ -160,13 +162,13 @@ net_flow_node_name (NetFlow *self, int node)
 }
 
 void
-net_flow_add_edge (NetFlow *self, const char *src, const char *dst)
+virgule_net_flow_add_edge (NetFlow *self, const char *src, const char *dst)
 {
   gint src_id;
   gint dst_id;
 
-  src_id = net_flow_find_node (self, src);
-  dst_id = net_flow_find_node (self, dst);
+  src_id = virgule_net_flow_find_node (self, src);
+  dst_id = virgule_net_flow_find_node (self, dst);
   if (self->n_succs[src_id] == self->n_succs_max[src_id])
     {
       self->n_succs_max[src_id] <<= 1;
@@ -237,8 +239,11 @@ net_flow_assign_capacities (NetFlow *self, gint seed, const int *caps, int n_cap
 
 /* Do a greedy assignment into a tree. Return a predecessor represenation
    of the tree (newly alloc'ed). */
+/*
+ *  Appears to be called only in this source file. Should this be static?
+ */
 int *
-net_flow_assign_tree (NetFlow *self, gint seed, const int *caps, int n_caps)
+virgule_net_flow_assign_tree (NetFlow *self, gint seed, const int *caps, int n_caps)
 {
   int n_nodes = self->n_nodes;
   int *pred;
@@ -379,8 +384,11 @@ net_flow_assign_tree (NetFlow *self, gint seed, const int *caps, int n_caps)
   return pred;
 }
 
+/*
+ *  Appears to be called only in this source file. Should this be static?
+ */
 int
-net_flow_sanity_check_tree (NetFlow *self, int seed, int *pred)
+virgule_net_flow_sanity_check_tree (NetFlow *self, int seed, int *pred)
 {
   int n_nodes = self->n_nodes;
   int *caps;
@@ -823,7 +831,7 @@ net_flow_augment (NetFlow *self, int seed)
  * of @self.
  **/
 void
-net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps)
+virgule_net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps)
 {
   int n_aug;
   int *pred_list;
@@ -832,9 +840,9 @@ net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps)
 
   net_flow_init_graph (self);
   priv = self->priv;
-  pred_list = net_flow_assign_tree (self, seed, caps, n_caps);
+  pred_list = virgule_net_flow_assign_tree (self, seed, caps, n_caps);
 #if 1
-  net_flow_sanity_check_tree (self, seed, pred_list);
+  virgule_net_flow_sanity_check_tree (self, seed, pred_list);
   /* if enabled, start from tree flow rather than zero */
   net_flow_from_tree (self, pred_list);
 #endif
@@ -850,7 +858,7 @@ net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps)
 	}
     }
 
-  net_flow_sanity_check (self, seed);
+  virgule_net_flow_sanity_check (self, seed);
 
   n_aug = 0;
   while (net_flow_augment (self, seed))
@@ -863,7 +871,7 @@ net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps)
 	   priv->node_flow[seed],
 	   n_aug);
 
-  net_flow_sanity_check (self, seed);
+  virgule_net_flow_sanity_check (self, seed);
 }
 
 /**
@@ -881,8 +889,11 @@ net_flow_max_flow (NetFlow *self, gint seed, const int *caps, int n_caps)
  *
  * Return value: 0 if ok.
  **/
+/*
+ *  Appears to be called only in this source file. Should this be static?
+ */
 int
-net_flow_sanity_check (NetFlow *self, gint seed)
+virgule_net_flow_sanity_check (NetFlow *self, gint seed)
 {
   int e, n, j;
   NetFlowPriv *priv = self->priv;
@@ -980,7 +991,7 @@ net_flow_sanity_check (NetFlow *self, gint seed)
  * Return value: flow array.
  **/
 int *
-net_flow_extract (NetFlow *self)
+virgule_net_flow_extract (NetFlow *self)
 {
   int *result;
 

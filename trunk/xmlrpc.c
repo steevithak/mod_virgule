@@ -97,18 +97,18 @@ xmlrpc_send_response (VirguleReq *vr, xmlNode *r)
   int size;
 
   xmlDocDumpFormatMemory (r->doc, &mem, &size, 1);
-  buffer_write (vr->b, mem, size);
+  virgule_buffer_write (vr->b, mem, size);
   xmlFree (mem);
   xmlFreeDoc (r->doc);
 
   vr->r->content_type = "text/xml";
-  return send_response (vr);
+  return virgule_send_response (vr);
 }
 
 
 /* Create and send a fault response */
 int
-xmlrpc_fault (VirguleReq *vr, int code, const char *fmt, ...)
+virgule_xmlrpc_fault (VirguleReq *vr, int code, const char *fmt, ...)
 {
   xmlNode *resp, *str;
   va_list ap;
@@ -135,7 +135,7 @@ xmlrpc_fault (VirguleReq *vr, int code, const char *fmt, ...)
 
 /* Create and send a normal response */
 int
-xmlrpc_response (VirguleReq *vr, const char *types, ...)
+virgule_xmlrpc_response (VirguleReq *vr, const char *types, ...)
 {
   xmlNode *resp;
   xmlNode *container;
@@ -143,7 +143,7 @@ xmlrpc_response (VirguleReq *vr, const char *types, ...)
   int i;
   
   if (!strlen (types))
-    return xmlrpc_fault (vr, 1, "internal error: must return something!");
+    return virgule_xmlrpc_fault (vr, 1, "internal error: must return something!");
 
   resp = xmlrpc_create_response (vr);
   container = xmlNewChild (xmlNewChild (resp, NULL, "params", NULL),
@@ -176,7 +176,7 @@ xmlrpc_response (VirguleReq *vr, const char *types, ...)
         default:
           va_end (va);
           xmlFreeDoc (resp->doc);
-          return xmlrpc_fault (vr, 1, "internal error: unknown type '%c'",
+          return virgule_xmlrpc_fault (vr, 1, "internal error: unknown type '%c'",
                                types[i]);
 	}
     }
@@ -188,11 +188,11 @@ xmlrpc_response (VirguleReq *vr, const char *types, ...)
 
 /* Authenticate the user */
 int
-xmlrpc_auth_user (VirguleReq *vr, const char *cookie)
+virgule_xmlrpc_auth_user (VirguleReq *vr, const char *cookie)
 {
-  auth_user_with_cookie (vr, cookie);
+  virgule_auth_user_with_cookie (vr, cookie);
   if (vr->u == NULL)
-    return xmlrpc_fault (vr, 1, "authentication failure");
+    return virgule_xmlrpc_fault (vr, 1, "authentication failure");
   
   return OK;
 }
@@ -200,8 +200,8 @@ xmlrpc_auth_user (VirguleReq *vr, const char *cookie)
 
 /* Extract the parameters from the request */  
 int
-xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
-			 const char *types, ...)
+virgule_xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
+			         const char *types, ...)
 {
   xmlNode *param;
   va_list va;
@@ -213,7 +213,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
   if (params)
     {
       if (strcmp (params->name, "params"))
-        return xmlrpc_fault (vr, 1, "expecting <params>, got <%s>",
+        return virgule_xmlrpc_fault (vr, 1, "expecting <params>, got <%s>",
                              params->name);  
 
       for (param = params->children; param; param = param->next)
@@ -223,13 +223,13 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
           argc++;
         }
       if (argc != strlen (types))
-        return xmlrpc_fault (vr, 1, "expecting %d parameters, got %d",
+        return virgule_xmlrpc_fault (vr, 1, "expecting %d parameters, got %d",
                              strlen (types), argc);
     }
   else
     {
       if (strlen(types))
-        return xmlrpc_fault (vr, 1, "expecting %d parameters, got 0",
+        return virgule_xmlrpc_fault (vr, 1, "expecting %d parameters, got 0",
                              strlen (types));
       return OK;
     }
@@ -274,7 +274,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
           else
             {
               va_end (va);
-              return xmlrpc_fault (vr, 1,
+              return virgule_xmlrpc_fault (vr, 1,
                                    "param %d: expecting <int>, got <%s>",
                                    i + 1, value->name);
 	    }
@@ -300,7 +300,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
           else
             {
               va_end (va);
-              return xmlrpc_fault (vr, 1,
+              return virgule_xmlrpc_fault (vr, 1,
                                    "param %d: expecting <string>, got <%s>",
                                    i + 1, value->name);
 	    }
@@ -309,7 +309,7 @@ xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
           
 	default:
           va_end (va);
-          return xmlrpc_fault (vr, 1, "internal error: unknown type '%c'",
+          return virgule_xmlrpc_fault (vr, 1, "internal error: unknown type '%c'",
                                types[i]);
 	}
       param = param->next;
@@ -332,7 +332,7 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
 
   /* root element should be a <methodCall> */
   if (strcmp (xr->name, "methodCall"))
-    return xmlrpc_fault (vr, 1, "expecting <methodCall>, got <%s>", xr->name);
+    return virgule_xmlrpc_fault (vr, 1, "expecting <methodCall>, got <%s>", xr->name);
     
   /* first element of methodCall should be a <methodName> */
   n = xr->children;
@@ -340,7 +340,7 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
     n = n->next;
 
   if (!n || strcmp (n->name, "methodName"))
-    return xmlrpc_fault (vr, 1, "expecting <methodName>, got <%s>", n->name);
+    return virgule_xmlrpc_fault (vr, 1, "expecting <methodName>, got <%s>", n->name);
 
   tmp = xmlNodeListGetString (n->doc, n->children, 1);
   name = apr_pstrdup (vr->r->pool, tmp);
@@ -358,7 +358,7 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
         break;
     }
   if (m->name == NULL)
-    return xmlrpc_fault (vr, 1, "%s: method not implemented", name);
+    return virgule_xmlrpc_fault (vr, 1, "%s: method not implemented", name);
 
   return m->func (vr, n);
 }
@@ -366,7 +366,7 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
 
 /* Main handler for requests */
 int
-xmlrpc_serve (VirguleReq *vr)
+virgule_xmlrpc_serve (VirguleReq *vr)
 {
   xmlDoc *request = NULL;
   int ret;
@@ -385,7 +385,7 @@ xmlrpc_serve (VirguleReq *vr)
     }
   else
     {
-      ret = xmlrpc_fault (vr, 1, "unable to parse request");
+      ret = virgule_xmlrpc_fault (vr, 1, "unable to parse request");
     }
 
   if (ret == XMLRPC_FAULT_SERVED)

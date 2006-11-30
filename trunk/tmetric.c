@@ -42,7 +42,7 @@ tmetric_find_node (apr_array_header_t *info, NetFlow *flows[], const char *u)
 {
   int idx;
 
-  idx = net_flow_find_node (flows[1], u);
+  idx = virgule_net_flow_find_node (flows[1], u);
   if (idx >= info->nelts)
     {
       NodeInfo *ni = (NodeInfo *)apr_array_push (info);
@@ -52,7 +52,7 @@ tmetric_find_node (apr_array_header_t *info, NetFlow *flows[], const char *u)
       ni->surname = NULL;
       ni->level = CERT_LEVEL_NONE;
       for (i = 2; i < cert_level_n; i++)
-	if (idx != net_flow_find_node (flows[i], u))
+	if (idx != virgule_net_flow_find_node (flows[i], u))
 	  /* todo: warning */;
     }
   return idx;
@@ -102,7 +102,7 @@ tmetric_run (VirguleReq *vr,
   result = apr_array_make (vr->r->pool, 16, sizeof(NodeInfo));
 
   for (i = 1; i < cert_level_n; i++)
-    flows[i] = net_flow_new ();
+    flows[i] = virgule_net_flow_new ();
 
   seed = tmetric_find_node (result, flows, "-");
 
@@ -110,11 +110,11 @@ tmetric_run (VirguleReq *vr,
     {
       (void) tmetric_find_node (result, flows, seeds[j]);
       for (i = 1; i < cert_level_n; i++)
-	net_flow_add_edge (flows[i], "-", seeds[j]);
+	virgule_net_flow_add_edge (flows[i], "-", seeds[j]);
     }
 
-  dbc = db_open_dir (db, "acct");
-  while ((issuer = db_read_dir_raw (dbc)) != NULL)
+  dbc = virgule_db_open_dir (db, "acct");
+  while ((issuer = virgule_db_read_dir_raw (dbc)) != NULL)
     {
       char *db_key;
       xmlDoc *profile = NULL;
@@ -124,24 +124,24 @@ tmetric_run (VirguleReq *vr,
 
 #if 0
       issuer = ((NodeInfo *)(result->elts))[idx].name;
-      buffer_printf (vr->b, "issuer = %s\n", issuer);
+      virgule_buffer_printf (vr->b, "issuer = %s\n", issuer);
 #endif
 
-      db_key = acct_dbkey (p, issuer);
+      db_key = virgule_acct_dbkey (vr, issuer);
 
       if(db_key == NULL) 
         continue;
 
-      profile = db_xml_get (p, db, db_key);
+      profile = virgule_db_xml_get (p, db, db_key);
       if (profile != NULL)
-        tree = xml_find_child (profile->xmlRootNode, "info");
+        tree = virgule_xml_find_child (profile->xmlRootNode, "info");
       if (tree != NULL)
 	{
 	  tmetric_find_node (result, flows, issuer);
-	  givenname = xml_get_prop (p, tree, "givenname");
-	  surname = xml_get_prop (p, tree, "surname");
+	  givenname = virgule_xml_get_prop (p, tree, "givenname");
+	  surname = virgule_xml_get_prop (p, tree, "surname");
 	  tmetric_set_name (result, flows, issuer, givenname, surname, vr);
-	  tree = xml_find_child (profile->xmlRootNode, "certs");
+	  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
 	  if (tree == NULL)
 	    continue;
 	  for (cert = tree->children; cert != NULL; cert = cert->next)
@@ -151,7 +151,7 @@ tmetric_run (VirguleReq *vr,
 		{
 		  char *cert_subj;
 		  
-		  cert_subj = xml_get_prop (p, cert, "subj");
+		  cert_subj = virgule_xml_get_prop (p, cert, "subj");
 		  if (cert_subj)
 		    {
 		      char *cert_level;
@@ -159,33 +159,33 @@ tmetric_run (VirguleReq *vr,
 		      
 		      (void) tmetric_find_node (result, flows, cert_subj);
 		      cert_level = xmlGetProp (cert, "level");
-		      level = cert_level_from_name (vr, cert_level);
+		      level = virgule_cert_level_from_name (vr, cert_level);
 		      xmlFree (cert_level);
 #if 0
-		      buffer_printf (vr->b, "cert_subj = %s, level %d\n", cert_subj, level);
+		      virgule_buffer_printf (vr->b, "cert_subj = %s, level %d\n", cert_subj, level);
 #endif
 		      for (i = 1; i <= level; i++)
-			net_flow_add_edge (flows[i], issuer, cert_subj);
+			virgule_net_flow_add_edge (flows[i], issuer, cert_subj);
 		    }
 		}
 	    }
 	}
 	
       if (profile != NULL)
-        db_xml_free (p, db, profile);
+        virgule_db_xml_free (p, db, profile);
     }
-  db_close_dir (dbc);
+  virgule_db_close_dir (dbc);
 
   if (vr->lock)
-    db_unlock (vr->lock);
+    virgule_db_unlock (vr->lock);
   vr->lock = NULL;
 
   for (i = 1; i < cert_level_n; i++)
     {
       int *flow;
-      net_flow_max_flow (flows[i], seed, caps, n_caps);
-      flow = net_flow_extract (flows[i]);
-      net_flow_free (flows[i]);
+      virgule_net_flow_max_flow (flows[i], seed, caps, n_caps);
+      flow = virgule_net_flow_extract (flows[i]);
+      virgule_net_flow_free (flows[i]);
       for (idx = 1; idx < result->nelts; idx++)
 	if (flow[idx])
 	  ((NodeInfo *)(result->elts))[idx].level = i;
@@ -237,9 +237,9 @@ tmetric_index_serve (VirguleReq *vr)
   Buffer *cb;
   char *cache_str;
 
-  lock = db_lock_key (db, "tmetric/.lock", F_SETLK);
+  lock = virgule_db_lock_key (db, "tmetric/.lock", F_SETLK);
   if (lock == NULL)
-    return send_error_page (vr, "Lock taken", "The tmetric lock is taken by another process.");
+    return virgule_send_error_page (vr, "Lock taken", "The tmetric lock is taken by another process.");
 
   for (n_seeds = 0;; n_seeds++)
     if (!vr->priv->seeds[n_seeds])
@@ -248,14 +248,14 @@ tmetric_index_serve (VirguleReq *vr)
     if (!vr->priv->caps[n_caps])
       break;
 
-  render_header (vr, "Trust Metric", NULL);
+  virgule_render_header (vr, "Trust Metric", NULL);
   nodeinfo = tmetric_run (vr, vr->priv->seeds, n_seeds, vr->priv->caps, n_caps);
-  buffer_puts (b, "<table>\n");
+  virgule_buffer_puts (b, "<table>\n");
 
   qsort (nodeinfo->elts, nodeinfo->nelts, sizeof(NodeInfo),
 	 node_info_compare);
 
-  cb = buffer_new (p);
+  cb = virgule_buffer_new (p);
   for (i = 0; i < nodeinfo->nelts; i++)
     {
       ni = &((NodeInfo *)(nodeinfo->elts))[i];
@@ -263,28 +263,28 @@ tmetric_index_serve (VirguleReq *vr)
 	/* Skip the root node */
 	continue;
       }
-      buffer_printf (b, "<tr><td><a href=\"../person/%s/\">%s</a></td> <td>%s %s</td> <td class=\"level%i\">%s</td></tr>\n",
+      virgule_buffer_printf (b, "<tr><td><a href=\"../person/%s/\">%s</a></td> <td>%s %s</td> <td class=\"level%i\">%s</td></tr>\n",
 		     ap_escape_uri(vr->r->pool, ni->name),
 		     ni->name,
-		     ni->givenname ? nice_text (p, ni->givenname) : "",
-		     ni->surname ? nice_text (p, ni->surname) : "",
+		     ni->givenname ? virgule_nice_text (p, ni->givenname) : "",
+		     ni->surname ? virgule_nice_text (p, ni->surname) : "",
 		     ni->level,
-		     cert_level_to_name (vr, ni->level));
-      buffer_printf (cb, "%s %s\n", ap_escape_uri(vr->r->pool,ni->name), cert_level_to_name (vr, ni->level));
+		     virgule_cert_level_to_name (vr, ni->level));
+      virgule_buffer_printf (cb, "%s %s\n", ap_escape_uri(vr->r->pool,ni->name), virgule_cert_level_to_name (vr, ni->level));
     }
-  buffer_puts (b, "</table>\n");
+  virgule_buffer_puts (b, "</table>\n");
 
-  cache_str = buffer_extract (cb);
-  vr->lock = db_lock (db);
-  db_lock_upgrade (vr->lock);
-  status = db_put (db, "tmetric/default", cache_str, strlen (cache_str));
+  cache_str = virgule_buffer_extract (cb);
+  vr->lock = virgule_db_lock (db);
+  virgule_db_lock_upgrade (vr->lock);
+  status = virgule_db_put (db, "tmetric/default", cache_str, strlen (cache_str));
   if (status)
-    buffer_puts (b, "<p> Error writing tmetric cache. </p>\n");
+    virgule_buffer_puts (b, "<p> Error writing tmetric cache. </p>\n");
   else
-    buffer_puts (b, "<p> Wrote tmetric cache. </p>\n");
+    virgule_buffer_puts (b, "<p> Wrote tmetric cache. </p>\n");
 
-  db_unlock (lock);
-  return render_footer_send (vr);
+  virgule_db_unlock (lock);
+  return virgule_render_footer_send (vr);
 }
 
 static int
@@ -295,14 +295,14 @@ tmetric_test_serve (VirguleReq *vr)
   DbLock *lock;
 
   if (vr->lock)
-    db_unlock (vr->lock);
+    virgule_db_unlock (vr->lock);
   vr->lock = NULL;
 
   r->content_type = "text/html; charset=UTF-8";
   ap_rprintf (r, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Test</title></head><body bgcolor=white><h1>Test</h1> <p>Testing lock...</p>\n");
 
   ap_rflush (r);
-  lock = db_lock_key (db, "tmetric/.lock", F_SETLK);
+  lock = virgule_db_lock_key (db, "tmetric/.lock", F_SETLK);
   if (lock == NULL)
     {
       ap_rprintf (r, "<p> Lock is taken by someone else. </p>\n");
@@ -312,7 +312,7 @@ tmetric_test_serve (VirguleReq *vr)
       ap_rprintf (r, "<p> Lock acquired. </p>\n");
       ap_rflush (r);
       sleep (10);
-      db_unlock (lock);
+      virgule_db_unlock (lock);
     }
   ap_rprintf (r, "<p> Done. </p>\n</body></html>\n");
   
@@ -320,11 +320,11 @@ tmetric_test_serve (VirguleReq *vr)
 }
 
 int
-tmetric_serve (VirguleReq *vr)
+virgule_tmetric_serve (VirguleReq *vr)
 {
   char *uri = vr->uri;
 
-  cert_level_n = cert_num_levels (vr);
+  cert_level_n = virgule_cert_num_levels (vr);
 
   if (!strcmp (uri, "/tmetric/"))
     return tmetric_index_serve (vr);
@@ -345,7 +345,7 @@ tmetric_serve (VirguleReq *vr)
  * Return value: the trust metric info.
  **/
 char *
-tmetric_get (VirguleReq *vr)
+virgule_tmetric_get (VirguleReq *vr)
 {
   char *result;
   int size;
@@ -356,7 +356,7 @@ tmetric_get (VirguleReq *vr)
   fputs ("about to get tmetric", null);
   fflush (null);
 
-  result = db_get (vr->db, "tmetric/default", &size);
+  result = virgule_db_get (vr->db, "tmetric/default", &size);
 
   fputs ("tmetric gotten", null);
   fflush (null);

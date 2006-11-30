@@ -39,7 +39,7 @@ struct _DbLock {
 };
 
 Db *
-db_new_filesystem (apr_pool_t *p, const char *base_pathname)
+virgule_db_new_filesystem (apr_pool_t *p, const char *base_pathname)
 {
   Db *result = (Db *)apr_palloc (p, sizeof (Db));
 
@@ -89,7 +89,7 @@ db_mangle_key_component (apr_pool_t *p, const char *comp)
  *
  **/
 char *
-db_mk_filename (apr_pool_t *p, Db *db, const char *key)
+virgule_db_mk_filename (apr_pool_t *p, Db *db, const char *key)
 {
   const char *component;
   const char *buf;
@@ -135,7 +135,7 @@ db_mk_filename (apr_pool_t *p, Db *db, const char *key)
  * Return value: The contents of the record, or NULL if not found.
  **/
 char *
-db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size)
+virgule_db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size)
 {
   char *fn;
   apr_file_t *fd;
@@ -148,7 +148,7 @@ db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size)
   if (!key)
     return NULL;
     
-  fn = db_mk_filename (p, db, key);
+  fn = virgule_db_mk_filename (p, db, key);
 
   status = apr_stat(&finfo, fn, APR_FINFO_MIN, p);
   if (status != APR_SUCCESS)
@@ -192,9 +192,9 @@ db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size)
  * Return value: The contents of the record, or NULL if not found.
  **/
 char *
-db_get (Db *db, const char *key, int *p_size)
+virgule_db_get (Db *db, const char *key, int *p_size)
 {
-  return db_get_p (db->p, db, key, p_size);
+  return virgule_db_get_p (db->p, db, key, p_size);
 }
 
 /* Ensure that the directory exists, return 1 on success. */
@@ -259,13 +259,13 @@ db_ensure_dir (Db *db, const char *fn)
  * Return value: 0 on success.
  **/
 int
-db_put_p (apr_pool_t *p, Db *db, const char *key, const char *val, int size)
+virgule_db_put_p (apr_pool_t *p, Db *db, const char *key, const char *val, int size)
 {
   char *fn;
   apr_file_t *fd;
   apr_size_t bytes_written;
 
-  fn = db_mk_filename (p, db, key);
+  fn = virgule_db_mk_filename (p, db, key);
 
   if (!db_ensure_dir (db, fn))
     return -1;
@@ -298,9 +298,9 @@ db_put_p (apr_pool_t *p, Db *db, const char *key, const char *val, int size)
  * Return value: 0 on success.
  **/
 int
-db_put (Db *db, const char *key, const char *val, int size)
+virgule_db_put (Db *db, const char *key, const char *val, int size)
 {
-  return db_put_p (db->p, db, key, val, size);
+  return virgule_db_put_p (db->p, db, key, val, size);
 }
 
 /**
@@ -314,12 +314,12 @@ db_put (Db *db, const char *key, const char *val, int size)
  * Return value: 0 on success.
  **/
 int
-db_del (Db *db, const char *key)
+virgule_db_del (Db *db, const char *key)
 {
   int status;
   char *path,*fn,*n;
 
-  fn = db_mk_filename (db->p, db, key);
+  fn = virgule_db_mk_filename (db->p, db, key);
 
   status = unlink(fn);
 
@@ -344,13 +344,13 @@ db_del (Db *db, const char *key)
  * Return value: true if the key is a directory.
  **/
 int
-db_is_dir (Db *db, const char *key)
+virgule_db_is_dir (Db *db, const char *key)
 {
   char *fn;
   struct stat stat_buf;
   int status;
 
-  fn = db_mk_filename (db->p, db, key);
+  fn = virgule_db_mk_filename (db->p, db, key);
 
   /* Check for existence of parent dir. */
   status = stat (fn, &stat_buf);
@@ -372,13 +372,13 @@ db_is_dir (Db *db, const char *key)
  * Return value: The cursor.
  **/
 DbCursor *
-db_open_dir (Db *db, const char *key)
+virgule_db_open_dir (Db *db, const char *key)
 {
   DIR *dir;
   DbCursor *result;
   char *fn;
 
-  fn = db_mk_filename (db->p, db, key);
+  fn = virgule_db_mk_filename (db->p, db, key);
   dir = opendir (fn);
   if (dir == NULL)
     return NULL;
@@ -401,7 +401,7 @@ db_open_dir (Db *db, const char *key)
  * Return value: The database key of the child, or NULL if no more.
  **/
 char *
-db_read_dir (DbCursor *dbc)
+virgule_db_read_dir (DbCursor *dbc)
 {
   struct dirent *de;
 
@@ -420,7 +420,7 @@ db_read_dir (DbCursor *dbc)
  * Return value: The relative database key of the child, or NULL if no more.
  **/
 char *
-db_read_dir_raw (DbCursor *dbc)
+virgule_db_read_dir_raw (DbCursor *dbc)
 {
   struct dirent *de;
 
@@ -435,7 +435,7 @@ db_read_dir_raw (DbCursor *dbc)
 }
 
 int
-db_close_dir (DbCursor *dbc)
+virgule_db_close_dir (DbCursor *dbc)
 {
   return closedir (dbc->dir);
 }
@@ -503,7 +503,7 @@ db_dir_max_in_level (const char *fn, int top)
  * Return value: the maximum integer key, or -1 if none.
  **/
 int
-db_dir_max (Db *db, const char *key)
+virgule_db_dir_max (Db *db, const char *key)
 {
   apr_pool_t *p = db->p;
   char *fn;
@@ -512,7 +512,7 @@ db_dir_max (Db *db, const char *key)
   int n_levels;
   int i;
 
-  fn = db_mk_filename (p, db, key);
+  fn = virgule_db_mk_filename (p, db, key);
 
   level_max = db_dir_max_in_level (fn, 1);
   if (level_max >= -1)
@@ -532,7 +532,7 @@ db_dir_max (Db *db, const char *key)
 }
 
 DbLock *
-db_lock_key (Db *db, const char *key, int cmd)
+virgule_db_lock_key (Db *db, const char *key, int cmd)
 {
   apr_pool_t *p = db->p;
   char *fn;
@@ -540,7 +540,7 @@ db_lock_key (Db *db, const char *key, int cmd)
   apr_status_t status;
   DbLock *result;
 
-  fn = db_mk_filename (p, db, key);
+  fn = virgule_db_mk_filename (p, db, key);
 
   if (!db_ensure_dir (db, fn))
     return NULL;
@@ -570,7 +570,7 @@ db_lock_key (Db *db, const char *key, int cmd)
 
 /* Upgrade lock to write lock. */
 int
-db_lock_upgrade (DbLock *dbl)
+virgule_db_lock_upgrade (DbLock *dbl)
 {
   apr_status_t status;
   status = apr_file_lock(dbl->fd, APR_FLOCK_EXCLUSIVE);
@@ -578,13 +578,13 @@ db_lock_upgrade (DbLock *dbl)
 }
 
 DbLock *
-db_lock (Db *db)
+virgule_db_lock (Db *db)
 {
-  return db_lock_key (db, ".lock", F_SETLKW);
+  return virgule_db_lock_key (db, ".lock", F_SETLKW);
 }
 
 int
-db_unlock (DbLock *dbl)
+virgule_db_unlock (DbLock *dbl)
 {
   apr_status_t status;
   status = apr_file_unlock(dbl->fd);

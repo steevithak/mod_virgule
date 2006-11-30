@@ -18,17 +18,17 @@
  * Renders the input field, inserting the value from @tree if present.
  **/
 void
-schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode *tree)
+virgule_schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode *tree)
 {
   char *value;
 
   if (tree == NULL)
     value = NULL;
   else
-    value = xml_get_prop (p, tree, sf->name);
-  buffer_printf (b, "<p> %s: <br>\n", sf->description);
+    value = virgule_xml_get_prop (p, tree, sf->name);
+  virgule_buffer_printf (b, "<p> %s: <br>\n", sf->description);
   if (sf->flags & SCHEMA_TEXTAREA)
-    buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
+    virgule_buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
 		   sf->name,
 		   sf->size / 1000,
 		   sf->size % 1000,
@@ -36,15 +36,15 @@ schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode *tree)
   else if (sf->flags & SCHEMA_SELECT)
     {
       int i;
-      buffer_printf (b, "<select name=\"%s\">\n", sf->name);
+      virgule_buffer_printf (b, "<select name=\"%s\">\n", sf->name);
       for (i = 0; sf->choices[i] != NULL; i++)
-	buffer_printf (b, "<option%s>%s\n",
+	virgule_buffer_printf (b, "<option%s>%s\n",
 		       value && !strcmp (value, sf->choices[i]) ? " selected" : "",
 		       sf->choices[i]);
-      buffer_puts (b, "</select>\n");
+      virgule_buffer_puts (b, "</select>\n");
     }
   else
-    buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"> </p>\n",
+    virgule_buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"> </p>\n",
 		   sf->name, sf->size,
 		   value ? ap_escape_html (p, value) : "");
 }
@@ -57,7 +57,7 @@ schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode *tree)
  *
  **/
 void
-schema_render_inputs (apr_pool_t *p, Buffer *b, SchemaField *sf, const char **fields, xmlNode *tree)
+virgule_schema_render_inputs (apr_pool_t *p, Buffer *b, SchemaField *sf, const char **fields, xmlNode *tree)
 {
   int i;
   int j;
@@ -67,14 +67,14 @@ schema_render_inputs (apr_pool_t *p, Buffer *b, SchemaField *sf, const char **fi
       for (j = 0; sf[j].name != NULL; j++)
 	if (!strcmp (fields[i], sf[j].name))
 	  {
-	    schema_render_input (p, b, &sf[j], tree);
+	    virgule_schema_render_input (p, b, &sf[j], tree);
 	    break;
 	  }
     }
 }
 
 void
-schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_table_t *args)
+virgule_schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_table_t *args)
 {
   const char *value;
 
@@ -90,7 +90,7 @@ schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_table_t *ar
  *
  **/
 void
-schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args)
+virgule_schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args)
 {
   int i;
   int j;
@@ -100,7 +100,7 @@ schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, xmlNode 
       for (j = 0; sf[j].name != NULL; j++)
 	if (!strcmp (fields[i], sf[j].name))
 	  {
-	    schema_put_field (p, &sf[j], tree, args);
+	    virgule_schema_put_field (p, &sf[j], tree, args);
 	    break;
 	  }
     }

@@ -48,11 +48,11 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree, 
   char *tmp1, *tmp2;
 #endif
 
-  title = xml_find_child_string (root, "title", "(no title)");
+  title = virgule_xml_find_child_string (root, "title", "(no title)");
   link = apr_psprintf (p, "%s/article/%d.html", vr->priv->base_uri, art_num);
-  raw_description = xml_find_child_string (root, "lead", "(no description)");
-  tmpdate = xml_find_child_string(root, "date", "(no date)");
-  pubdate = render_date (vr, tmpdate, 2);
+  raw_description = virgule_xml_find_child_string (root, "lead", "(no description)");
+  tmpdate = virgule_xml_find_child_string(root, "date", "(no date)");
+  pubdate = virgule_render_date (vr, tmpdate, 2);
   
   /* strip anchor tags */
   clean_description = apr_pstrdup (p, raw_description);  
@@ -94,7 +94,7 @@ rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree, int vers)
   xmlNodePtr subtree;
 
   key = apr_psprintf (p, "articles/_%d/article.xml", art_num);
-  doc = db_xml_get (p, vr->db, key);
+  doc = virgule_db_xml_get (p, vr->db, key);
   if (doc != NULL)
     {
       subtree = xmlNewChild (tree, NULL, "item", NULL);
@@ -134,7 +134,7 @@ rss_index_serve (VirguleReq *vr, int vers)
 			apr_psprintf (p, "Recent %s articles", vr->priv->site_name));
   subtree = xmlNewChild (tree, NULL, "language", "en-us");
 
-  art_num = db_dir_max (vr->db, "articles");
+  art_num = virgule_db_dir_max (vr->db, "articles");
 
   for (n_arts = 0; n_arts < 15 && art_num >= 0; n_arts++)
     {
@@ -143,18 +143,18 @@ rss_index_serve (VirguleReq *vr, int vers)
     }
 
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
-  buffer_write (b, mem, size);
+  virgule_buffer_write (b, mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
-  return send_response (vr);
+  return virgule_send_response (vr);
 }
 
 
 int
-rss_serve (VirguleReq *vr)
+virgule_rss_serve (VirguleReq *vr)
 {
    const char *p;
-   if ((p = match_prefix (vr->uri, "/rss/")) == NULL)
+   if ((p = virgule_match_prefix (vr->uri, "/rss/")) == NULL)
      return DECLINED;
 
    if (!strcmp (p, "articles.xml"))
@@ -219,12 +219,12 @@ rss_massage_write_attr (Buffer *b, const char *val, int size)
       else if (c == '"') repl = "&quot;";
       else continue;
       if (i > last)
-	buffer_write (b, val + last, i - last);
-      buffer_puts (b, repl);
+	virgule_buffer_write (b, val + last, i - last);
+      virgule_buffer_puts (b, repl);
       last = i + 1;
     }
   if (i > last)
-    buffer_write (b, val + last, i - last);
+    virgule_buffer_write (b, val + last, i - last);
 }
 
 static void
@@ -239,7 +239,7 @@ rss_massage_write_url (Buffer *b, const char *url, int urlsize,
       if (baseurl[i] == '/' && baseurl[i + 1] == '/')
 	{
 	  for (i += 2; baseurl[i] && baseurl[i] != '/'; i++);
-	  buffer_write (b, baseurl, i);
+	  virgule_buffer_write (b, baseurl, i);
 	}
     }
   rss_massage_write_attr (b, url, urlsize);
@@ -252,7 +252,7 @@ rss_massage_tag (Buffer *b, const char *text, const char *baseurl)
 
   if (!memcmp(text, "<a ", 3))
     {
-      buffer_puts (b, "&lt;a ");
+      virgule_buffer_puts (b, "&lt;a ");
       for (i = 3; text[i] && text[i] != '>' && text[i] != '/'; i = next)
 	{
 	  int offs[4];
@@ -260,23 +260,23 @@ rss_massage_tag (Buffer *b, const char *text, const char *baseurl)
 	  next = i + rss_massage_parse_attr (text + i, offs);
 	  if (offs[0] == offs[1]) break;
 
-	  buffer_write (b, text + i + offs[0], offs[1] - offs[0]);
+	  virgule_buffer_write (b, text + i + offs[0], offs[1] - offs[0]);
 	  if (offs[2])
 	    {
-	      buffer_puts (b, "=&quot;");
+	      virgule_buffer_puts (b, "=&quot;");
 	      if (offs[1] - offs[0] == 4 && !memcmp (text + i + offs[0], "href", 4))
 		rss_massage_write_url (b, text + i + offs[2], offs[3] - offs[2], baseurl);
 	      else
 		rss_massage_write_attr (b, text + i + offs[2], offs[3] - offs[2]);
-	      buffer_puts (b, "&quot;");
+	      virgule_buffer_puts (b, "&quot;");
 	    }
-	  buffer_puts (b, " ");
+	  virgule_buffer_puts (b, " ");
 	}
       return i;
     }
   else
     {
-      buffer_puts (b, "&lt;");
+      virgule_buffer_puts (b, "&lt;");
       return 1;
     }
 }
@@ -289,9 +289,9 @@ rss_massage_tag (Buffer *b, const char *text, const char *baseurl)
  * relative URL's into absolute.
  **/
 char *
-rss_massage_text (apr_pool_t *p, const char *text, const char *baseurl)
+virgule_rss_massage_text (apr_pool_t *p, const char *text, const char *baseurl)
 {
-  Buffer *b = buffer_new (p);
+  Buffer *b = virgule_buffer_new (p);
   int i, end;
   char c;
 
@@ -302,10 +302,10 @@ rss_massage_text (apr_pool_t *p, const char *text, const char *baseurl)
 	     c != '&' && c != '<' && c != '>';
 	   end++);
       if (end > i)
-	buffer_write (b, text + i, end - i);
+	virgule_buffer_write (b, text + i, end - i);
       if (c == '&')
 	{
-	  buffer_puts (b, "&amp;");
+	  virgule_buffer_puts (b, "&amp;");
 	  end++;
 	}
       else if (c == '<')
@@ -314,9 +314,9 @@ rss_massage_text (apr_pool_t *p, const char *text, const char *baseurl)
 	}
       else if (c == '>')
 	{
-	  buffer_puts (b, "&gt;");
+	  virgule_buffer_puts (b, "&gt;");
 	  end++;
 	}
     }
-  return buffer_extract (b);
+  return virgule_buffer_extract (b);
 }

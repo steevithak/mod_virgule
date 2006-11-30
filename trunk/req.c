@@ -13,11 +13,11 @@
 
 /* Send http header and buffer. Also releases the lock. */
 int
-send_response (VirguleReq *vr)
+virgule_send_response (VirguleReq *vr)
 {
   if (vr->lock)
-    db_unlock (vr->lock);
-  return buffer_send_response (vr->r, vr->b);
+    virgule_db_unlock (vr->lock);
+  return virgule_buffer_send_response (vr->r, vr->b);
 }
 
 /**
@@ -29,7 +29,7 @@ send_response (VirguleReq *vr)
  * Return value: The table containing the args, or NULL if error.
  **/
 apr_table_t *
-get_args_table (VirguleReq *vr)
+virgule_get_args_table (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
   char *args;
@@ -50,7 +50,7 @@ get_args_table (VirguleReq *vr)
       key = ap_getword (p, &entry, '=');
       val = apr_pstrdup (p, entry);
       ap_unescape_url (key);
-      unescape_url_info (val);
+      virgule_unescape_url_info (val);
       apr_table_merge (result, key, val);
     }
   return result;
@@ -72,13 +72,13 @@ get_args_table (VirguleReq *vr)
  * Return value: The trust metric results.
  **/
 char *
-req_get_tmetric (VirguleReq *vr)
+virgule_req_get_tmetric (VirguleReq *vr)
 {
   char *result;
   if (vr->tmetric)
     return vr->tmetric;
 
-  result = tmetric_get (vr);
+  result = virgule_tmetric_get (vr);
   vr->tmetric = result;
   return result;
 }
@@ -94,15 +94,15 @@ req_get_tmetric (VirguleReq *vr)
  * Return value: The certification level, as a string.
  **/
 const char *
-req_get_tmetric_level (VirguleReq *vr, const char *u)
+virgule_req_get_tmetric_level (VirguleReq *vr, const char *u)
 {
   char *result;
   char *user = ap_escape_uri(vr->r->pool,u);
-  char *tmetric = req_get_tmetric (vr);
+  char *tmetric = virgule_req_get_tmetric (vr);
   int i, j;
 
   if (tmetric == NULL)
-    return cert_level_to_name (vr, CERT_LEVEL_NONE);
+    return virgule_cert_level_to_name (vr, CERT_LEVEL_NONE);
 
   /* This is a hackish linear scan through the tmetric table.
      At some point, we may want to use a real binary tree. */
@@ -130,60 +130,82 @@ req_get_tmetric_level (VirguleReq *vr, const char *u)
 	}
     }
 
-  return cert_level_to_name (vr, CERT_LEVEL_NONE);
+  return virgule_cert_level_to_name (vr, CERT_LEVEL_NONE);
 }
 
 /**
  * req_ok_to_post: Determine if it's ok for the user to post.
  * @vr: The #VirguleReq context.
  *
- * Currently, this implements the policy that it's ok to post if the
- * user comes out with a non-zero trust metric certification.
+ * Checks the users trust certification against the minimum cert level set
+ * in the config.xml file.
  *
  * Return value: TRUE if it's ok for the user to post.
  **/
 int
-req_ok_to_post (VirguleReq *vr)
+virgule_req_ok_to_post (VirguleReq *vr)
 {
-  auth_user (vr);
+  virgule_auth_user (vr);
 
   if (vr->u == NULL)
     return 0;
 
-  if (*vr->priv->seeds)
+  if(vr->priv->article_post_by_seeds_only && *vr->priv->seeds)
     {
       const char **s;
       for (s = vr->priv->seeds; *s; s++)
-	if(strcmp(vr->u,*s) == 0)
+        if(strcmp(vr->u,*s) == 0)
 	  return 1;
     }
 
-  return 0;
-}
-
-int
-req_ok_to_reply (VirguleReq *vr)
-{
-  auth_user (vr);
-
-  if (vr->u == NULL)
-    return 0;
-
-  if (cert_level_from_name(vr, req_get_tmetric_level (vr, vr->u)) > 0)   /* 0 == observer */
+  else if(virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, vr->u)) >= vr->priv->level_articlepost)
     return 1;
 
   return 0;
 }
 
+/**
+ * req_ok_to_reply: Determine if it's ok for the user to reply to posts.
+ * @vr: The #VirguleReq context.
+ *
+ * Checks the users trust certification against the minimum cert level set
+ * in the config.xml file.
+ *
+ * Return value: TRUE if it's ok for the user to reply to posts.
+ **/
 int
-req_ok_to_create_project (VirguleReq *vr)
+virgule_req_ok_to_reply (VirguleReq *vr)
 {
-  auth_user (vr);
+  virgule_auth_user (vr);
 
   if (vr->u == NULL)
     return 0;
 
-  if (cert_level_from_name(vr, req_get_tmetric_level (vr, vr->u)) > 0)  /* 0 == observer */
+  if (virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, vr->u)) >= vr->priv->level_articlereply)
+    return 1;
+
+  return 0;
+}
+
+/**
+ * req_ok_to_create_project: Determine if it's ok for the user to create a
+ * new project.
+ * @vr: The #VirguleReq context.
+ *
+ * Checks the users trust certification against the minimum cert level set
+ * in the config.xml file.
+ *
+ * Return value: TRUE if it's ok for the user to create projects.
+ **/
+int
+virgule_req_ok_to_create_project (VirguleReq *vr)
+{
+  virgule_auth_user (vr);
+
+  if (vr->u == NULL)
+    return 0;
+
+  if (virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, vr->u)) >= vr->priv->level_projectcreate)
     return 1;
 
   return 0;

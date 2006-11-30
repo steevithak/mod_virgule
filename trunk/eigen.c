@@ -81,17 +81,17 @@ parse4 (char *val, int val_size, int i,
 }
 
 HashTable *
-eigen_local_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
+virgule_eigen_local_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
 {
   HashTable *result;
   int val_size;
-  char *val = db_get_p (p, vr->db, dbkey, &val_size);
+  char *val = virgule_db_get_p (p, vr->db, dbkey, &val_size);
   int i;
 
   if (val == NULL)
     return NULL;
 
-  result = hash_table_new (p);
+  result = virgule_hash_table_new (p);
   for (i = 0; i < val_size;)
     {
       EigenLocal *el = (EigenLocal *)apr_palloc (p, sizeof(EigenLocal));
@@ -102,34 +102,35 @@ eigen_local_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
       i = parse3 (val, val_size, i, &ts, &rt, &subj);
       el->rating = atof (rt);
       el->timestamp = ts;
-      hash_table_set (p, result, subj, (void *)el);
+      virgule_hash_table_set (p, result, subj, (void *)el);
     }
   return result;
 }
 
 void
-eigen_local_store (VirguleReq *vr, HashTable *ht, const char *dbkey)
+virgule_eigen_local_store (VirguleReq *vr, HashTable *ht, const char *dbkey)
 {
   apr_pool_t *p = vr->r->pool;
   HashTableIter *iter;
   const char *key;
   void *val;
   char *bigbuf;
-  Buffer *b = buffer_new (p);
+  Buffer *b = virgule_buffer_new (p);
 
   /* todo: we probably want a subpool */
-  for (iter = hash_table_iter (p, ht);
-       hash_table_iter_get (iter, &key, &val); hash_table_iter_next (iter))
+  for (iter = virgule_hash_table_iter (p, ht);
+       virgule_hash_table_iter_get (iter, &key, &val);
+       virgule_hash_table_iter_next (iter))
     {
       EigenLocal *el = (EigenLocal *)val;
-      buffer_printf (b, "%s %.2g %s\n", el->timestamp, el->rating, key);
+      virgule_buffer_printf (b, "%s %.2g %s\n", el->timestamp, el->rating, key);
     }
-  bigbuf = buffer_extract (b);
-  db_put (vr->db, dbkey, bigbuf, strlen(bigbuf));
+  bigbuf = virgule_buffer_extract (b);
+  virgule_db_put (vr->db, dbkey, bigbuf, strlen(bigbuf));
 }
 
 int
-eigen_set_local (VirguleReq *vr, const char *subj, double rating)
+virgule_eigen_set_local (VirguleReq *vr, const char *subj, double rating)
 {
   apr_pool_t *p = vr->r->pool;
   char *dbkey;
@@ -137,29 +138,29 @@ eigen_set_local (VirguleReq *vr, const char *subj, double rating)
   HashTable *elt;
 
   dbkey = apr_pstrcat (p, "eigen/local/", vr->u, NULL);
-  elt = eigen_local_load (p, vr, dbkey);
+  elt = virgule_eigen_local_load (p, vr, dbkey);
 
   if (elt == NULL)
-    elt = hash_table_new (p);
+    elt = virgule_hash_table_new (p);
 
   el->rating = rating;
   el->timestamp = ap_ht_time (p, (apr_time_t) (time (NULL)) * 1000000,
                              "%Y%m%dT%H%M%SZ", 1);
-  hash_table_set (p, elt, subj, (void *)el);
+  virgule_hash_table_set (p, elt, subj, (void *)el);
 
-  eigen_local_store (vr, elt, dbkey);
+  virgule_eigen_local_store (vr, elt, dbkey);
   return 0;
 }
 
 HashTable *
-eigen_vec_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
+virgule_eigen_vec_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
 {
   HashTable *result;
   int val_size;
-  char *val = db_get_p (p, vr->db, dbkey, &val_size);
+  char *val = virgule_db_get_p (p, vr->db, dbkey, &val_size);
   int i;
 
-  result = hash_table_new (p);
+  result = virgule_hash_table_new (p);
 
   if (val == NULL)
     return result;
@@ -176,7 +177,7 @@ eigen_vec_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
       eve->confidence = atof (conf);
       eve->rating = atof (rt);
       eve->rating_sq = atof (rt_sq); 
-      hash_table_set (p, result, subj, (void *)eve);
+      virgule_hash_table_set (p, result, subj, (void *)eve);
     }
   return result;
 }
@@ -188,18 +189,19 @@ eigen_vec_store (apr_pool_t *p, VirguleReq *vr, HashTable *ht, const char *dbkey
   const char *key;
   void *val;
   char *bigbuf;
-  Buffer *b = buffer_new (p);
+  Buffer *b = virgule_buffer_new (p);
 
   /* todo: we probably want a subpool */
-  for (iter = hash_table_iter (p, ht);
-       hash_table_iter_get (iter, &key, &val); hash_table_iter_next (iter))
+  for (iter = virgule_hash_table_iter (p, ht);
+       virgule_hash_table_iter_get (iter, &key, &val);
+       virgule_hash_table_iter_next (iter))
     {
       EigenVecEl *eve = (EigenVecEl *)val;
-      buffer_printf (b, "%.3g %.5g %.5g %s\n",
+      virgule_buffer_printf (b, "%.3g %.5g %.5g %s\n",
 		     eve->confidence, eve->rating, eve->rating_sq, key);
     }
-  bigbuf = buffer_extract (b);
-  db_put_p (p, vr->db, dbkey, bigbuf, strlen(bigbuf));
+  bigbuf = virgule_buffer_extract (b);
+  virgule_db_put_p (p, vr->db, dbkey, bigbuf, strlen(bigbuf));
 }
 
 /* Add in a vector from another user. */
@@ -213,12 +215,12 @@ eigen_add_in (apr_pool_t *p, VirguleReq *vr, HashTable *ev, const char *u)
   EigenVecEl *val;
 
   dbkey = apr_pstrcat (p, "eigen/vec/", u, NULL);
-  succ_ev = eigen_vec_load (p, vr, dbkey);
-  for (iter = hash_table_iter (p, succ_ev);
-       hash_table_iter_get (iter, &key, (void **)&val);
-       hash_table_iter_next (iter))
+  succ_ev = virgule_eigen_vec_load (p, vr, dbkey);
+  for (iter = virgule_hash_table_iter (p, succ_ev);
+       virgule_hash_table_iter_get (iter, &key, (void **)&val);
+       virgule_hash_table_iter_next (iter))
     {
-      EigenVecEl *eve = hash_table_get (ev, key);
+      EigenVecEl *eve = virgule_hash_table_get (ev, key);
       if (eve)
 	{
 	  eve->confidence += val->confidence;
@@ -229,33 +231,33 @@ eigen_add_in (apr_pool_t *p, VirguleReq *vr, HashTable *ev, const char *u)
 	{
 	  val->rating *= val->confidence;
 	  val->rating_sq *= val->confidence;
-	  hash_table_set (p, ev, key, (void *)val);
+	  virgule_hash_table_set (p, ev, key, (void *)val);
 	}
     }
 }
 
 /* One iteration, for one particular user. */
 int
-eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
+virgule_eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
 {
   double damping = 0.95;
   char *dbkey;
   xmlDoc *profile;
   xmlNode *tree;
   int n_succ = 0;
-  HashTable *ev = hash_table_new (p);
+  HashTable *ev = virgule_hash_table_new (p);
   HashTable *el;
   HashTableIter *iter;
   const char *key;
   EigenLocal *val;
   EigenVecEl *eve;
 
-  dbkey = acct_dbkey (p, u);
-  profile = db_xml_get (p, vr->db, dbkey);
+  dbkey = virgule_acct_dbkey (vr, u);
+  profile = virgule_db_xml_get (p, vr->db, dbkey);
   if (profile == NULL)
     return -1;
 
-  tree = xml_find_child (profile->xmlRootNode, "certs");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
       xmlNode *cert;
@@ -269,7 +271,7 @@ eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
 
 	    subject = xmlGetProp (cert, "subj");
 	    level = xmlGetProp (cert, "level");
-	    if (strcmp (level, cert_level_to_name (vr, 0)) &&
+	    if (strcmp (level, virgule_cert_level_to_name (vr, 0)) &&
 		strcmp (u, subject))
 	      {
 		eigen_add_in (p, vr, ev, subject);
@@ -282,9 +284,9 @@ eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
     {
       double scale = damping / n_succ;
 
-      for (iter = hash_table_iter (p, ev);
-	   hash_table_iter_get (iter, &key, (void **)&eve);
-	   hash_table_iter_next (iter))
+      for (iter = virgule_hash_table_iter (p, ev);
+	   virgule_hash_table_iter_get (iter, &key, (void **)&eve);
+	   virgule_hash_table_iter_next (iter))
 	{
 	  eve->rating /= eve->confidence;
 	  eve->rating_sq /= eve->confidence;
@@ -293,18 +295,18 @@ eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
     }
 
   dbkey = apr_pstrcat (p, "eigen/local/", u, NULL);
-  el = eigen_local_load (p, vr, dbkey);
+  el = virgule_eigen_local_load (p, vr, dbkey);
   if (el)
     {
-      for (iter = hash_table_iter (p, el);
-	   hash_table_iter_get (iter, &key, (void **)&val);
-	   hash_table_iter_next (iter))
+      for (iter = virgule_hash_table_iter (p, el);
+	   virgule_hash_table_iter_get (iter, &key, (void **)&val);
+	   virgule_hash_table_iter_next (iter))
 	{
-	  eve = hash_table_get (ev, key);
+	  eve = virgule_hash_table_get (ev, key);
 	  if (eve == NULL)
 	    {
 	      eve = (EigenVecEl *)apr_palloc (p, sizeof(EigenVecEl));
-	      hash_table_set (p, ev, key, (void *)eve);
+	      virgule_hash_table_set (p, ev, key, (void *)eve);
 	    }
 	  eve->confidence = 1.0;
 	  eve->rating = val->rating;
@@ -319,7 +321,7 @@ eigen_crank (apr_pool_t *p, VirguleReq *vr, const char *u)
 
 /* Report results, for debugging purposes. */
 int
-eigen_report (VirguleReq *vr, const char *u)
+virgule_eigen_report (VirguleReq *vr, const char *u)
 {
   apr_pool_t *p = vr->r->pool;
   char *dbkey;
@@ -329,15 +331,15 @@ eigen_report (VirguleReq *vr, const char *u)
   EigenVecEl *val;
 
   dbkey = apr_pstrcat (p, "eigen/vec/", u, NULL);
-  ev = eigen_vec_load (p, vr, dbkey);
-  for (iter = hash_table_iter (p, ev);
-       hash_table_iter_get (iter, &key, (void **)&val);
-       hash_table_iter_next (iter))
+  ev = virgule_eigen_vec_load (p, vr, dbkey);
+  for (iter = virgule_hash_table_iter (p, ev);
+       virgule_hash_table_iter_get (iter, &key, (void **)&val);
+       virgule_hash_table_iter_next (iter))
     {
       /* The fabs here is a hack to avoid NaN's when roundoff errors
 	 push the difference negative. */
-      buffer_printf (vr->b, "%s: %.2g &plusmn;%.1f (confidence %.2g)<br>\n",
-		     nice_text (p, key), val->rating,
+      virgule_buffer_printf (vr->b, "%s: %.2g &plusmn;%.1f (confidence %.2g)<br>\n",
+		     virgule_nice_text (p, key), val->rating,
 		     sqrt (fabs (val->rating_sq - val->rating * val->rating)),
 		     val->confidence);
     }

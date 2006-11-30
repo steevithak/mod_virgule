@@ -18,7 +18,7 @@
 #include "certs.h"
 
 int
-cert_num_levels (VirguleReq *vr)
+virgule_cert_num_levels (VirguleReq *vr)
 {
   int count;
 
@@ -30,7 +30,7 @@ cert_num_levels (VirguleReq *vr)
 }
 
 CertLevel
-cert_level_from_name (VirguleReq *vr, const char *name)
+virgule_cert_level_from_name (VirguleReq *vr, const char *name)
 {
   int i;
 
@@ -44,15 +44,15 @@ cert_level_from_name (VirguleReq *vr, const char *name)
 }
 
 const char *
-cert_level_to_name (VirguleReq *vr, CertLevel level)
+virgule_cert_level_to_name (VirguleReq *vr, CertLevel level)
 {
-  if (level >= 0 && level < cert_num_levels (vr))
+  if (level >= 0 && level < virgule_cert_num_levels (vr))
     return vr->priv->cert_level_names[level];
   return "None";
 }
 
 CertLevel
-cert_get (VirguleReq *vr, const char *issuer, const char *subject)
+virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 {
   apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
@@ -62,9 +62,9 @@ cert_get (VirguleReq *vr, const char *issuer, const char *subject)
   xmlNode *cert;
   CertLevel result = CERT_LEVEL_NONE;
 
-  db_key = acct_dbkey (p, issuer);
-  profile = db_xml_get (p, db, db_key);
-  tree = xml_find_child (profile->xmlRootNode, "certs");
+  db_key = virgule_acct_dbkey (vr, issuer);
+  profile = virgule_db_xml_get (p, db, db_key);
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree == NULL)
     return CERT_LEVEL_NONE;
   for (cert = tree->children; cert != NULL; cert = cert->next)
@@ -82,7 +82,7 @@ cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 		  char *cert_level;
 
 		  cert_level = xmlGetProp (cert, "level");
-		  result = cert_level_from_name (vr, cert_level);
+		  result = virgule_cert_level_from_name (vr, cert_level);
 		  xmlFree (cert_level);
 		  xmlFree (cert_subj);
 		  break;
@@ -91,12 +91,12 @@ cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 	    }
 	}
     }
-  db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, db, profile);
   return result;
 }
 
 int
-cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level)
+virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level)
 {
   apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
@@ -107,12 +107,12 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
   int status;
 
   /* update subject first because it's more likely not to exist. */
-  db_key = acct_dbkey (p, subject);
-  profile = db_xml_get (p, db, db_key);
+  db_key = virgule_acct_dbkey (vr, subject);
+  profile = virgule_db_xml_get (p, db, db_key);
   if (profile == NULL)
     return -1;
 
-  tree = xml_ensure_child (profile->xmlRootNode, "certs-in");
+  tree = virgule_xml_ensure_child (profile->xmlRootNode, "certs-in");
 
   for (cert = tree->children; cert != NULL; cert = cert->next)
     {
@@ -145,17 +145,17 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
       xmlFreeNode(cert);
     }
   else
-    xmlSetProp (cert, "level", cert_level_to_name (vr, level));
+    xmlSetProp (cert, "level", virgule_cert_level_to_name (vr, level));
 
-  status = db_xml_put (p, db, db_key, profile);
-  db_xml_free (p, db, profile);
+  status = virgule_db_xml_put (p, db, db_key, profile);
+  virgule_db_xml_free (p, db, profile);
 
   /* then, update issuer */
-  db_key = acct_dbkey (p, issuer);
-  profile = db_xml_get (p, db, db_key);
+  db_key = virgule_acct_dbkey (vr, issuer);
+  profile = virgule_db_xml_get (p, db, db_key);
   if (profile == NULL)
     return -1;
-  tree = xml_ensure_child (profile->xmlRootNode, "certs");
+  tree = virgule_xml_ensure_child (profile->xmlRootNode, "certs");
 
   for (cert = tree->children; cert != NULL; cert = cert->next)
     {
@@ -188,10 +188,10 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
       xmlFreeNode(cert);
     }
   else
-    xmlSetProp (cert, "level", cert_level_to_name (vr, level));
+    xmlSetProp (cert, "level", virgule_cert_level_to_name (vr, level));
 
-  status = db_xml_put (p, db, db_key, profile);
-  db_xml_free (p, db, profile);
+  status = virgule_db_xml_put (p, db, db_key, profile);
+  virgule_db_xml_free (p, db, profile);
 
   return status;
 }
@@ -205,7 +205,7 @@ cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel lev
  * with the corresponding background color. Rendering goes to vr->b.
  **/
 void
-render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
+virgule_render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
 {
   const char *level;
   CertLevel cert_level;
@@ -216,13 +216,13 @@ render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
       break;
 
   if (*u)
-    cert_level = cert_num_levels (vr);
+    cert_level = virgule_cert_num_levels (vr);
   else
     {
-      level = req_get_tmetric_level (vr, user);
-      cert_level = cert_level_from_name (vr, level);
+      level = virgule_req_get_tmetric_level (vr, user);
+      cert_level = virgule_cert_level_from_name (vr, level);
     }
-  buffer_printf (vr->b, "<%s class=\"level%d\">", cs, cert_level);
+  virgule_buffer_printf (vr->b, "<%s class=\"level%d\">", cs, cert_level);
 }
 
 /**
@@ -233,17 +233,17 @@ render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs)
  * Closes the html opened by render_cert_level_begin().
  **/
 void
-render_cert_level_end (VirguleReq *vr, CertStyle cs)
+virgule_render_cert_level_end (VirguleReq *vr, CertStyle cs)
 {
-  buffer_printf (vr->b, "</%s>\n", cs);
+  virgule_buffer_printf (vr->b, "</%s>\n", cs);
 }
 
 void
-render_cert_level_text (VirguleReq *vr, const char *user)
+virgule_render_cert_level_text (VirguleReq *vr, const char *user)
 {
   Buffer *b = vr->b;
   const char *level;
 
-  level = req_get_tmetric_level (vr, user);
-  buffer_printf (b, " <span style=\"display: none\">(%s)</span>", level);
+  level = virgule_req_get_tmetric_level (vr, user);
+  virgule_buffer_printf (b, " <span style=\"display: none\">(%s)</span>", level);
 }

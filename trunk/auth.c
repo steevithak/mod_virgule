@@ -18,7 +18,7 @@
 #include "auth.h"
 
 void
-auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
+virgule_auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
 {
   request_rec *r = vr->r;
   Db *db = vr->db;
@@ -30,18 +30,18 @@ auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
   char *stored_cookie;
 
   u = ap_getword (p, &id_cookie, ':');
-  db_key = acct_dbkey (p, u);
+  db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
     /* cookie is invalid */
     return;
 
-  profile = db_xml_get (p, db, db_key);
+  profile = virgule_db_xml_get (p, db, db_key);
   if (profile == NULL)
     /* account doesn't exist */
     return;
   root = profile->xmlRootNode;
 
-  tree = xml_find_child (root, "auth");
+  tree = virgule_xml_find_child (root, "auth");
   if (tree == NULL)
     return;
 
@@ -51,7 +51,7 @@ auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
     /* cookie doesn't match */
     return;
   vr->u = u;
-  acct_touch(vr,u);
+  virgule_acct_touch(vr,u);
 
   /* store the username where it will be logged */
   if (!vr->r->user)
@@ -69,7 +69,7 @@ auth_user_with_cookie (VirguleReq *vr, const char *id_cookie)
 }
 
 void
-auth_user (VirguleReq *vr)
+virgule_auth_user (VirguleReq *vr)
 {
   const char *cookie, *val;
   char *key;
@@ -97,5 +97,5 @@ auth_user (VirguleReq *vr)
   if (id_cookie == NULL)
     return;
 
-  auth_user_with_cookie (vr, id_cookie);
+  virgule_auth_user_with_cookie (vr, id_cookie);
 }

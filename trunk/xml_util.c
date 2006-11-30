@@ -18,7 +18,7 @@
  * Return value: the child found, or NULL if none found.
  **/
 xmlNode *
-xml_find_child (xmlNode *n, const char *tag)
+virgule_xml_find_child (xmlNode *n, const char *tag)
 {
   xmlNode *child;
 
@@ -41,7 +41,7 @@ xml_find_child (xmlNode *n, const char *tag)
  * Return value: the child found.
  **/
 xmlNode *
-xml_ensure_child (xmlNode *n, const char *tag)
+virgule_xml_ensure_child (xmlNode *n, const char *tag)
 {
   xmlNode *child;
 
@@ -52,7 +52,7 @@ xml_ensure_child (xmlNode *n, const char *tag)
 }
 
 char *
-xml_get_string_contents (xmlNode *n)
+virgule_xml_get_string_contents (xmlNode *n)
 {
   xmlNode *child = n->children;
 
@@ -67,7 +67,7 @@ xml_get_string_contents (xmlNode *n)
 
 /* xmlGetProp with Apache-friendly allocation */
 char *
-xml_get_prop (apr_pool_t *p, xmlNodePtr node, const xmlChar *name)
+virgule_xml_get_prop (apr_pool_t *p, xmlNodePtr node, const xmlChar *name)
 {
   char *value;
   char *result;
@@ -91,13 +91,13 @@ xml_get_prop (apr_pool_t *p, xmlNodePtr node, const xmlChar *name)
  * Return value: the string, or @def if not found.
  **/
 char *
-xml_find_child_string (xmlNode *n, const char *tag, char *def)
+virgule_xml_find_child_string (xmlNode *n, const char *tag, char *def)
 {
   xmlNode *child;
 
-  child = xml_find_child (n, tag);
+  child = virgule_xml_find_child (n, tag);
   if (child == NULL)
     return def;
   else
-    return xml_get_string_contents (child);
+    return virgule_xml_get_string_contents (child);
 }

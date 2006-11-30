@@ -1,10 +1,10 @@
 /* The mod_virgule XML-RPC API in five easy steps:
  *
- *  1. the method should call xmlrpc_unmarshal_params() even if it
+ *  1. the method should call virgule_xmlrpc_unmarshal_params() even if it
  *     doesn't have any parameters.
- *  2. (optionally) call xmlrpc_auth_user()
- *  3. a) on success the method should call xmlrpc_response()
- *     b) on failure the method should call xmlrpc_fault()
+ *  2. (optionally) call virgule_xmlrpc_auth_user()
+ *  3. a) on success the method should call virgule_xmlrpc_response()
+ *     b) on failure the method should call virgule_xmlrpc_fault()
  *  4. add your method to method_table[] so it can be called.
  *  5. add your method to sample_db/site/xmlrpc.xml
  */
@@ -42,16 +42,16 @@ authenticate (VirguleReq *vr, xmlNode *params)
   char *id_cookie;
   int ret;
   
-  ret = xmlrpc_unmarshal_params (vr, params, "ss", &user, &pass);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "ss", &user, &pass);
   if (ret != OK)
     return ret;
 
-  ret = acct_login (vr, user, pass, &ret1, &ret2);
+  ret = virgule_acct_login (vr, user, pass, &ret1, &ret2);
   if (ret == 0)
-    return xmlrpc_fault (vr, 1, ret1);
+    return virgule_xmlrpc_fault (vr, 1, ret1);
 
   id_cookie = apr_pstrcat (vr->r->pool, ret1, ":", ret2, NULL);
-  return xmlrpc_response (vr, "s", id_cookie);
+  return virgule_xmlrpc_response (vr, "s", id_cookie);
 }
 
 static int
@@ -60,12 +60,12 @@ check_cookie (VirguleReq *vr, xmlNode *params)
   char *cookie;
   int ret;
   
-  ret = xmlrpc_unmarshal_params (vr, params, "s", &cookie);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "s", &cookie);
   if (ret != OK)
     return ret;
     
-  auth_user_with_cookie (vr, cookie);
-  return xmlrpc_response (vr, "i", vr->u == NULL ? 0 : 1);
+  virgule_auth_user_with_cookie (vr, cookie);
+  return virgule_xmlrpc_response (vr, "i", vr->u == NULL ? 0 : 1);
 }  
 
 
@@ -78,12 +78,12 @@ diary_len (VirguleReq *vr, xmlNode *params)
   const char *key;
   int ret;
   
-  ret = xmlrpc_unmarshal_params (vr, params, "s", &user);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "s", &user);
   if (ret != OK)
     return ret;
 
   key = apr_psprintf (vr->r->pool, "acct/%s/diary", user);
-  return xmlrpc_response (vr, "i", db_dir_max (vr->db, key) + 1);
+  return virgule_xmlrpc_response (vr, "i", virgule_db_dir_max (vr->db, key) + 1);
 }
 
 static int
@@ -95,16 +95,16 @@ diary_get (VirguleReq *vr, xmlNode *params)
   xmlDoc *entry;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "si", &user, &index);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "si", &user, &index);
   if (ret != OK)
     return ret;
 
   key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
-  entry = db_xml_get (vr->r->pool, vr->db, key);
+  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
   if (entry == NULL)
-    return xmlrpc_fault (vr, 1, "entry %d not found", index);
+    return virgule_xmlrpc_fault (vr, 1, "entry %d not found", index);
 
-  return xmlrpc_response (vr, "s", xml_get_string_contents (entry->xmlRootNode));
+  return virgule_xmlrpc_response (vr, "s", virgule_xml_get_string_contents (entry->xmlRootNode));
 }
 
 static int
@@ -118,25 +118,25 @@ diary_get_dates (VirguleReq *vr, xmlNode *params)
   xmlNode *update_el;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "si", &user, &index);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "si", &user, &index);
   if (ret != OK)
     return ret;
 
   key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
-  entry = db_xml_get (vr->r->pool, vr->db, key);
+  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
   if (entry == NULL)
-    return xmlrpc_fault (vr, 1, "entry %d not found", index);
+    return virgule_xmlrpc_fault (vr, 1, "entry %d not found", index);
 
-  create_el = xml_find_child (entry->xmlRootNode, "date");
+  create_el = virgule_xml_find_child (entry->xmlRootNode, "date");
   if (create_el == NULL)
-    return xmlrpc_fault (vr, 1, "date broken in %d", index);
+    return virgule_xmlrpc_fault (vr, 1, "date broken in %d", index);
 
-  update_el = xml_find_child (entry->xmlRootNode, "update");
+  update_el = virgule_xml_find_child (entry->xmlRootNode, "update");
   if (update_el == NULL)
     update_el = create_el;
 
-  return xmlrpc_response (vr, "dd", xml_get_string_contents (create_el),
-			  xml_get_string_contents (update_el));
+  return virgule_xmlrpc_response (vr, "dd", virgule_xml_get_string_contents (create_el),
+			  virgule_xml_get_string_contents (update_el));
 }
 
 static int
@@ -149,30 +149,30 @@ diary_set (VirguleReq *vr, xmlNode *params)
   char *error;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "sis", &cookie, &index, &entry);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "sis", &cookie, &index, &entry);
   if (ret != OK)
     return ret;
-  ret = xmlrpc_auth_user (vr, cookie);
+  ret = virgule_xmlrpc_auth_user (vr, cookie);
   if (ret != OK)
     return ret;
   user = vr->u;
 
   key = apr_psprintf (vr->r->pool, "acct/%s/diary", user);
-  max = db_dir_max (vr->db, key) + 1;
+  max = virgule_db_dir_max (vr->db, key) + 1;
   if (index == -1)
     index = max;
   if (index < 0 || index > max)
-    return xmlrpc_fault (vr, 1, "invalid entry key %d", index);
+    return virgule_xmlrpc_fault (vr, 1, "invalid entry key %d", index);
   key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
   
-  entry = nice_htext (vr, entry, &error);
+  entry = virgule_nice_htext (vr, entry, &error);
   if (error)
-    return xmlrpc_fault (vr, 1, "%s", error);
-  ret = diary_store_entry (vr, key, entry);
+    return virgule_xmlrpc_fault (vr, 1, "%s", error);
+  ret = virgule_diary_store_entry (vr, key, entry);
   if (ret)
-    return xmlrpc_fault (vr, 1, "error storing diary entry");
+    return virgule_xmlrpc_fault (vr, 1, "error storing diary entry");
 
-  return xmlrpc_response (vr, "i", 1);
+  return virgule_xmlrpc_response (vr, "i", 1);
 }
 
 
@@ -184,20 +184,20 @@ user_exists (VirguleReq *vr, xmlNode *params)
   xmlDoc *profile;
   int ret, exists;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "s", &user);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "s", &user);
   if (ret != OK)
     return ret;
 
-  reason = validate_username (user);
+  reason = virgule_validate_username (vr, user);
   if (reason) 
     exists = 0;
   else {
-    db_key = acct_dbkey (vr->r->pool, user);
-    profile = db_xml_get (vr->r->pool, vr->db, db_key);
+    db_key = virgule_acct_dbkey (vr, user);
+    profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
     exists = profile ? 1 : 0;
   }
 
-  return xmlrpc_response (vr, "i", exists);
+  return virgule_xmlrpc_response (vr, "i", exists);
 }
 
 
@@ -208,17 +208,17 @@ cert_get (VirguleReq *vr, xmlNode *params)
   const char *level;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "s", &user);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "s", &user);
   if (ret != OK)
     return ret;
 
-  reason = validate_username (user);
+  reason = virgule_validate_username (vr, user);
   if (reason)
-    return xmlrpc_fault (vr, 1, "invalid username: %s", user);
+    return virgule_xmlrpc_fault (vr, 1, "invalid username: %s", user);
 
-  level = req_get_tmetric_level (vr, user);
+  level = virgule_req_get_tmetric_level (vr, user);
      
-  return xmlrpc_response (vr, "s", level);
+  return virgule_xmlrpc_response (vr, "s", level);
 }
 
 
@@ -230,11 +230,11 @@ test_guess (VirguleReq *vr, xmlNode *params)
 {
   int ret;
   
-  ret = xmlrpc_unmarshal_params (vr, params, XMLRPC_NO_PARAMS);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, XMLRPC_NO_PARAMS);
   if (ret != OK)
     return ret;
   
-  return xmlrpc_response (vr, "si", "You guessed", 42);
+  return virgule_xmlrpc_response (vr, "si", "You guessed", 42);
 }
 
 static int
@@ -243,11 +243,11 @@ test_square (VirguleReq *vr, xmlNode *params)
   int x;
   int ret;
   
-  ret = xmlrpc_unmarshal_params (vr, params, "i", &x);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "i", &x);
   if (ret != OK)
     return ret;
   
-  return xmlrpc_response (vr, "i", x*x);
+  return virgule_xmlrpc_response (vr, "i", x*x);
 }
 
 static int
@@ -256,11 +256,11 @@ test_sumprod (VirguleReq *vr, xmlNode *params)
   int x, y;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "ii", &x, &y);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "ii", &x, &y);
   if (ret != OK)
     return ret;
  
-  return xmlrpc_response (vr, "ii", x+y, x*y);
+  return virgule_xmlrpc_response (vr, "ii", x+y, x*y);
 }
 
 static int
@@ -269,11 +269,11 @@ test_strlen (VirguleReq *vr, xmlNode *params)
   char *s;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "s", &s);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "s", &s);
   if (ret != OK)
     return ret;
   
-  return xmlrpc_response (vr, "i", strlen (s));
+  return virgule_xmlrpc_response (vr, "i", strlen (s));
 }
 
 static int
@@ -283,14 +283,14 @@ test_capitalize (VirguleReq *vr, xmlNode *params)
   int i;
   int ret;
 
-  ret = xmlrpc_unmarshal_params (vr, params, "s", &s);
+  ret = virgule_xmlrpc_unmarshal_params (vr, params, "s", &s);
   if (ret != OK)
     return ret;
 
   for (i=0; i<strlen(s); i++)
     s[i] = toupper (s[i]);
   
-  return xmlrpc_response (vr, "s", s);
+  return virgule_xmlrpc_response (vr, "s", s);
 }
 
 

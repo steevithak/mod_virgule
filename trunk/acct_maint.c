@@ -66,7 +66,7 @@ struct _NodeInfo {
 
 /* update an arbitrary pointer */
 int
-acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int last_read)
+virgule_acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int last_read)
 {
   apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
@@ -75,17 +75,17 @@ acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int
   xmlNode *tree, *msgptr;
   int status;
 
-  db_lock_upgrade(vr->lock);
-  auth_user(vr);
+  virgule_db_lock_upgrade(vr->lock);
+  virgule_auth_user(vr);
   if (vr->u == NULL)
     return 0;
 
-  db_key = acct_dbkey (p, vr->u);
-  profile = db_xml_get (p, db, db_key);
+  db_key = virgule_acct_dbkey (vr, vr->u);
+  profile = virgule_db_xml_get (p, db, db_key);
   if (profile == NULL)
     return -1;
 
-  tree = xml_ensure_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
+  tree = virgule_xml_ensure_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
 
   for (msgptr = tree->children; msgptr != NULL; msgptr = msgptr->next)
     {
@@ -112,16 +112,16 @@ acct_set_lastread(VirguleReq *vr, const char *section, const char *location, int
     }
 
   xmlSetProp (msgptr, "num", apr_psprintf(p, "%d", last_read));
-  xmlSetProp (msgptr, "date", iso_now(p));
+  xmlSetProp (msgptr, "date", virgule_iso_now(p));
 
-  status = db_xml_put (p, db, db_key, profile);
-  db_xml_free (p, db, profile);
+  status = virgule_db_xml_put (p, db, db_key, profile);
+  virgule_db_xml_free (p, db, profile);
 
   return status;
 }
 
 int
-acct_get_lastread(VirguleReq *vr, const char *section, const char *location)
+virgule_acct_get_lastread(VirguleReq *vr, const char *section, const char *location)
 {
   apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
@@ -129,16 +129,16 @@ acct_get_lastread(VirguleReq *vr, const char *section, const char *location)
   xmlDoc *profile;
   xmlNode *tree, *msgptr;
 
-  auth_user(vr);
+  virgule_auth_user(vr);
   if (vr->u == NULL)
     return -1;
 
-  db_key = acct_dbkey (p, vr->u);
-  profile = db_xml_get (p, db, db_key);
+  db_key = virgule_acct_dbkey (vr, vr->u);
+  profile = virgule_db_xml_get (p, db, db_key);
   if (profile == NULL)
     return -1;
 
-  tree = xml_find_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
+  tree = virgule_xml_find_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
   if (tree == NULL)
     return -1;
 
@@ -162,9 +162,9 @@ acct_get_lastread(VirguleReq *vr, const char *section, const char *location)
 }
 
 int
-acct_get_num_old(VirguleReq *vr)
+virgule_acct_get_num_old(VirguleReq *vr)
 {
-  auth_user(vr);
+  virgule_auth_user(vr);
 
   if (vr->u)
     {
@@ -174,9 +174,9 @@ acct_get_num_old(VirguleReq *vr)
       xmlNode *tree;
       char *num_old;
 
-      db_key = acct_dbkey (p, vr->u);
-      profile = db_xml_get (p, vr->db, db_key);
-      tree = xml_find_child (profile->xmlRootNode, "info");
+      db_key = virgule_acct_dbkey (vr, vr->u);
+      profile = virgule_db_xml_get (p, vr->db, db_key);
+      tree = virgule_xml_find_child (profile->xmlRootNode, "info");
 
       num_old = xmlGetProp (tree, "numold");
 
@@ -190,7 +190,7 @@ acct_get_num_old(VirguleReq *vr)
 }
 
 char *
-acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location)
+virgule_acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location)
 {
   apr_pool_t *p = vr->r->pool;
   Db *db = vr->db;
@@ -200,16 +200,16 @@ acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location
   char *date;
 
 
-  auth_user(vr);
+  virgule_auth_user(vr);
   if (vr->u == NULL)
     return NULL;
 
-  db_key = acct_dbkey (p, vr->u);
-  profile = db_xml_get (p, db, db_key);
+  db_key = virgule_acct_dbkey (vr, vr->u);
+  profile = virgule_db_xml_get (p, db, db_key);
   if (profile == NULL)
     return NULL;
 
-  tree = xml_find_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
+  tree = virgule_xml_find_child (profile->xmlRootNode, apr_psprintf(p, "%spointers", section));
   if (tree == NULL)
     return NULL;
 
@@ -227,14 +227,14 @@ acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location
 		  date = xmlGetProp (msgptr, "date");
 		  if (date == NULL)
 		    date = "1970-01-01 00:00:00";
-		  db_xml_free (p, db, profile);
+		  virgule_db_xml_free (p, db, profile);
 		  return date;
 		}
 	    }
 	}
     }
 
-  db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, db, profile);
   return "1970-01-01 00:00:00"; 
 }
 
@@ -245,7 +245,7 @@ acct_get_lastread_date(VirguleReq *vr, const char *section, const char *location
  * Return value: NULL if valid, or reason as string if not.
  **/
 char *
-validate_username (const char *u)
+virgule_validate_username (VirguleReq *vr, const char *u)
 {
   int len;
   int i;
@@ -253,17 +253,33 @@ validate_username (const char *u)
   if (u == NULL || !u[0])
     return "You must specify a username.";
 
-  if (!isalnum(u[0]))
-    return "First character must be alphanumeric.";
-
   len = strlen (u);
   if (len > 20)
     return "The username must be 20 characters or less.";
 
-  for (i = 0; i < len; i++)
+  if (vr->priv->allow_account_extendedcharset)
     {
-      if (!isalnum (u[i]) && u[i]!='-' && u[i]!='_' && u[i]!=' ' && u[i]!= '.' )
-	return "The username must contain only alphanumeric, dash, underscore, space, or dot characters.";
+
+      if (!isalnum(u[0]))
+        return "First character must be alphanumeric.";
+  
+      for (i = 0; i < len; i++)
+        {
+          if (!isalnum (u[i]) && u[i]!='-' && u[i]!='_' && u[i]!=' ' && u[i]!= '.' )
+	    return "The username must contain only alphanumeric, dash, underscore, space, or dot characters.";
+        }
+	
+    }
+
+  else
+    {
+
+      for (i = 0; i < len; i++)
+        {
+	  if (!isalnum (u[i]))
+	    return "The username must contain only alphanumeric characters.";
+	}
+
     }
 
   return NULL;
@@ -271,12 +287,12 @@ validate_username (const char *u)
 
 /* Make the db key. Sanity check the username. */
 char *
-acct_dbkey (apr_pool_t *p, const char *u)
+virgule_acct_dbkey (VirguleReq *vr, const char *u)
 {
-  if (validate_username (u) != NULL)
+  if (virgule_validate_username (vr, u) != NULL)
     return NULL;
 
-  return apr_pstrcat (p, "acct/", u, "/profile.xml", NULL);
+  return apr_pstrcat (vr->r->pool, "acct/", u, "/profile.xml", NULL);
 }
 
 static void
@@ -304,7 +320,7 @@ acct_index_serve (VirguleReq *vr)
   Buffer *b = vr->b;
   int i;
 
-  auth_user (vr);
+  virgule_auth_user (vr);
 
   if (vr->u)
     {
@@ -314,50 +330,50 @@ acct_index_serve (VirguleReq *vr)
       xmlNode *tree;
       char *value;
 
-      db_key = acct_dbkey (p, vr->u);
-      profile = db_xml_get (p, vr->db, db_key);
-      tree = xml_find_child (profile->xmlRootNode, "info");
-      level = req_get_tmetric_level (vr, vr->u);
+      db_key = virgule_acct_dbkey (vr, vr->u);
+      profile = virgule_db_xml_get (p, vr->db, db_key);
+      tree = virgule_xml_find_child (profile->xmlRootNode, "info");
+      level = virgule_req_get_tmetric_level (vr, vr->u);
 
-      render_header (vr, "User Account Info", NULL);
-      buffer_printf (b, "<p>Welcome, <tt>%s</tt>. The range of functions you "
+      virgule_render_header (vr, "User Account Info", NULL);
+      virgule_buffer_printf (b, "<p>Welcome, <tt>%s</tt>. The range of functions you "
 		     "can access depends on your <a href=\"%s/certs.html\">certification</a> "
 		     "level. Remember to certify any other users of this site that you "
 		     "know. The trust metric system relies on user participation!</p>\n<p>", 
 		     vr->u, vr->prefix);
 
-      render_cert_level_begin (vr, vr->u, CERT_STYLE_SMALL);
-      buffer_printf (b, "You are currently certified at the %s level by the other users of this site.", level);
-      render_cert_level_end (vr, CERT_STYLE_SMALL);
-      buffer_puts (b, "</p><p>At this level you can:</p>\n<ul>");
+      virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_SMALL);
+      virgule_buffer_printf (b, "You are currently certified at the %s level by the other users of this site.", level);
+      virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
+      virgule_buffer_puts (b, "</p><p>At this level you can:</p>\n<ul>");
 
-      buffer_printf (b, "<li>Link to your <a href=\"%s/person/%s\">publicly accessible page</a></li>",vr->prefix,ap_escape_uri(vr->r->pool,vr->u));
-      buffer_printf (b, "<li><a href=\"%s/diary/\">Post a weblog entry</a></li>\n",vr->prefix);
+      virgule_buffer_printf (b, "<li>Link to your <a href=\"%s/person/%s\">publicly accessible page</a></li>",vr->prefix,ap_escape_uri(vr->r->pool,vr->u));
+      virgule_buffer_printf (b, "<li><a href=\"%s/diary/\">Post a blog entry</a></li>\n",vr->prefix);
 
-      if (req_ok_to_reply (vr))
+      if (virgule_req_ok_to_reply (vr))
         {
-	  buffer_puts (b, "<li>Post replies to articles</li>\n");
+	  virgule_buffer_puts (b, "<li>Post replies to articles</li>\n");
 	}
 
-      if (req_ok_to_create_project (vr))
+      if (virgule_req_ok_to_create_project (vr))
         {
-	  buffer_printf (b, "<li><a href=\"%s/proj/new.html\">Create new project pages</a></li>\n",vr->prefix);
-	  buffer_printf (b, "<li>Edit your <a href=\"%s/proj/\">existing projects</a></li>\n",vr->prefix);
+	  virgule_buffer_printf (b, "<li><a href=\"%s/proj/new.html\">Create new project pages</a></li>\n",vr->prefix);
+	  virgule_buffer_printf (b, "<li>Edit your <a href=\"%s/proj/\">existing projects</a></li>\n",vr->prefix);
 	}
 
-      if (req_ok_to_post (vr))
+      if (virgule_req_ok_to_post (vr))
         {
-	  buffer_printf (b, "<li><a href=\"%s/article/post.html\">Post an article</a></li>\n",vr->prefix);
+	  virgule_buffer_printf (b, "<li><a href=\"%s/article/post.html\">Post an article</a></li>\n",vr->prefix);
 	}
 	
-      buffer_puts (b, "<li><a href=\"logout.html\">Logout</a></li>\n");
+      virgule_buffer_puts (b, "<li><a href=\"logout.html\">Logout</a></li>\n");
       if (vr->priv->projstyle == PROJSTYLE_NICK)
-        buffer_puts (b, "<li><a href=\"/proj/updatepointers.html\">Mark all messags as read</a></li>\n");
-      buffer_puts (b, "</ul><p> Or you can update your account info: </p>\n");
-      buffer_puts (b, "<form method=\"POST\" action=\"update.html\" accept-charset=\"UTF-i\">\n");
+        virgule_buffer_puts (b, "<li><a href=\"/proj/updatepointers.html\">Mark all messags as read</a></li>\n");
+      virgule_buffer_puts (b, "</ul><p> Or you can update your account info: </p>\n");
+      virgule_buffer_puts (b, "<form method=\"POST\" action=\"update.html\" accept-charset=\"UTF-i\">\n");
       for (i = 0; prof_fields[i].description; i++)
 	{
-	  if (vr->priv->projstyle == PROJSTYLE_RAPH &&
+	  if (vr->priv->projstyle != PROJSTYLE_NICK &&
 	      !strcmp(prof_fields[i].attr_name, "numold"))
 	    continue;
 
@@ -365,32 +381,32 @@ acct_index_serve (VirguleReq *vr)
 	  if (tree)
 	    value = xmlGetProp (tree, prof_fields[i].attr_name);
 
-	  buffer_printf (b, "<p> %s: <br>\n", prof_fields[i].description);
+	  virgule_buffer_printf (b, "<p> %s: <br>\n", prof_fields[i].description);
 	  if (prof_fields[i].flags & PROFILE_BOOLEAN)
-	    buffer_printf (b, "<input name=\"%s\" type=checkbox %s> </p>\n",
+	    virgule_buffer_printf (b, "<input name=\"%s\" type=checkbox %s> </p>\n",
 			   prof_fields[i].attr_name,
 			   value ? (strcmp (value, "on") ? "" : " checked") : "");
 	  else if (prof_fields[i].flags & PROFILE_TEXTAREA)
-	    buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
+	    virgule_buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
 			   prof_fields[i].attr_name,
 			   prof_fields[i].size / 1000,
 			   prof_fields[i].size % 1000,
 			   value ? ap_escape_html (p, value) : "");
 	  else
-	    buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"> </p>\n",
+	    virgule_buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"> </p>\n",
 			   prof_fields[i].attr_name, prof_fields[i].size,
 			   value ? ap_escape_html (p, value) : "");
 	  if (value != NULL)
 	    xmlFree (value);
 	}
-      buffer_puts (b, " <input type=\"submit\" value=\"Update\">\n"
+      virgule_buffer_puts (b, " <input type=\"submit\" value=\"Update\">\n"
 		   "</form>\n");
-      return render_footer_send (vr);
+      return virgule_render_footer_send (vr);
     }
   else
     {
-      render_header (vr, "Login", NULL);
-      buffer_puts (b, "<p> Please login if you have an account.\n"
+      virgule_render_header (vr, "Login", NULL);
+      virgule_buffer_puts (b, "<p> Please login if you have an account.\n"
 		   "Otherwise, feel free to <a href=\"new.html\">create a new account</a>. </p>\n"
 		   "<p>If you have forgotten your password, fill in your user name, check the "
 		   "\"forgot password\" box, and then click the login button. Your password "
@@ -409,7 +425,7 @@ acct_index_serve (VirguleReq *vr)
 		   "<p> Note: This site uses cookies to store authentication\n"
 		   "information. </p>\n");
 
-      return render_footer_send (vr);
+      return virgule_render_footer_send (vr);
     }
 }
 
@@ -431,70 +447,73 @@ acct_newsub_serve (VirguleReq *vr)
   char *u_lc;
 
   if (!vr->priv->allow_account_creation)
-    return send_error_page (vr, "Account creation forbidden", "No new accounts may be created at this time.\n");
+    return virgule_send_error_page (vr, "Account creation forbidden", "No new accounts may be created at this time.\n");
 
-  db_lock_upgrade(vr->lock);
-  args = get_args_table (vr);
+  virgule_db_lock_upgrade(vr->lock);
+  args = virgule_get_args_table (vr);
 
   if (args == NULL)
-    return send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
+    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
 
   u = apr_table_get (args, "u");
   pass = apr_table_get (args, "pass");
   pass2 = apr_table_get (args, "pass2");
 
 #if 0
-  buffer_printf (b, "Username: %s\n", u);
-  buffer_printf (b, "Password: %s\n", pass);
-  buffer_printf (b, "Password 2: %s\n", pass2);
+  virgule_buffer_printf (b, "Username: %s\n", u);
+  virgule_buffer_printf (b, "Password: %s\n", pass);
+  virgule_buffer_printf (b, "Password 2: %s\n", pass2);
 #endif
 
   if (u == NULL || !u[0])
-    return send_error_page (vr, "Specify a username",
+    return virgule_send_error_page (vr, "Specify a username",
 			    "You must specify a username.");
 
   if (strlen (u) > 20)
-    return send_error_page (vr, "Username too long",
+    return virgule_send_error_page (vr, "Username too long",
 			    "The username must be 20 characters or less.");
 
   /* sanity check user name */
-  db_key = acct_dbkey (p, u);
-  if (db_key == NULL)
-    return send_error_page (vr, "Invalid username",
+  db_key = virgule_acct_dbkey (vr, u);
+  if (db_key == NULL && vr->priv->allow_account_extendedcharset)
+    return virgule_send_error_page (vr, "Invalid username",
 			    "Username must begin with an alphanumeric character and contain only alphanumerics, spaces, dashes, underscores, or periods.");
+  else if (db_key == NULL)
+    return virgule_send_error_page (vr, "Invalid username",
+			    "Username must contain only alphanumeric characters.");
 
   u_lc = apr_pstrdup (p, u);
   ap_str_tolower (u_lc);
-  db_key_lc = acct_dbkey (p, u_lc);
-  profile = db_xml_get (p, db, db_key_lc);
+  db_key_lc = virgule_acct_dbkey (vr, u_lc);
+  profile = virgule_db_xml_get (p, db, db_key_lc);
   if (profile != NULL)
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Account already exists",
 			    "The account name <tt>%s</tt> already exists.",
 			    u);
 
   if (pass == NULL || pass2 == NULL)
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Specify a password",
 			    "You must specify a password and enter it twice.");
 
   if (strcmp (pass, pass2))
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Passwords must match",
 			    "The passwords must match. Have a cup of coffee and try again.");
 
-  profile = db_xml_doc_new (p);
+  profile = virgule_db_xml_doc_new (p);
 
   root = xmlNewDocNode (profile, NULL, "profile", NULL);
   profile->xmlRootNode = root;
 
-  date = iso_now (p);
+  date = virgule_iso_now (p);
   tree = xmlNewChild (root, NULL, "date", date);
   tree = xmlNewChild (root, NULL, "auth", NULL);
   xmlSetProp (tree, "pass", pass);
-  cookie = rand_cookie (p);
+  cookie = virgule_rand_cookie (p);
 #if 0
-  buffer_printf (b, "Cookie is %s\n", cookie);
+  virgule_buffer_printf (b, "Cookie is %s\n", cookie);
 #endif
   xmlSetProp (tree, "cookie", cookie);
 
@@ -505,17 +524,17 @@ acct_newsub_serve (VirguleReq *vr)
       val = apr_table_get (args, prof_fields[i].attr_name);
       if (val == NULL)
         continue;
-      if (is_input_valid(val))
+      if (virgule_is_input_valid(val))
         xmlSetProp (tree, prof_fields[i].attr_name, val);
       else
-        return send_error_page (vr,
+        return virgule_send_error_page (vr,
                                 "Invalid Characters Submitted",
                                 "Only valid characters that use valid UTF-8 sequences may be submitted.");
     }
 
-  status = db_xml_put (p, db, db_key, profile);
+  status = virgule_db_xml_put (p, db, db_key, profile);
   if (status)
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Error storing account profile",
 			    "There was an error storing the account profile. This means there's something wrong with the site.");
 
@@ -523,22 +542,22 @@ acct_newsub_serve (VirguleReq *vr)
 
   vr->u = u;
 
-  add_recent (p, db, "recent/acct.xml", u, 50, 0);
+  virgule_add_recent (p, db, "recent/acct.xml", u, 50, 0);
 
   /* store lower case alias if necessary */
   if (! (strcmp (u_lc, u) == 0))
     {
-      profile = db_xml_doc_new (p);
+      profile = virgule_db_xml_doc_new (p);
 
       root = xmlNewDocNode (profile, NULL, "profile", NULL);
       profile->xmlRootNode = root;
       tree = xmlNewChild (root, NULL, "alias", NULL);
       xmlSetProp (tree, "link", u);
 
-      status = db_xml_put (p, db, db_key_lc, profile);
+      status = virgule_db_xml_put (p, db, db_key_lc, profile);
     }
 
-  return send_error_page (vr,
+  return virgule_send_error_page (vr,
 			  "Account created",
 			  "Account <a href=\"%s/person/%s/\">%s</a> created.\n",
 			  vr->prefix, ap_escape_uri (vr->r->pool,u), u);
@@ -549,7 +568,7 @@ acct_newsub_serve (VirguleReq *vr)
  * FIXME: this function's interface is _nasty_
  */
 int
-acct_login (VirguleReq *vr, const char *u, const char *pass,
+virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
 	    const char **ret1, const char **ret2)
 {
   request_rec *r = vr->r;
@@ -580,7 +599,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
   for (i = 0; i < n_iter_max; i++)
     {
       /* sanity check user name */
-      db_key = acct_dbkey (p, u);
+      db_key = virgule_acct_dbkey (vr, u);
       if (db_key == NULL)
         {
 	  *ret1 = "Invalid username";
@@ -588,7 +607,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
 	  return 0;
         }
 
-      profile = db_xml_get (p, db, db_key);
+      profile = virgule_db_xml_get (p, db, db_key);
       if (profile == NULL)
         {
 	  *ret1 = "Account does not exist";
@@ -597,19 +616,19 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
         }
       
 #if 0
-      buffer_printf (b, "Profile: %s\n", profile->name);
-      return buffer_send_response (r, b);
+      virgule_buffer_printf (b, "Profile: %s\n", profile->name);
+      return virgule_buffer_send_response (r, b);
 #endif
 
       root = profile->xmlRootNode;
 
-      tree = xml_find_child (root, "alias");
+      tree = virgule_xml_find_child (root, "alias");
       if (tree == NULL)
 	break;
 
-      u = xml_get_prop (p, tree, "link");
-      db_key = acct_dbkey (p, u);
-      profile = db_xml_get (p, db, db_key);
+      u = virgule_xml_get_prop (p, tree, "link");
+      db_key = virgule_acct_dbkey (vr, u);
+      profile = virgule_db_xml_get (p, db, db_key);
     }
 
   if (i == n_iter_max)
@@ -620,7 +639,7 @@ acct_login (VirguleReq *vr, const char *u, const char *pass,
       return 0;
     }
 
-  tree = xml_find_child (root, "auth");
+  tree = virgule_xml_find_child (root, "auth");
 
   if (tree == NULL)
     {
@@ -660,7 +679,7 @@ send_email(VirguleReq *vr, const char *mail, const char *u, const char *pass)
   snprintf( cmd, sizeof(cmd)-1, "/usr/lib/sendmail -t -f %s", vr->priv->admin_email);
 
   if ((fp = popen( cmd, "w")) == NULL) 
-     return send_error_page (vr, "Error", "There was an error sending mail to <tt>%s</tt>.\n", mail);
+     return virgule_send_error_page (vr, "Error", "There was an error sending mail to <tt>%s</tt>.\n", mail);
 
   fprintf(fp,"To: %s\n", mail);
   fprintf(fp,"From: %s\n", vr->priv->admin_email);
@@ -688,18 +707,18 @@ acct_loginsub_serve (VirguleReq *vr)
   
   r->content_type = "text/plain; charset=UTF-8";
 
-  args = get_args_table (vr);
+  args = virgule_get_args_table (vr);
 
   if (args == NULL)
-    return send_error_page (vr, "Need form data", " This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
+    return virgule_send_error_page (vr, "Need form data", " This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
 
   u = apr_table_get (args, "u");
   pass = apr_table_get (args, "pass");
   forgot = apr_table_get (args, "forgot");
 
 #if 0
-  buffer_printf (b, "Username: %s\n", u);
-  buffer_printf (b, "Password: %s\n", pass);
+  virgule_buffer_printf (b, "Username: %s\n", u);
+  virgule_buffer_printf (b, "Password: %s\n", pass);
 #endif
 
   /* User has forgotten their password. */
@@ -711,43 +730,43 @@ acct_loginsub_serve (VirguleReq *vr)
       xmlNode *tree;
 
       /* sanity check user name */
-      db_key = acct_dbkey(p, u);
+      db_key = virgule_acct_dbkey(vr, u);
       if (db_key == NULL)
         {
-          return send_error_page (vr, "Invalid username", "Username contain invalid characters.");
+          return virgule_send_error_page (vr, "Invalid username", "Username contain invalid characters.");
 	}
 
       /* verify that user name is in DB */
-      profile = db_xml_get (p, vr->db, db_key);
+      profile = virgule_db_xml_get (p, vr->db, db_key);
       if (profile == NULL)
         {
-          return send_error_page (vr, "Account does not exist", "The specified account could not be found.");
+          return virgule_send_error_page (vr, "Account does not exist", "The specified account could not be found.");
 	}
 
       /* check for an account alias */
-      tree = xml_find_child (profile->xmlRootNode, "alias");
+      tree = virgule_xml_find_child (profile->xmlRootNode, "alias");
       if (tree != NULL) 
         {
-          db_key_lc = acct_dbkey (p, xml_get_prop (p, tree, "link"));
-          profile = db_xml_get (p, vr->db, db_key_lc);
+          db_key_lc = virgule_acct_dbkey (vr, virgule_xml_get_prop (p, tree, "link"));
+          profile = virgule_db_xml_get (p, vr->db, db_key_lc);
         }
       
       /* Get the email and password. */
-      tree = xml_find_child (profile->xmlRootNode, "info");
-      mail = xml_get_prop (p, tree, "email");
+      tree = virgule_xml_find_child (profile->xmlRootNode, "info");
+      mail = virgule_xml_get_prop (p, tree, "email");
       if (mail == NULL)
 	{
-	  return send_error_page(vr,
+	  return virgule_send_error_page(vr,
 				 "Email not found",
 				 "The account name <tt>%s</tt> doesn't have an email address associated with it.",
 				 u);
 	}
 
-      tree = xml_find_child (profile->xmlRootNode, "auth");
-      pass = xml_get_prop (p, tree, "pass");
+      tree = virgule_xml_find_child (profile->xmlRootNode, "auth");
+      pass = virgule_xml_get_prop (p, tree, "pass");
       if (pass == NULL)
 	{
-	  return send_error_page(vr,
+	  return virgule_send_error_page(vr,
 				 "Password not found",
 				 "The account name <tt>%s</tt> doesn't have an email password associated with it.",
 				 u);
@@ -757,13 +776,13 @@ acct_loginsub_serve (VirguleReq *vr)
       send_email( vr, mail, u, pass );
 
       /* Tell the user */
-      return send_error_page( vr, "Password mailed.",
+      return virgule_send_error_page( vr, "Password mailed.",
 			      "The password for <tt>%s</tt> has now been mailed to <tt>%s</tt>", 
 			      u, mail );
   }
 
-  if (!acct_login (vr, u, pass, &ret1, &ret2))
-      return send_error_page (vr, ret1, ret2);
+  if (!virgule_acct_login (vr, u, pass, &ret1, &ret2))
+      return virgule_send_error_page (vr, ret1, ret2);
 
   u = ret1;
   cookie = ret2;
@@ -772,7 +791,7 @@ acct_loginsub_serve (VirguleReq *vr)
   
   vr->u = u;
 
-  return send_error_page (vr,
+  return virgule_send_error_page (vr,
 			  "Login ok",
 			  "Login to account <tt>%s</tt> ok.\n", u);
 
@@ -782,17 +801,17 @@ static int
 acct_logout_serve (VirguleReq *vr)
 {
 
-  auth_user (vr);
+  virgule_auth_user (vr);
 
   if (vr->u)
     {
       acct_set_cookie (vr, vr->u, "", -86400);
-      return send_error_page (vr,
+      return virgule_send_error_page (vr,
 			      "Logged out",
 			      "Logout of account <tt>%s</tt> ok.\n", vr->u);
     }
   else
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Already logged out",
 			    "You were already logged out.\n");
 
@@ -804,10 +823,10 @@ acct_update_serve (VirguleReq *vr)
   apr_pool_t *p = vr->r->pool;
   apr_table_t *args;
 
-  db_lock_upgrade(vr->lock);
-  auth_user (vr);
+  virgule_db_lock_upgrade(vr->lock);
+  virgule_auth_user (vr);
 
-  args = get_args_table (vr);
+  args = virgule_get_args_table (vr);
 
   if (vr->u)
     {
@@ -817,10 +836,10 @@ acct_update_serve (VirguleReq *vr)
       int i;
       int status;
 
-      db_key = acct_dbkey (p, vr->u);
-      profile = db_xml_get (p, vr->db, db_key);
+      db_key = virgule_acct_dbkey (vr, vr->u);
+      profile = virgule_db_xml_get (p, vr->db, db_key);
 
-      tree = xml_ensure_child (profile->xmlRootNode, "info");
+      tree = virgule_xml_ensure_child (profile->xmlRootNode, "info");
 
       for (i = 0; prof_fields[i].description; i++)
 	{
@@ -828,7 +847,7 @@ acct_update_serve (VirguleReq *vr)
 	  val = apr_table_get (args, prof_fields[i].attr_name);
 	  if (val == NULL && prof_fields[i].flags & PROFILE_BOOLEAN)
 	    val = "off";
-          if (is_input_valid(val))
+          if (virgule_is_input_valid(val))
 	    {
 #if 0
 	      g_print ("Setting field %s to %s\n",
@@ -837,26 +856,26 @@ acct_update_serve (VirguleReq *vr)
               xmlSetProp (tree, prof_fields[i].attr_name, val);
 	    }
           else
-            return send_error_page (vr,
+            return virgule_send_error_page (vr,
                                     "Invalid Characters Submitted",
                                     "Only valid characters that use valid UTF-8 sequences may be submitted.");
 	}
 
 
-      status = db_xml_put (p, vr->db, db_key, profile);
+      status = virgule_db_xml_put (p, vr->db, db_key, profile);
       if (status)
-	return send_error_page (vr,
+	return virgule_send_error_page (vr,
 				"Error storing account profile",
 				"There was an error storing the account profile. This means there's something wrong with the site.");
       apr_table_add (vr->r->headers_out, "refresh",
 		    apr_psprintf(p, "0;URL=/person/%s/", vr->u));
-      return send_error_page (vr,
+      return virgule_send_error_page (vr,
 			      "Updated",
 			      "Updates to account <a href=\"../person/%s/\">%s</a> ok",
 			      ap_escape_uri(vr->r->pool,vr->u), vr->u);
     }
   else
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Not logged in",
 			    "You need to be logged in to update your info.");
 }
@@ -887,9 +906,9 @@ node_info_compare (const void *ni1, const void *ni2)
  *
  */
 void
-acct_person_index_serve (VirguleReq *vr, int max)
+virgule_acct_person_index_serve (VirguleReq *vr, int max)
 {
-  char *tmetric = req_get_tmetric (vr);
+  char *tmetric = virgule_req_get_tmetric (vr);
   int start = 0;
   int line = 0;
   int i, j, k;
@@ -906,7 +925,7 @@ acct_person_index_serve (VirguleReq *vr, int max)
   if (tmetric == NULL)
     return;
 
-  args = get_args_table (vr);
+  args = virgule_get_args_table (vr);
   if (args != NULL)
     start = atoi (apr_table_get (args, "start"));
 
@@ -927,26 +946,26 @@ acct_person_index_serve (VirguleReq *vr, int max)
 	  i += j;
 
           ap_unescape_url(user);
-          db_key = acct_dbkey (vr->r->pool, user);
+          db_key = virgule_acct_dbkey (vr, user);
 	  if (db_key == NULL)
 	    continue;
-          profile = db_xml_get (vr->r->pool, vr->db, db_key);
+          profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
           if (profile == NULL)
             continue;
-          tree = xml_find_child (profile->xmlRootNode, "info");
+          tree = virgule_xml_find_child (profile->xmlRootNode, "info");
           if (tree != NULL)
 	    {
-	      givenname = xml_get_prop (vr->r->pool, tree, "givenname");
-	      surname = xml_get_prop (vr->r->pool, tree, "surname");
+	      givenname = virgule_xml_get_prop (vr->r->pool, tree, "givenname");
+	      surname = virgule_xml_get_prop (vr->r->pool, tree, "surname");
 	    }
-          db_xml_free (vr->r->pool, vr->db, profile);
+          virgule_db_xml_free (vr->r->pool, vr->db, profile);
 
-          render_cert_level_begin (vr, user, CERT_STYLE_SMALL);
-          buffer_printf (vr->b, "<a href=\"%s/\">%s</a>, %s %s, %s\n",
+          virgule_render_cert_level_begin (vr, user, CERT_STYLE_SMALL);
+          virgule_buffer_printf (vr->b, "<a href=\"%s/\">%s</a>, %s %s, %s\n",
 	                 ap_escape_uri(vr->r->pool,user), user,
 			 givenname, surname,
-	                 req_get_tmetric_level (vr, user));
-          render_cert_level_end (vr, CERT_STYLE_SMALL);
+	                 virgule_req_get_tmetric_level (vr, user));
+          virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
         }
       if (tmetric[i] == '\n')
         i++;
@@ -957,10 +976,10 @@ acct_person_index_serve (VirguleReq *vr, int max)
   else if (len > 0 && uri[len -1] == '/')
     uri = apr_pstrcat (vr->r->pool, uri, "index.html", NULL);
   if (start-max >= 0)
-    buffer_printf (vr->b, "<a href=\"%s?start=%i\"><< Previous Page</a>&nbsp;&nbsp;\n", uri, start-max);
+    virgule_buffer_printf (vr->b, "<a href=\"%s?start=%i\"><< Previous Page</a>&nbsp;&nbsp;\n", uri, start-max);
   if (line == start+max && tmetric[i])
-    buffer_printf (vr->b, "<a href=\"%s?start=%i\">Next Page >></a>\n", uri, start+max);
-  buffer_puts (vr->b, "<p> Go to <x>a person</x>'s page to certify them. </p>\n");
+    virgule_buffer_printf (vr->b, "<a href=\"%s?start=%i\">Next Page >></a>\n", uri, start+max);
+  virgule_buffer_puts (vr->b, "<p> Go to <x>a person</x>'s page to certify them. </p>\n");
 }
 
 
@@ -978,23 +997,23 @@ acct_person_graph_serve (VirguleReq *vr)
   const int threshold = 0;
 
   r->content_type = "text/plain; charset=UTF-8";
-  buffer_printf (b, "digraph G {\n");
-  dbc = db_open_dir (db, "acct");
-  while ((issuer = db_read_dir_raw (dbc)) != NULL)
+  virgule_buffer_printf (b, "digraph G {\n");
+  dbc = virgule_db_open_dir (db, "acct");
+  while ((issuer = virgule_db_read_dir_raw (dbc)) != NULL)
     {
       char *db_key;
       xmlDoc *profile;
       xmlNode *tree;
       xmlNode *cert;
 
-      buffer_printf (b, "   /* %s */\n", issuer);
+      virgule_buffer_printf (b, "   /* %s */\n", issuer);
 
-      db_key = acct_dbkey (p, issuer);
-      profile = db_xml_get (p, db, db_key);
-      tree = xml_find_child (profile->xmlRootNode, "certs");
+      db_key = virgule_acct_dbkey (vr, issuer);
+      profile = virgule_db_xml_get (p, db, db_key);
+      tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
       if (tree == NULL)
 	continue;
-      if (cert_level_from_name (vr, req_get_tmetric_level (vr, issuer)) < threshold)
+      if (virgule_cert_level_from_name (vr, virgule_req_get_tmetric_level (vr, issuer)) < threshold)
 	continue;
       for (cert = tree->children; cert != NULL; cert = cert->next)
 	{
@@ -1003,23 +1022,23 @@ acct_person_graph_serve (VirguleReq *vr)
 	    {
 	      char *cert_subj;
 
-	      cert_subj = xml_get_prop (p, cert, "subj");
+	      cert_subj = virgule_xml_get_prop (p, cert, "subj");
 	      if (cert_subj &&
-		  cert_level_from_name (vr, req_get_tmetric_level (vr, cert_subj)) >= threshold)
+		  virgule_cert_level_from_name (vr, virgule_req_get_tmetric_level (vr, cert_subj)) >= threshold)
 		{
 		  char *cert_level;
 
-                  cert_level = xml_get_prop (p, cert, "level");
-		  buffer_printf (b, "   %s -> %s [level=\"%s\"];\n",
+                  cert_level = virgule_xml_get_prop (p, cert, "level");
+		  virgule_buffer_printf (b, "   %s -> %s [level=\"%s\"];\n",
 				 issuer, cert_subj, cert_level);
 		}
 	    }
 	}
     }
-  db_close_dir (dbc);
+  virgule_db_close_dir (dbc);
 
-  buffer_printf (b, "}\n");
-  return send_response (vr);
+  virgule_buffer_printf (b, "}\n");
+  return virgule_send_response (vr);
 }
 
 static int
@@ -1033,13 +1052,13 @@ acct_person_diary_xml_serve (VirguleReq *vr, char *u)
   doc = xmlNewDoc ("1.0");
 
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, "tdif", NULL);
-  diary_export (vr, doc->xmlRootNode, u);
+  virgule_diary_export (vr, doc->xmlRootNode, u);
 
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
-  buffer_write (b, mem, size);
+  virgule_buffer_write (b, mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
-  return send_response (vr);
+  return virgule_send_response (vr);
 }
 
 static int
@@ -1060,12 +1079,12 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
 
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
   xmlSetProp (doc->xmlRootNode, "version", "0.91");
-  diary_rss_export (vr, doc->xmlRootNode, u);
+  virgule_diary_rss_export (vr, doc->xmlRootNode, u);
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
-  buffer_write (b, mem, size);
+  virgule_buffer_write (b, mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
-  return send_response (vr);
+  return virgule_send_response (vr);
 }
 
 static int
@@ -1077,7 +1096,7 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   apr_table_t *args;
   int start;
 
-  args = get_args_table (vr);
+  args = virgule_get_args_table (vr);
   if (args == NULL)
     start = -1;
   else
@@ -1085,17 +1104,17 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
 
   str = apr_psprintf (p, "Diary for %s", u);
 
-  render_header (vr, str, NULL);
+  virgule_render_header (vr, str, NULL);
   if (start == -1)
-    buffer_printf (b, "<p> Recent weblog entries for <a href=\"%s/person/%s/\">%s</a>: </p>\n",
+    virgule_buffer_printf (b, "<p> Recent blog entries for <a href=\"%s/person/%s/\">%s</a>: </p>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u);
   else
-    buffer_printf (b, "<p> Older weblog entries for <a href=\"%s/person/%s/\">%s</a> (starting at number %d): </p>\n",
+    virgule_buffer_printf (b, "<p> Older blog entries for <a href=\"%s/person/%s/\">%s</a> (starting at number %d): </p>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u, start);
 
-  diary_render (vr, u, 10, start);
+  virgule_diary_render (vr, u, 10, start);
 
-  return render_footer_send (vr);
+  return virgule_render_footer_send (vr);
 }
 
 static int
@@ -1107,13 +1126,15 @@ acct_person_serve (VirguleReq *vr, const char *path)
   char *u;
   char *db_key;
   xmlDoc *profile, *staff;
-  xmlNode *tree;
+  xmlNode *tree, *lastlogin;
   Buffer *b = vr->b;
   char *str;
   char *surname, *givenname;
   char *url;
+  char *date = NULL;
   char *notes;
   int any;
+  int observer = FALSE;
   char *err;
   char *first;
 
@@ -1123,7 +1144,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (path, "graph.dot"))
     return acct_person_graph_serve (vr);
 
-  auth_user (vr);
+  virgule_auth_user (vr);
 
   q = strchr ((char *)path, '/');
   if (q == NULL)
@@ -1145,56 +1166,64 @@ acct_person_serve (VirguleReq *vr, const char *path)
     return acct_person_diary_rss_serve (vr, u);
 
   if (q[1] != '\0')
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Extra junk",
 			    "Extra junk after <x>person</x>'s name not allowed.");
 
-  db_key = acct_dbkey (p, u);
+  db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
     {
-      return send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
+      return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
     }
     
-  profile = db_xml_get (p, vr->db, db_key);
+  profile = virgule_db_xml_get (p, vr->db, db_key);
   if (profile == NULL)
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "<x>Person</x> not found",
 			    "Account <tt>%s</tt> was not found.", u);
 
-  tree = xml_find_child (profile->xmlRootNode, "alias");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "alias");
   if (tree != NULL)
     {
       apr_table_add (r->headers_out, "Location",
 		    apr_pstrcat (p, vr->prefix, "/person/",
-				xml_get_prop (p, tree, "link"), "/", NULL));
+				virgule_xml_get_prop (p, tree, "link"), "/", NULL));
       return HTTP_MOVED_PERMANENTLY;
 				
     }
 
   str = apr_psprintf (p, "Personal info for %s", u);
-  render_header (vr, str,
+  virgule_render_header (vr, str,
 		"<link rel=\"alternate\" type=\"application/rss+xml\" "
 		"title=\"RSS\" href=\"rss.xml\" />\n");
 
-  if (strcmp (req_get_tmetric_level (vr, u),
-	       cert_level_to_name (vr, CERT_LEVEL_NONE)))
+  if (strcmp (virgule_req_get_tmetric_level (vr, u),
+	       virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
     {
-      render_cert_level_begin (vr, u, CERT_STYLE_SMALL);
-      buffer_printf (b, "This <x>person</x> is currently certified at %s level.\n", req_get_tmetric_level (vr, u));
-      render_cert_level_end (vr, CERT_STYLE_SMALL);
+      virgule_render_cert_level_begin (vr, u, CERT_STYLE_SMALL);
+      virgule_buffer_printf (b, "This <x>person</x> is currently certified at %s level.\n", virgule_req_get_tmetric_level (vr, u));
+      virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
     }
+  else
+    observer = TRUE;
 
+  lastlogin = virgule_xml_find_child(profile->xmlRootNode, "lastlogin");
+  if(lastlogin) 
+    date = virgule_xml_get_prop (p, lastlogin, "date");
+  if(!date)
+    date = "N/A";
+  
   any = 0;
-  tree = xml_find_child (profile->xmlRootNode, "info");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "info");
   if (tree)
     {
-      givenname = xml_get_prop (p, tree, "givenname");
-      surname = xml_get_prop (p, tree, "surname");
-      buffer_printf (b, "<p> Name: %s %s</p>\n",
-		     givenname ? nice_text(p, givenname) : "",
-		     surname ? nice_text(p, surname) : "");
+      givenname = virgule_xml_get_prop (p, tree, "givenname");
+      surname = virgule_xml_get_prop (p, tree, "surname");
+      virgule_buffer_printf (b, "<p> Name: %s %s<br />Last login: %s</p>\n",
+		     givenname ? virgule_nice_text(p, givenname) : "",
+		     surname ? virgule_nice_text(p, surname) : "", date);
 
-      url = xml_get_prop (p, tree, "url");
+      url = virgule_xml_get_prop (p, tree, "url");
       if (url && url[0])
 	{
 	  char *url2;
@@ -1204,26 +1233,29 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  colon = strchr (url, ':');
 	  if (!colon || colon[1] != '/' || colon[2] != '/')
 	    url2 = apr_pstrcat (p, "http://", url, NULL);
-	  buffer_printf (b, "<p> Homepage: <a href=\"%s\">%s</a> </p>\n",
-			 url2, nice_text (p, url));
+	  virgule_buffer_printf (b, "<p> Homepage: <a href=\"%s\">%s</a> </p>\n",
+			 url2, virgule_nice_text (p, url));
 	  any = 1;
 	}
-      notes = xml_get_prop (p, tree, "notes");
+      notes = virgule_xml_get_prop (p, tree, "notes");
       if (notes && notes[0])
 	{
-	  buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", nice_htext (vr, notes, &err));
+	  if(observer)
+  	    virgule_buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", virgule_nice_htext (vr, virgule_strip_a (vr, notes), &err));
+	  else 
+	    virgule_buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", virgule_nice_htext (vr, notes, &err));
 	  any = 1;
 	}
     }
   if (!any)
-    buffer_puts (b, "<p> No personal information is available. </p>\n");
+    virgule_buffer_puts (b, "<p> No personal information is available. </p>\n");
 
   /* Render staff listings */
   first = "<p> This <x>person</x> is: </p>\n"
     "<ul>\n";
   db_key = apr_psprintf (p, "acct/%s/staff-person.xml", u);
 
-  staff = db_xml_get (p, vr->db, db_key);
+  staff = virgule_db_xml_get (p, vr->db, db_key);
   if (staff != NULL)
     {
       for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
@@ -1231,29 +1263,29 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  char *name;
 	  char *type;
 
-	  name = xml_get_prop (p, tree, "name");
-	  type = xml_get_prop (p, tree, "type");
+	  name = virgule_xml_get_prop (p, tree, "name");
+	  type = virgule_xml_get_prop (p, tree, "type");
 
 	  if (! !strcmp (type, "None"))
 	    {
-	      buffer_puts (b, first);
+	      virgule_buffer_puts (b, first);
 	      first = "";
-	      buffer_printf (b, "<li>a %s on <x>project</x> %s.\n",
-			     type, render_proj_name (vr, name));
+	      virgule_buffer_printf (b, "<li>a %s on <x>project</x> %s.\n",
+			     type, virgule_render_proj_name (vr, name));
 	    }
 	}
     }
   if (first[0] == 0)
-    buffer_puts (b, "</ul>\n");
+    virgule_buffer_puts (b, "</ul>\n");
 
-  buffer_printf (b, "<p> Recent weblog entries for %s: <br />\n", u);
-  buffer_printf (b, "<a href=\"rss.xml\"><img src=\"/images/rss.png\" width=36 height=20 border=0 alt=\"RSS\" /></a></p>\n", u);
+  virgule_buffer_printf (b, "<p> Recent blog entries for %s: <br />\n", u);
+  virgule_buffer_printf (b, "<a href=\"rss.xml\"><img src=\"/images/rss.png\" width=36 height=20 border=0 alt=\"RSS\" /></a></p>\n", u);
 
-  diary_render (vr, u, 5, -1);
+  virgule_diary_render (vr, u, 5, -1);
 
   /* Browse certifications */
-  buffer_puts (b, "<a name=\"certs\">&nbsp;</a>\n");
-  tree = xml_find_child (profile->xmlRootNode, "certs");
+  virgule_buffer_puts (b, "<a name=\"certs\">&nbsp;</a>\n");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
       xmlNode *cert;
@@ -1265,23 +1297,23 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	    char *subject, *level;
 	    subject = xmlGetProp (cert, "subj");
 	    level = xmlGetProp (cert, "level");
-	    if (strcmp (level, cert_level_to_name (vr, 0)))
+	    if (strcmp (level, virgule_cert_level_to_name (vr, 0)))
 	      {
 		if (!any)
 		  {
-		    buffer_puts (b, "<p> This <x>person</x> has certified others as follows: </p>\n"
+		    virgule_buffer_puts (b, "<p> This <x>person</x> has certified others as follows: </p>\n"
 				 "<ul>\n");
 		    any = 1;
 		  }
-	      buffer_printf (b, "<li>%s certified <a href=\"../%s/\">%s</a> as %s\n",
+	      virgule_buffer_printf (b, "<li>%s certified <a href=\"../%s/\">%s</a> as %s\n",
 			     u, ap_escape_uri(vr->r->pool, subject), subject, level);
 	      }
 	  }
       if (any)
-	buffer_puts (b, "</ul>\n");
+	virgule_buffer_puts (b, "</ul>\n");
     }
 
-  tree = xml_find_child (profile->xmlRootNode, "certs-in");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs-in");
   if (tree)
     {
       xmlNode *cert;
@@ -1293,61 +1325,61 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	    char *issuer, *level;
 	    issuer = xmlGetProp (cert, "issuer");
 	    level = xmlGetProp (cert, "level");
-	    if (strcmp (level, cert_level_to_name (vr, 0)))
+	    if (strcmp (level, virgule_cert_level_to_name (vr, 0)))
 	      {
 		if (!any)
 		  {
-		    buffer_puts (b, "<p> Others have certified this <x>person</x> as follows: </p>\n"
+		    virgule_buffer_puts (b, "<p> Others have certified this <x>person</x> as follows: </p>\n"
 		   "<ul>\n");
 		    any = 1;
 		  }
-		buffer_printf (b, "<li><a href=\"../%s/\">%s</a> certified %s as %s\n",
+		virgule_buffer_printf (b, "<li><a href=\"../%s/\">%s</a> certified %s as %s\n",
 			       issuer, issuer, u, level);
 	      }
 	  }
       if (any)
-	buffer_puts (b, "</ul>\n");
+	virgule_buffer_puts (b, "</ul>\n");
     }
 
   /* Certification form; need to be authenticated, and disallow self-cert. */
   if (vr->u == NULL)
-    buffer_puts (b, "<p> [ Certification disabled because you're not logged in. ] </p>\n");
+    virgule_buffer_puts (b, "<p> [ Certification disabled because you're not logged in. ] </p>\n");
 #if 1
   /* disable self-cert */
   else if (!strcmp (u, vr->u))
-    buffer_puts (b, "<p> [ Certification disabled for yourself. ] </p>\n");
+    virgule_buffer_puts (b, "<p> [ Certification disabled for yourself. ] </p>\n");
 #endif
   else
     {
       int i;
       CertLevel level;
 
-      level = cert_get (vr, vr->u, u);
+      level = virgule_cert_get (vr, vr->u, u);
 
-      buffer_printf (b, "<form method=\"POST\" action=\"%s/acct/certify.html\">\n"
+      virgule_buffer_printf (b, "<form method=\"POST\" action=\"%s/acct/certify.html\">\n"
 		     "Certify %s as:\n"
 		     " <select name=\"level\" value=\"level\">\n", vr->prefix, u);
 
-      for (i = cert_num_levels (vr) - 1; i >= 0; i--)
-	buffer_printf (b, "  <option%s> %s\n",
+      for (i = virgule_cert_num_levels (vr) - 1; i >= 0; i--)
+	virgule_buffer_printf (b, "  <option%s> %s\n",
 		       level == i ? " selected" : "",
-		       cert_level_to_name (vr, i));
+		       virgule_cert_level_to_name (vr, i));
 
-      buffer_printf (b, " </select>\n"
+      virgule_buffer_printf (b, " </select>\n"
 		     " <input type=\"submit\" value=\"Certify\">\n"
 		     " <input type=\"hidden\" name=\"subject\" value=\"%s\">\n"
 		     "</form>\n"
 		     "<p><b>Note</b>: By certifying a user you are making a "
 		     "public statment that you know this person and can "
-		     "can vouch for their identity.</p>"
+		     "vouch for their identity.</p>"
 		     "<p> See the <a href=\"%s/certs.html\">Certification</a> overview for more information.</p>\n",
 		     u, vr->prefix);
 
       if (vr->priv->render_diaryratings) 
-	rating_diary_form (vr, u);
+	virgule_rating_diary_form (vr, u);
     }
 
-  return render_footer_send (vr);
+  return virgule_render_footer_send (vr);
 }
 
 static int
@@ -1358,10 +1390,10 @@ acct_certify_serve (VirguleReq *vr)
   const char *level;
   int status;
 
-  db_lock_upgrade(vr->lock);
-  auth_user (vr);
+  virgule_db_lock_upgrade(vr->lock);
+  virgule_auth_user (vr);
 
-  args = get_args_table (vr);
+  args = virgule_get_args_table (vr);
 
   if (vr->u)
     {
@@ -1369,27 +1401,27 @@ acct_certify_serve (VirguleReq *vr)
       level = apr_table_get (args, "level");
 
       if (!strcmp(subject,vr->u))
-        return send_error_page(vr,
+        return virgule_send_error_page(vr,
 	                       "Error in certification",
 			       "Sorry, you can't certify yourself.");
 
-      status = cert_set (vr, vr->u, subject,
-			 cert_level_from_name (vr, level));
+      status = virgule_cert_set (vr, vr->u, subject,
+			 virgule_cert_level_from_name (vr, level));
 
       if (status)
-	return send_error_page (vr,
+	return virgule_send_error_page (vr,
 				"Error storing certificate",
 				"There was an error storing the certificate. This means there's something wrong with the site.");
       apr_table_add (vr->r->headers_out, "refresh",
 		    apr_psprintf(vr->r->pool, "0;URL=/person/%s/#certs",
 				subject));
-      return send_error_page (vr,
+      return virgule_send_error_page (vr,
 			      "Updated",
 			      "Certification of <a href=\"../person/%s/\">%s</a> to %s level ok.",
 			      ap_escape_uri(vr->r->pool,subject), subject, level);
     }
   else
-    return send_error_page (vr,
+    return virgule_send_error_page (vr,
 			    "Not logged in",
 			    "You need to be logged in to certify another <x>person</x>.");
 }
@@ -1410,16 +1442,16 @@ acct_kill(VirguleReq *vr, const char *u)
   xmlDoc *profile, *staff, *entry;
   xmlNode *tree, *cert, *alias;
   
-  db_key = acct_dbkey(p, u);
-  profile = db_xml_get(p, vr->db, db_key);
-  alias = xml_find_child (profile->xmlRootNode, "alias");
+  db_key = virgule_acct_dbkey(vr, u);
+  profile = virgule_db_xml_get(p, vr->db, db_key);
+  alias = virgule_xml_find_child (profile->xmlRootNode, "alias");
 
   if (alias != NULL) /* If this is the alias, kill it and find the username */
     {
-      user = xml_get_prop (p, alias, "link");
-      db_xml_free (p, vr->db, profile);
-      db_del (vr->db, db_key);
-      db_key = acct_dbkey (p, user);
+      user = virgule_xml_get_prop (p, alias, "link");
+      virgule_db_xml_free (p, vr->db, profile);
+      virgule_db_del (vr->db, db_key);
+      db_key = virgule_acct_dbkey (vr, user);
     }
   else               /* If this is the username, check for and kill alias */
     {
@@ -1428,14 +1460,14 @@ acct_kill(VirguleReq *vr, const char *u)
       ap_str_tolower (user_alias);
       if (! (strcmp (user_alias,u) == 0))
         {
-          db_key2 = acct_dbkey (p, user_alias);
+          db_key2 = virgule_acct_dbkey (vr, user_alias);
           if (db_key2 != NULL)
-            db_del (vr->db, db_key2);
+            virgule_db_del (vr->db, db_key2);
 	}
     }
     
   /* Clear cert records */
-  tree = xml_find_child (profile->xmlRootNode, "certs");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
       char *subject, *level;
@@ -1444,14 +1476,14 @@ acct_kill(VirguleReq *vr, const char *u)
 	  {
             subject = xmlGetProp (cert, "subj");
 	    level = xmlGetProp (cert, "level");
-	    cert_set (vr, user, subject, CERT_LEVEL_NONE);
+	    virgule_cert_set (vr, user, subject, CERT_LEVEL_NONE);
 	    xmlFree(subject);
 	    xmlFree(level);
 	  }
     }  
 
   /* Clear cert-in records */
-  tree = xml_find_child (profile->xmlRootNode, "certs-in");
+  tree = virgule_xml_find_child (profile->xmlRootNode, "certs-in");
   if (tree)
     {
       char *issuer, *level;
@@ -1460,7 +1492,7 @@ acct_kill(VirguleReq *vr, const char *u)
 	  {
 	    issuer = xmlGetProp (cert, "issuer");
 	    level = xmlGetProp (cert, "level");
-	    cert_set (vr, issuer, user, CERT_LEVEL_NONE);
+	    virgule_cert_set (vr, issuer, user, CERT_LEVEL_NONE);
 	    xmlFree(issuer);
 	    xmlFree(level);
 	  }
@@ -1468,39 +1500,39 @@ acct_kill(VirguleReq *vr, const char *u)
 
   /* Clear staff records */
   db_key2 = apr_psprintf (p, "acct/%s/staff-person.xml", user);
-  staff = db_xml_get (p, vr->db, db_key2);
+  staff = virgule_db_xml_get (p, vr->db, db_key2);
   if (staff != NULL)
     {
       for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
         {
 	  char *name;
-	  name = xml_get_prop (p, tree, "name");
-	  proj_set_relation(vr,name,user,"None");
+	  name = virgule_xml_get_prop (p, tree, "name");
+	  virgule_proj_set_relation(vr,name,user,"None");
 	}
-      db_xml_free (p, vr->db, staff);
-      db_del (vr->db, db_key2);
+      virgule_db_xml_free (p, vr->db, staff);
+      virgule_db_del (vr->db, db_key2);
     }
 
   /* Clear diary entries */
   diary = apr_psprintf(p, "acct/%s/diary", user);
-  for (n = db_dir_max (vr->db, diary); n >= 0; n--)
+  for (n = virgule_db_dir_max (vr->db, diary); n >= 0; n--)
     {
       db_key2 = apr_psprintf (p, "acct/%s/diary/_%d", user, n);
-      entry = db_xml_get (p, vr->db, db_key2);
+      entry = virgule_db_xml_get (p, vr->db, db_key2);
       if (entry != NULL)
         {
-	  db_del (vr->db, db_key2);
-          db_xml_free (p, vr->db, entry);
+	  virgule_db_del (vr->db, db_key2);
+          virgule_db_xml_free (p, vr->db, entry);
 	}
     }
 
   /* Remove the profile and account */
-  db_del (vr->db, db_key);
-  db_xml_free(p, vr->db, profile);
+  virgule_db_del (vr->db, db_key);
+  virgule_db_xml_free(p, vr->db, profile);
 }
 
 void
-acct_touch(VirguleReq *vr, const char *u)
+virgule_acct_touch(VirguleReq *vr, const char *u)
 {
   const char *newdate;
   char *db_key, *db_key_lc, *u_lc;
@@ -1508,27 +1540,27 @@ acct_touch(VirguleReq *vr, const char *u)
   xmlNode *root, *tree, *lastlogin;
   apr_pool_t *p = vr->r->pool;
   
-  db_key = acct_dbkey (p, u);
+  db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL) return;
   
-  profile = db_xml_get (p, vr->db, db_key);
+  profile = virgule_db_xml_get (p, vr->db, db_key);
   if (profile == NULL) return;
   
   root = profile->xmlRootNode;
-  tree = xml_find_child (root, "alias");
+  tree = virgule_xml_find_child (root, "alias");
 
   if (tree != NULL) {
     u_lc = apr_pstrdup (p, u);
     ap_str_tolower (u_lc);
-    db_key_lc = acct_dbkey (p, u_lc);
-    profile = db_xml_get (p, vr->db, db_key);
+    db_key_lc = virgule_acct_dbkey (vr, u_lc);
+    profile = virgule_db_xml_get (p, vr->db, db_key);
     if (profile == NULL) return;
     root = profile->xmlRootNode;
   }
       
-  newdate = iso_now (p);
+  newdate = virgule_iso_now (p);
 
-  lastlogin = xml_find_child(root, "lastlogin");
+  lastlogin = virgule_xml_find_child(root, "lastlogin");
   if(lastlogin == NULL) 
   {
     lastlogin = xmlNewChild (root, NULL, "lastlogin", NULL);
@@ -1539,11 +1571,11 @@ acct_touch(VirguleReq *vr, const char *u)
     xmlSetProp (lastlogin, "date", newdate);
   }
   
-  db_xml_put (p, vr->db, db_key, profile);  
+  virgule_db_xml_put (p, vr->db, db_key, profile);  
 }
 
 int
-acct_maint_serve (VirguleReq *vr)
+virgule_acct_maint_serve (VirguleReq *vr)
 {
   const char *p;
 
@@ -1557,7 +1589,7 @@ acct_maint_serve (VirguleReq *vr)
     return acct_logout_serve (vr);
   if (!strcmp (vr->uri, "/acct/update.html"))
     return acct_update_serve (vr);
-  if ((p = match_prefix (vr->uri, "/person/")) != NULL)
+  if ((p = virgule_match_prefix (vr->uri, "/person/")) != NULL)
     return acct_person_serve (vr, p);
   if (!strcmp (vr->uri, "/acct/certify.html"))
     return acct_certify_serve (vr);

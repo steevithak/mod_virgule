@@ -16,16 +16,17 @@ db_xml_cleanup (void *data)
 {
   xmlDoc *doc = (xmlDoc *)data;
 
-  xmlFreeDoc (doc);
+  if (doc != NULL)
+    xmlFreeDoc (doc);
   
   return APR_SUCCESS;
 }
 
 xmlDoc *
-db_xml_get (apr_pool_t *p, Db *db, const char *key)
+virgule_db_xml_get (apr_pool_t *p, Db *db, const char *key)
 {
   int val_size;
-  char *val = db_get_p (p, db, key, &val_size);
+  char *val = virgule_db_get_p (p, db, key, &val_size);
   xmlDoc *result;
 
   if (val == NULL)
@@ -37,7 +38,7 @@ db_xml_get (apr_pool_t *p, Db *db, const char *key)
 }
 
 int
-db_xml_put (apr_pool_t *p, Db *db, const char *key, xmlDoc *val)
+virgule_db_xml_put (apr_pool_t *p, Db *db, const char *key, xmlDoc *val)
 {
   xmlChar *buf;
   int buf_size;
@@ -45,13 +46,13 @@ db_xml_put (apr_pool_t *p, Db *db, const char *key, xmlDoc *val)
 
   xmlIndentTreeOutput = 1;
   xmlDocDumpFormatMemory (val, &buf, &buf_size, 1);
-  status = db_put (db, key, buf, buf_size);
+  status = virgule_db_put (db, key, buf, buf_size);
   xmlFree (buf);
   return status;
 }
 
 xmlDoc *
-db_xml_doc_new (apr_pool_t *p)
+virgule_db_xml_doc_new (apr_pool_t *p)
 {
   xmlDoc *result = xmlNewDoc ("1.0");
   apr_pool_cleanup_register (p, result, db_xml_cleanup, apr_pool_cleanup_null);
@@ -60,8 +61,8 @@ db_xml_doc_new (apr_pool_t *p)
 
 /* Calling this is optional. */
 void
-db_xml_free (apr_pool_t *p, Db *db, xmlDoc *doc)
+virgule_db_xml_free (apr_pool_t *p, Db *db, xmlDoc *doc)
 {
-  xmlFreeDoc (doc);
-  apr_pool_cleanup_kill (p, doc, db_xml_cleanup);
+//  xmlFreeDoc (doc);
+//  apr_pool_cleanup_kill (p, doc, db_xml_cleanup);
 }

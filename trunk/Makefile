@@ -12,7 +12,7 @@ APACHECTL=sudo /etc/rc.d/init.d/httpd
 #DEF=-Dmy_define=my_value
 
 
-CFLAGS=-Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags` `apr-config --cflags` `apr-config --includes` -fPIC -fno-strict-aliasing
+CFLAGS=-ggdb -Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags` `apr-config --cflags` `apr-config --includes` -fPIC -fno-strict-aliasing
 # Original Makefile used LD_SHLIB here but it doesn't work for me
 #LD=`$(APXS) -q LD_SHLIB`
 LD=ld
