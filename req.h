@@ -15,7 +15,6 @@ struct _VirguleReq {
   char *tmetric;
   char *prefix; /* Prefix of <Location> directive, to be added to links */
   apr_table_t *render_data;
-  apr_array_header_t *topics; /* array of topic info */
 };
 
 int

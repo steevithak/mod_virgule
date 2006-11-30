@@ -366,61 +366,6 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
     }
 }
 
-static void
-site_render_recent_bots (VirguleReq *vr, int n_max)
-{
-  apr_pool_t *p = vr->r->pool;
-  xmlDoc *doc;
-  xmlNode *root, *tree;
-  int n;
-
-  doc = db_xml_get (p, vr->db, "recent/robots.xml");
-  if (doc == NULL)
-    return;
-  root = doc->xmlRootNode;
-  n = 0;
-  buffer_puts (vr->b, "<table cellpadding=\"0\" cellspacing=\"1\">\n");
-  for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
-    {
-      char *name = xml_get_string_contents (tree);
-      char *date = xml_get_prop (p, tree, "date");
-      char *id  = xml_get_prop (p, tree, "id");
-      buffer_printf (vr->b, "<tr><td class=\"recentproj\"> %s <a href=\"/robomenu/%s.html\">%s</a></td></tr>\n",
-                     render_date (vr, date, 0), id, name);
-      n++;
-    }
-  buffer_puts (vr->b, "</table>\n");
-}
-
-
-static void
-site_render_cronbox (VirguleReq *vr)
-{
-  apr_pool_t *p = vr->r->pool;
-  xmlDoc *doc;
-  xmlNode *root, *tree;
-  char *title, *link, *img, *credit, *author;
-
-  doc = db_xml_get (p, vr->db, "recent/cronbox.xml");
-  if (doc == NULL)
-    return;
-  root = doc->xmlRootNode;
-
-  tree = xml_find_child(root, "title");
-  title = xml_get_string_contents (tree);
-  tree = xml_find_child(root, "link");
-  link = xml_get_string_contents (tree);
-  tree = xml_find_child(root, "img");
-  img = xml_get_string_contents (tree);
-  tree = xml_find_child(root, "credit");
-  credit = xml_get_string_contents (tree);
-  tree = xml_find_child(root, "author");
-  author = xml_get_string_contents (tree);
-
-  buffer_printf (vr->b, "<table width=\"90%\" class=\"cronbox\"><tr>\n"
-                "<td align=\"center\">%s<br>%s<br>%s<br>%s<br>%s</td></tr></table>\n",
-                 title, link, img, credit, author);
-}
 
 static void
 site_render_include (RenderCtx *ctx, VirguleReq *vr, char *path)
@@ -459,6 +404,10 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	}
       else if (!strcmp (node->name, "title"))
 	{
+	  /* skip */
+	}
+      else if (!strcmp (node->name, "head_content"))
+        {
 	  /* skip */
 	}
       else if (!strcmp (node->name, "thetitle"))
@@ -511,18 +460,6 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  else
 	    nmax = 10;
 	  site_render_recent_proj (vr, list, nmax);
-	}
-      else if (!strcmp (node->name, "recentbots"))
-        {
-	  char *nmax_str;
-	  int nmax;
-	  
-	  nmax_str = xml_get_prop (p, node, "nmax");
-	  if (nmax_str)
-	    nmax = atoi (nmax_str);
-	  else
-	    nmax = 10;
-	  site_render_recent_bots (vr, nmax);
 	}
       else if (!strcmp (node->name, "articles"))
 	{
@@ -622,10 +559,6 @@ site_render (RenderCtx *ctx, xmlNode *node)
         {
 	  site_render_banner_ad (vr);
 	}
-      else if (!strcmp (node->name, "cronbox"))
-        {
-	  site_render_cronbox (vr);
-	}
       else if (!strcmp (node->name, "include"))
         {
 	  char *inc_path;
@@ -657,7 +590,9 @@ site_render_page (VirguleReq *vr, xmlNode *node)
 {
   RenderCtx ctx;
   xmlNode *title_node;
-  char *title;
+  xmlNode *head_node;
+  char *title = NULL;
+  char *head = NULL;
   char *raw;
 
   ctx.vr = vr;
@@ -668,12 +603,16 @@ site_render_page (VirguleReq *vr, xmlNode *node)
   else
     title = xml_get_string_contents (title_node);
 
+  head_node = xml_find_child (node, "head_content");
+  if (head_node != NULL)
+    head = xml_get_string_contents (head_node);
+
   ctx.title = title;
   raw = xml_get_prop (vr->r->pool, node, "raw");
   if (raw)
-    render_header_raw (vr, title, NULL);
+    render_header_raw (vr, title, head);
   else
-    render_header (vr, title, NULL);
+    render_header (vr, title, head);
   site_render (&ctx, node);
 
   return render_footer_send (vr);

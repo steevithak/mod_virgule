@@ -51,6 +51,7 @@ render_header (VirguleReq *vr, const char *title, const char *head_content)
   Buffer *b = vr->b;
   
   render_header_raw (vr, title, head_content);
+  render_sitemap(vr,0);
   buffer_puts (b, "<div class=\"main\" style=\"margin: 2em;\">");
   vr->raw = 0;
 }

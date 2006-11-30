@@ -2,9 +2,17 @@
 <config>
   <name>Advogato</name>
   <baseuri>http://www.advogato.org/</baseuri>
+  <adminemail>webmaster@advogato.org</adminemail>
   <diaryrating>off</diaryrating>
   <accountcreation>on</accountcreation>
   <recentlogstyle>Unique</recentlogstyle>
+  
+  <articletopics>off</articletopics>
+  <topics>
+    <topic url="/path/to/default/image1.png">Description 1</topic>
+    <topic url="/path/to/default/image2.png">Description 2</topic>
+  </topics>
+  
 
   <sitemap>
     <option url="/">Home</option>

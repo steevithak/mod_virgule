@@ -1,3 +1,45 @@
+2005-08-29 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render, site_render_cronbox, site_render_recent_bots):
+	Removed the cronbox and recentbot tags and associated render
+	functions as both of these have been replaced by the more general
+	include tag.
+	
+2005-08-26 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (read_site_config): Added code to read a new 
+	user configurable admin email address tag, adminemail, from the
+	site config.xml
+
+	* acct_maint (send_email): Replace hard-coded From: address on
+	password reminder email with the configurable admin address.
+		
+	* article.c (article_render_recent): Replace hard-coded story
+	suggestion email address with the configurable admin address.
+
+2005-08-25 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (test_page, read_site_config): Added support for 
+	user configurable section of config.xml for article topics.
+
+	* private.h: Added use_article_topics variable. Added topic array
+	header. Added topics to point to the list of Topic structs.
+
+	* req.h: Removed old topic array header
+
+	* util.c (add_topic): New function to add topics as they are
+	read from the config file.
+
+	* article.c (lots-o-functions): Replaced #ifdefs and hard-coded
+	support for topics with support for user-configurable topic setting.
+
+2005-08-19 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render, site_render_page): Implemented the
+	head_content tag. Head contents are now passed to the 
+	render_header() function where they are inserted into the 
+	rendered HTML.
+	
 2005-07-27 R. Steven Rainwater <steve@ncc.com>
 
 	* Makefile: Added --strip-debug to linker options to keep filesize
@@ -30,7 +72,7 @@
 
 2005-07-22 R. Steven Rainwater <steve@ncc.com>
 
-	* diary.c (diary_rss_export): Fixed segfault that occured on if an
+	* diary.c (diary_rss_export): Fixed segfault that occured if an
 	RSS XML file was built from an empty diary entry.
 
 2005-07-20 R. Steven Rainwater <steve@ncc.com>
@@ -49,7 +91,7 @@
 	private data pool that persists across requests. The site config.xml
 	file is now loaded into virgule_private once for each Apache thread
 	instead of into req once for each request. If the config.xml file is
-	update, it will be reloaded as needed.
+	updated, it will be reloaded as needed.
 
 	* mod_virgule.c (test_page): Now displays status of the new account
 	creation setting of the configuration. The time stamp of the config

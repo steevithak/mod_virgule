@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20050727"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20050829"
 
 #include <string.h>
 
@@ -58,7 +58,6 @@ static apr_threadkey_t *tkey;
 typedef struct {
   char *dir;
   char *db;
-  apr_array_header_t *topics;
   apr_array_header_t *pass_dirs;
 } virgule_dir_conf;
 
@@ -78,7 +77,6 @@ create_virgule_dir_conf (apr_pool_t *p, char *dir)
 
   result->dir = apr_pstrdup (p, dir);
   result->db = NULL;
-  result->topics = apr_array_make(p, 16, sizeof(ArticleTopic));
   result->pass_dirs = apr_array_make(p, 16, sizeof(char *));
 
   return result;
@@ -101,22 +99,6 @@ set_virgule_db (cmd_parms *parms, void *mconfig, char *db)
   return NULL;
 }
 
-/**
- * Apache config file option handler (called by Apache once for each seed)
- * Adds the supplied topic name and icon URL topic list
- **/
-static const char *
-set_virgule_topic (cmd_parms *parms, void *mconfig, const char *name, const char *url)
-{
-  ArticleTopic *topic;
-  
-  virgule_dir_conf *cfg = (virgule_dir_conf *)mconfig;
-
-  topic = (ArticleTopic *)apr_array_push(cfg->topics);
-  topic->name = (char *)apr_pstrdup(parms->pool, name);
-  topic->iconURL = (char *)apr_pstrdup(parms->pool, url);
-  return NULL;
-}
 
 /**
  * set_virgule_pass: An Apache config file option handler (called by Apache
@@ -335,6 +317,9 @@ test_page (VirguleReq *vr)
   buffer_printf (b, "<p>Account creation is %s</p>\n",
 		 vr->priv->allow_account_creation ? "allowed" : "not allowed");
 
+  buffer_printf (b, "<p>Article Topics are %s</p>\n",
+		 vr->priv->use_article_topics ? "on" : "off");
+
   count (r->pool, b, db, "misc/admin/counter/count");
   
   buffer_puts (b, "</body></html>\n");
@@ -475,6 +460,7 @@ read_site_config (VirguleReq *vr)
   int *i_item;
   const AllowedTag **t_item;
   const NavOption **n_item;
+  const Topic **at_item;
   apr_pool_t *privpool;
 
   /* Allocate thread private data struct and memory pool */
@@ -495,6 +481,12 @@ read_site_config (VirguleReq *vr)
   if (!strlen (vr->priv->site_name))
     return send_error_page (vr, "Config error",
 			    "No name found in site config.");
+
+  /* read the admin email */
+  vr->priv->admin_email = apr_pstrdup(vr->priv->pool, xml_find_child_string (doc->xmlRootNode, "adminemail", ""));
+  if (!strlen (vr->priv->admin_email))
+    return send_error_page (vr, "Config error",
+			    "No admin email found in site config.");
 
   /* read the site's base uri, and trim any trailing slashes */
   uri = xml_find_child_string (doc->xmlRootNode, "baseuri", "");
@@ -709,6 +701,43 @@ read_site_config (VirguleReq *vr)
   else
     vr->priv->allow_account_creation = 1;
 
+  /* read the article topic setting */
+  text = xml_find_child_string (doc->xmlRootNode, "articletopics", "");
+  if (!strcasecmp (text, "off"))
+    vr->priv->use_article_topics = 0;
+  else
+    vr->priv->use_article_topics = 1;
+
+  /* read the article topics */
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (Topic *));
+  node = xml_find_child (doc->xmlRootNode, "topics");
+  if (node)
+    {
+      for (child = node->children; child; child = child->next)
+      {
+        if (child->type != XML_ELEMENT_NODE) {
+	  continue;
+	}
+	
+	if (strcmp (child->name, "topic"))
+	  return send_error_page (vr, "Config error",
+				  "Unknown element <tt>%s</tt> in article topic.",
+				  child->name);
+	
+	url = xml_get_prop (vr->r->pool, child, "url");
+	text = xml_get_string_contents (child);
+        if (!text)
+          return send_error_page (vr, "Config error",
+                                      "Empty element in article topic.");
+
+        at_item = (const Topic **)apr_array_push (stack);
+        *at_item = add_topic (vr, text, url);	
+      }
+    }
+  at_item = (const Topic **)apr_array_push (stack);
+  *at_item = NULL;
+  vr->priv->topics = (const Topic **)stack->elts;
+
   /* read the sitemap navigation options */
   stack = apr_array_make (vr->priv->pool, 10, sizeof (NavOption *));
   node = xml_find_child (doc->xmlRootNode, "sitemap");
@@ -773,6 +802,7 @@ read_site_config (VirguleReq *vr)
   *t_item = NULL;
   vr->priv->allowed_tags = (const AllowedTag **)stack->elts;
 
+/* debug */
 ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"Debug: read config.xml");
 
   return CONFIG_READ;
@@ -822,11 +852,8 @@ static int virgule_handler(request_rec *r)
       vr->uri = r->uri;
     }
 
-  vr->topics = cfg->topics;
- 
   vr->u = NULL;
   vr->args = get_args (r);
-
   vr->lock = NULL;
   vr->tmetric = NULL;
   vr->sitemap_rendered = 0;
@@ -981,7 +1008,6 @@ xlat_handler (request_rec *r)
 static const command_rec virgule_cmds[] =
 {
   {"VirguleDb", set_virgule_db, NULL, OR_ALL, TAKE1, "the virgule database"},
-  {"VirguleTopic", set_virgule_topic, NULL, OR_ALL, TAKE2, "virgule article topic"},
   {"VirgulePass", set_virgule_pass, NULL, OR_ALL, ITERATE, "virgule passthrough directories"},
   {NULL}
 };
