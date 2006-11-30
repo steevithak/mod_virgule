@@ -1,0 +1,7 @@
+<page><title>Recent Articles</title>
+
+<p><b>Recently posted articles:</b></p>
+
+<articles nmax="20"/>
+
+</page>
