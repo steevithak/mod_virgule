@@ -346,7 +346,8 @@ virgule_tmetric_get (VirguleReq *vr)
   char *result;
   int size;
 
-  result = virgule_db_get (vr->db, "tmetric/default", &size);
+//  result = virgule_db_get (vr->db, "tmetric/default", &size);
+  result = virgule_db_get_p (vr->priv->tm_pool, vr->db, "tmetric/default", &size);
 
   return result;
 }

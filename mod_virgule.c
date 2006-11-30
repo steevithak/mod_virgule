@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061025"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20061105"
 
 #include <string.h>
 
@@ -47,6 +47,7 @@
 #include "xml_util.h"
 #include "rating.h"
 #include "certs.h"
+#include "aggregator.h"
 #include "hashtable.h" /* for unit testing */
 
 /* Process specific pool */
@@ -326,6 +327,9 @@ test_page (VirguleReq *vr)
   virgule_buffer_printf (b, "<p>Article Topics are %s</p>\n",
 		 vr->priv->use_article_topics ? "on" : "off");
 
+//  virgule_buffer_printf (b, "<p>Aggregator test: %s</p>\n",
+//		 virgule_aggregator_test("http://advogato.org/rss/articles.xml"));
+  
   count (r->pool, b, db, "misc/admin/counter/count");
   
   virgule_buffer_puts (b, "</body></html>\n");
@@ -477,6 +481,10 @@ read_site_config (VirguleReq *vr)
     return virgule_send_error_page (vr, "Config error",
 			    "Unable to allocate virgule_private_t");
   vr->priv->pool = privpool;
+  
+  /* Don't bother reading in the tmetric data until we need it */
+  vr->priv->tmetric = NULL;
+  vr->priv->tm_pool = NULL;
 
   /* Load and parse the site configuration */
   doc = virgule_db_xml_get (vr->r->pool, vr->db, "config.xml");
@@ -546,8 +554,6 @@ read_site_config (VirguleReq *vr)
       if (child->type != XML_ELEMENT_NODE) {
         continue;
       }
- 
-//      if (strcmp (child->name, "level"))
       if (xmlStrcmp (child->name, (xmlChar *)"level"))
 	return virgule_send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in cert levels.",
@@ -592,6 +598,11 @@ read_site_config (VirguleReq *vr)
   if(text)
     vr->priv->level_projectcreate = virgule_cert_level_from_name(vr, text);
 
+  /* read the blog syndication action level */
+  vr->priv->level_blogsyndicate = 0;
+  text = virgule_xml_find_child_string (doc->xmlRootNode, "blogsyndicate", NULL);
+  if(text)
+    vr->priv->level_blogsyndicate = virgule_cert_level_from_name(vr, text);
 
   /* read the trust metric seeds */
   stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
@@ -604,9 +615,7 @@ read_site_config (VirguleReq *vr)
     {
       if (child->type != XML_ELEMENT_NODE) {
         continue;
-      }
- 
-//      if (strcmp (child->name, "seed"))
+      } 
       if (xmlStrcmp (child->name, (xmlChar *)"seed"))
 	return virgule_send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in seeds.",
@@ -641,8 +650,6 @@ read_site_config (VirguleReq *vr)
       if (child->type != XML_ELEMENT_NODE) {
         continue;
       }
- 
-//      if (strcmp (child->name, "cap"))
       if (xmlStrcmp (child->name, (xmlChar *)"cap"))
 	return virgule_send_error_page (vr, "Config error",
 				"Unknown element <tt>%s</tt> in capacities.",
@@ -675,8 +682,6 @@ read_site_config (VirguleReq *vr)
           if (child->type != XML_ELEMENT_NODE) {
             continue;
           }
-
-//	  if (strcmp (child->name, "specialuser"))
 	  if (xmlStrcmp (child->name, (xmlChar *)"specialuser"))
 	    return virgule_send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in special users.",
@@ -705,8 +710,6 @@ read_site_config (VirguleReq *vr)
           if (child->type != XML_ELEMENT_NODE) {
             continue;
           }
-
-//	  if (strcmp (child->name, "translate"))
 	  if (xmlStrcmp (child->name, (xmlChar *)"translate"))
 	    return virgule_send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in translations.",
@@ -782,9 +785,7 @@ read_site_config (VirguleReq *vr)
       {
         if (child->type != XML_ELEMENT_NODE) {
 	  continue;
-	}
-	
-//	if (strcmp (child->name, "topic"))
+	}	
 	if (xmlStrcmp (child->name, (xmlChar *)"topic"))
 	  return virgule_send_error_page (vr, "Config error",
 				  "Unknown element <tt>%s</tt> in article topic.",
@@ -819,9 +820,7 @@ read_site_config (VirguleReq *vr)
       {
         if (child->type != XML_ELEMENT_NODE) {
 	  continue;
-	}
-	
-//	if (strcmp (child->name, "option"))
+	}	
 	if (xmlStrcmp (child->name, (xmlChar *)"option"))
 	  return virgule_send_error_page (vr, "Config error",
 				  "Unknown element <tt>%s</tt> in sitemap options.",
@@ -853,8 +852,6 @@ read_site_config (VirguleReq *vr)
           if (child->type != XML_ELEMENT_NODE) {
             continue;
           }
-
-//	  if (strcmp (child->name, "tag"))
 	  if (xmlStrcmp (child->name, (xmlChar *)"tag"))
 	    return virgule_send_error_page (vr, "Config error",
 				    "Unknown element <tt>%s</tt> in allowed tags.",
@@ -930,7 +927,6 @@ static int virgule_handler(request_rec *r)
   vr->args = virgule_get_args (r);
   vr->lock = NULL;
   vr->priv = NULL;
-  vr->tmetric = NULL;
   vr->sitemap_rendered = 0;
   vr->render_data = apr_table_make (r->pool, 4);
 
@@ -950,6 +946,8 @@ static int virgule_handler(request_rec *r)
   /* If config file was updated, dump and reload private data */
   if(vr->priv && (finfo.mtime != vr->priv->mtime))
   {
+    if(vr->priv->tm_pool != NULL)
+      apr_pool_destroy(vr->priv->tm_pool);
     apr_pool_destroy(vr->priv->pool);
     vr->priv = NULL;      
   }
@@ -1037,6 +1035,10 @@ static int virgule_handler(request_rec *r)
   if (status != DECLINED)
     return status;
 
+  status = virgule_aggregator_serve (vr);
+  if (status != DECLINED)
+    return status;
+    
   if (vr->priv->render_diaryratings)
     {
       status = virgule_rating_serve (vr);
@@ -1084,8 +1086,6 @@ static const command_rec virgule_cmds[] =
 {
   AP_INIT_TAKE1("VirguleDb", (const char *(*)())set_virgule_db, NULL, OR_ALL, "the virgule database"),
   AP_INIT_ITERATE("VirgulePass", set_virgule_pass, NULL, OR_ALL, "virgule passthrough directories"),
-//  {"VirguleDb", set_virgule_db, NULL, OR_ALL, TAKE1, "the virgule database"},
-//  {"VirgulePass", set_virgule_pass, NULL, OR_ALL, ITERATE, "virgule passthrough directories"},
   {NULL}
 };
 

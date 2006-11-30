@@ -20,7 +20,7 @@ LDLIBS=`$(APXS) -q LIBS_SHLIB` `glib-config --libs` `xml2-config --libs` `apr-co
 LDFLAGS=`$(APXS) -q LDFLAGS_SHLIB` `apr-config --ldflags` -shared --strip-debug
 
 OBJS = mod_virgule.o buffer.o site.o apache_util.o \
-	hashtable.o \
+	hashtable.o aggregator.o \
 	acct_maint.o util.o auth.o style.o xml_util.o certs.o \
 	req.o \
 	db.o db_ops.o db_xml.o schema.o \

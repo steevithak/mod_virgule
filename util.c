@@ -242,7 +242,7 @@ nice_text_helper (const char *raw, char *buf)
 char *
 virgule_nice_utf8 (apr_pool_t *p, const unsigned char *raw)
 {
-  int inlen = strlen(raw);
+  int inlen = xmlStrlen(raw);
   int outlen = inlen * 4;
   char *out = NULL;
    
@@ -254,7 +254,7 @@ virgule_nice_utf8 (apr_pool_t *p, const unsigned char *raw)
     return NULL;
 //  memset(out,0,outlen);
 //  if(UTF8ToHtml (out,&outlen,raw,&inlen) == 0)
-  if(htmlEncodeEntities (out,&outlen,raw,&inlen,0) == 0)
+  if(htmlEncodeEntities ((xmlChar *)out,&outlen,raw,&inlen,0) == 0)
     {
       out[outlen] = 0;
       return out;
@@ -868,6 +868,7 @@ virgule_iso_to_time_t (const char *iso)
     }
   return result;
 }
+
 
 /**
  * str_subst: Simple search-and-replace string substitution.

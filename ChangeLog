@@ -1,10 +1,85 @@
+2006-11-05 R. Steven Rainwtaer <steve@ncc.com>
+
+	* diary.c (virgule_diary_latest_entry): Returns a Unix time_t value
+	reflecting the timestamp of the most recent diary entry for the
+	specified user.
+
+	* aggregator.c (aggregator_post_feed): Attempts to identify new blog
+	posts in the user's feed buffer and appends them to the user's blog.
+
+2006-11-03 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (virgule_aggregator_serve, aggregator_getfeeds_serve):
+	When /aggregator/getfeeds.html is hit, the feedlist will be opened
+	and each listed feed will be retrieved, buffered, and processed.
+
+2006-11-02 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (virgule_update_aggregator_list): Created this function
+	to check the specified users account and add or delete them from the
+	aggregation list depending on their current account settings.
+
+2006-11-01 R. Steven Rainwater <steve@ncc.com>
+
+	* priv.h: Added a user blog syndication level that can be set from 
+	the config.xml file. This level will determine what certification
+	is needed for a user to access the blog syndication feature.
+
+        * mod_virgule.c (read_site_config): Now reads the blogsyndicate
+	feature access level.
+
+	* req.c (virgule_ok_to_syndicate_blog): New function that returns
+	TRUE if the specified user is certified at a level high enough to
+	use the blog syndication features. Result is based on the current
+	setting specified in the config.xml file.
+
+	* acct_maint.c (account_index_serve, account_update_serve): Users
+	can now edit and save blog aggregation info to profile.xml. Syndicate
+	status is forced to OFF for users who are not certified at a level 
+	allowed to use syndication.
+
+2006-10-31 R. Steven Rainwater <steve@ncc.com>
+
+        * priv.h: Added pointer to tmetric data in the Apache thread private
+	pool. This will allow us to load tmetric data only when it changes
+	and preserve it between hits, instead of loading on each hit. 
+	A pointer to a memory sub pool and a time stamp for the tmetric
+	cache was also added.
+
+	* mod_virgule.c (read_site_config): Make sure the thread private
+	tmetric pointer is set to NULL when the Apache process initializes.
+	The tmetric cache sub pool is destroyed prior to destruction of the
+	main thread private pool when a config file reload occurs.
+
+	* req.c (virgule_req_get_tmetric): A stat is done on the tmetric
+	cache and it's only reloaded if it has been updated since the last
+	load. Otherwise, a pointer to the copy already loaded in the thread 
+	private memory pool is return. If a tmetric reload occurs, the
+	tmetric sub pool is destroyed and a new sub pool allocated. This
+	should prevent memory leaks on reload.
+
+	* tmetric.c (virgule_tmetric_get): The trust metric cache is now
+	loaded using memory allocated from the tmetric sub pool.
+
+	* proj.c (proj_proj_serve): The "Project not found" page now returns
+	a 404 instead of a 200. This should discourage repeated visits from
+	search engines to dead project pages.
+	
+	* util.c (virgule_nice_utf8): Added xmlChar casts to eliminate gcc 4.x
+	warning. Replaced strlen with xmlStrlen.
+
+	* xml_util.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+
+	* acct_maint.c (acct_person_serve): Added a "member since" field to 
+	the user profile page.
+
 2006-10-25 R. Steven Rainwater <steve@ncc.com>
 
 	* auth.c (virgule_auth_user_with_cookie): Added xmlChar/char casts
-	to elimate gcc 4.x warnings.
+	to eliminate gcc 4.x warnings.
 
 	* article.c (article_generic_submit_serve): Added xmlChar/char casts
-	to elimate gcc 4.x warnings.
+	to eliminate gcc 4.x warnings.
 
 	
 2006-10-22 R. Steven Rainwater <steve@ncc.com>
@@ -30,7 +105,7 @@
 	debug g_print statements.
 
 	* eigen.c (virgule_eigen_crank): Added a few xmlChar and char
-	casts to elimate gcc 4.x warnings.
+	casts to eliminate gcc 4.x warnings.
 
 	* acct_maint.c (acct_person_serve): When a "person not found" page
 	is returned, the HTTP status code is set to 404 instead of 200. This

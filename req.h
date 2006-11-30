@@ -12,7 +12,7 @@ struct _VirguleReq {
   DbLock *lock;
   int raw; /* TRUE if there are no enclosing <blockquote>'s */
   int sitemap_rendered; /* TRUE if the sitemap has already been rendered */
-  char *tmetric;
+//  char *tmetric;
   char *prefix; /* Prefix of <Location> directive, to be added to links */
   apr_table_t *render_data;
 };
@@ -37,3 +37,6 @@ virgule_req_ok_to_reply (VirguleReq *vr);
 
 int
 virgule_req_ok_to_create_project (VirguleReq *vr);
+
+int
+virgule_req_ok_to_syndicate_blog (VirguleReq *vr);

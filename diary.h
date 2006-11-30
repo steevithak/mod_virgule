@@ -18,3 +18,6 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u);
 
 int
 virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry);
+
+time_t
+virgule_diary_latest_entry (VirguleReq *vr, char *u);
