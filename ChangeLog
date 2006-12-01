@@ -1,3 +1,13 @@
+2006-11-30 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_post_feed): Made the handlings of updates
+	a little smarter so we don't bother trying to update an entry that
+	was posted from the same instance of the feed.
+	
+	* diary.c (virgule_diary_update_feed_item): Added check for NULL
+	key for the target entry. When a feed is processed the first time,
+	it's possible to find an update for an entry that we don't have yet.
+
 2006-11-29 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_post_feed): Now handles entries that have
