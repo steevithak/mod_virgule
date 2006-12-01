@@ -388,14 +388,15 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
     {
       FeedItem *item = &((FeedItem *)(item_list->elts))[i];
       if (item->post_time > latest)
-        {
+	{
 	  virgule_diary_store_feed_item (vr, user, item);
 	  post = 1;
 	}
-      if ((item->update_time != -1) && (item->post_time != item->update_time))
-      {
-	virgule_diary_update_feed_item (vr, user, item);
-      }
+      else if ((item->update_time != -1) && (item->post_time != item->update_time))
+	{
+//virgule_buffer_printf(vr->b, "<p>Should have updated an item here!</p>");
+	  virgule_diary_update_feed_item (vr, user, item);
+	}
     }
 
   /* Post one recentlog entry even if we get multiple new posts */
