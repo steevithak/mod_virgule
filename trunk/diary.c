@@ -300,7 +300,7 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
   entry_doc->xmlRootNode = root;
 
   tree = xmlNewChild (root, NULL, "date", date);
-  tree = xmlNewChild (root, NULL, "title", virgule_xml_get_string_contents(item->title));
+  tree = xmlNewTextChild (root, NULL, "title", virgule_xml_get_string_contents(item->title));
   if(item->link)
     tree = xmlNewChild (root, NULL, "entrylink", item->link);
   if(item->bloglink)
@@ -372,11 +372,14 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
   xmlNode *root, *tmpNode;
   xmlDoc *entry;
 
-  if(user == NULL || item == NULL)
+  if (user == NULL || item == NULL)
     return 0;
 
   /* find the entry */
   key = find_entry_by_feedposttime (vr, user, item->post_time);
+  if (key == NULL)
+    return 0;
+    
   entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
   root = xmlDocGetRootElement (entry);
 
