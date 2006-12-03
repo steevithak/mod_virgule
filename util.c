@@ -1000,6 +1000,8 @@ virgule_iso_now (apr_pool_t *p)
 time_t
 virgule_rfc822_to_time_t (VirguleReq *vr, const char *time_string)
 {
+  time_t t;
+  struct tm tm;
   apr_time_t at;
   
   if(time_string == NULL)
@@ -1007,7 +1009,18 @@ virgule_rfc822_to_time_t (VirguleReq *vr, const char *time_string)
 
   at = apr_date_parse_rfc (time_string);
 
-  return apr_time_sec(at);
+  t = apr_time_sec(at);
+  
+  /* If date is so hosed up that the APR lib can figure out... */
+  if(t <= 0)
+    {
+      /* check for RFC822 with 4 digit year, no seconds, assume UTC */
+      memset(&tm, 0, sizeof(struct tm));
+      strptime(time_string, "%a, %d %b %Y %R %z", &tm);
+      t = timegm(&tm);      
+    }
+  
+  return t;
 }
 
 
