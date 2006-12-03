@@ -52,4 +52,7 @@ int
 virgule_db_lock_upgrade (DbLock *dbl);
 
 int
+virgule_db_lock_downgrade (DbLock *dbl);
+
+int
 virgule_db_unlock (DbLock *dbl);
