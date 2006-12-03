@@ -568,7 +568,11 @@ virgule_db_lock_key (Db *db, const char *key, int cmd)
   return result;
 }
 
-/* Upgrade lock to write lock. */
+
+/**
+ * virgule_db_lock_upgrade - Upgrade a shared read lock to a write lock.
+ * Note that this is a blocking operation.
+ **/
 int
 virgule_db_lock_upgrade (DbLock *dbl)
 {
@@ -576,6 +580,20 @@ virgule_db_lock_upgrade (DbLock *dbl)
   status = apr_file_lock(dbl->fd, APR_FLOCK_EXCLUSIVE);
   return (status == APR_SUCCESS) ? 0 : -1;
 }
+
+
+/**
+ * virgule_db_lock_downgrade - Downgrades a write lock to a shared read lock.
+ * Returns 0 on success or -1 on failure.
+ **/
+int
+virgule_db_lock_downgrade (DbLock *dbl)
+{
+  apr_status_t status;
+  status = apr_file_lock(dbl->fd, APR_FLOCK_SHARED);
+  return (status == APR_SUCCESS) ? 0 : -1;
+}
+
 
 DbLock *
 virgule_db_lock (Db *db)

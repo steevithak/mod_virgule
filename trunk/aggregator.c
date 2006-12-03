@@ -419,7 +419,10 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 
   if(item_list == NULL)
     return FALSE;
-     
+
+  /* Get a write lock */
+  virgule_db_lock_upgrade(vr->lock);
+ 
   /* Post any new, unposted entries or updated entries */
   for (i = 0; i < item_list->nelts; i++)
     {
@@ -434,6 +437,9 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 	  virgule_diary_update_feed_item (vr, user, item);
 	}
     }
+
+  /* Release the write lock */
+  virgule_db_lock_downgrade(vr->lock);
 
   /* Post one recentlog entry even if we get multiple new posts */
   if (post == 1)
@@ -458,8 +464,6 @@ aggregator_getfeeds_serve(VirguleReq *vr)
   char *feedbuffer, *feedurl;
   int status;
   
-  virgule_db_lock_upgrade(vr->lock);
-
   virgule_render_header (vr, "mod_virgule Aggregator", NULL);
 
   agglist = virgule_db_xml_get (vr->r->pool, vr->db, "feedlist");
