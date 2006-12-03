@@ -50,6 +50,7 @@
 
 typedef enum {
   FEED_TYPE_UNKNOWN,
+  FEED_ATOM_03,
   FEED_ATOM_10,
   FEED_RSS_091,
   FEED_RSS_092,
@@ -105,6 +106,9 @@ aggregator_identify_feed_type (VirguleReq *vr, xmlDoc *feedbuffer)
     {
       if (xmlStrcasecmp (root->ns->href, (xmlChar *)"http://www.w3.org/2005/Atom") == 0)
         return FEED_ATOM_10;
+      version = (xmlChar *)virgule_xml_get_prop (vr->r->pool, root, (xmlChar *)"version");
+      if (xmlStrcmp (version, (xmlChar *)"0.3") == 0)
+        return FEED_ATOM_03;
     }
 
   /* Check for variants of RSS feeds */
@@ -204,8 +208,14 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
 	
       item->title = virgule_xml_find_child (entry, "title");
       item->content = virgule_xml_find_child (entry, "content");
+      
       item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "published", NULL));
+      if(item->post_time == -1)
+	item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "issued", NULL));
+      
       item->update_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "updated", NULL));
+      if(item->update_time == -1)
+	item->update_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "modified", NULL));
     }
       
   return result;
@@ -344,6 +354,7 @@ aggregator_normalize_feed (VirguleReq *vr, xmlDoc *feedbuffer, FeedType ft)
 
   switch(ft)
     {
+      case FEED_ATOM_03:
       case FEED_ATOM_10:
             result = aggregator_index_atom_10 (vr, feedbuffer);
             break;

@@ -36,8 +36,10 @@ static const char basis_64[] =
  * RSR note: This is the UTF8ToHTML function out of libxml2 with a fix that
  * properly parses UTF-8 documents containing characters for which there
  * are no named entity values in HTML (e.g. Chinese characters). Instead,
- * these are simply converted to numerical entity values. I think the libxml2
- * behavior is broken and will submit a patch upstream.
+ * these are simply converted to numerical entity values. A patch was
+ * submitted and accepted but we'll have to include the code here if we
+ * want to work with libxml2 v2.6.26 and earlier. Once all major distros
+ * include a new version we can pull this and start relying on libxml2.
  *
  * UTF8ToHtml:
  * @out:  a pointer to an array of bytes to store the result
@@ -364,28 +366,12 @@ virgule_nice_utf8 (apr_pool_t *p, const char *utf8)
   if (utf8 == NULL)
      return NULL;
 
-
-//  htmlParserCtxtPtr ctxt = htmlNewParserCtxt();
-//  if(htmlParseChunk(ctxt, (char *)raw, inlen, 1) != 0)
-//    return "parse failed";
-// get a context
-// set to buffer?
-// htmlParseContent (ctxt);
-// htmlAutoCloseOnEnd (ctxt);
-//  htmlDocPtr html = htmlParseDoc ((xmlChar *)raw, NULL);
-//  if (html == NULL);
-//    return "htmlDocPtr() failed";    
-//  int len;
-//  xmlDocDumpFormatMemory(ctxt->myDoc, &out, &len, 1);
-//  return (char *)out;
-
   out = apr_palloc (p, outlen + 1);
   if(out == NULL)
     return NULL;
 
   memset(out,0,outlen);
   if(virgule_UTF8ToHtml (out,&outlen,utf8,&inlen) == 0)
-//  if(htmlEncodeEntities ((xmlChar *)out,&outlen,utf8,&inlen,0) == 0)
     {
       out[outlen] = 0;
       return out;
@@ -1011,7 +997,7 @@ virgule_rfc822_to_time_t (VirguleReq *vr, const char *time_string)
 
   t = apr_time_sec(at);
   
-  /* If date is so hosed up that the APR lib can figure out... */
+  /* If date is so hosed up the APR lib can't figure out... */
   if(t <= 0)
     {
       /* check for RFC822 with 4 digit year, no seconds, assume UTC */
