@@ -10,6 +10,9 @@
 	version 0.3 tags issued and modified, which are used in place of the
 	newer published and updated tags.
 
+	* aggregator.c (virgule_update_aggregator_list): Normalizes the feed
+	URL to include http:// in case the user forgot it.
+
 2006-12-02 R. Steven Rainwater <steve@ncc.com>
 
 	* util.c (virgule_rfc822_to_time_t): Added check for the quasi-RFC822

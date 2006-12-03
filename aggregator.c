@@ -531,7 +531,16 @@ virgule_update_aggregator_list (VirguleReq *vr)
 
   if (!strcmp (syndicate, "on"))
     {
-      feedurl = virgule_xml_get_prop (vr->r->pool, aggregate, (xmlChar *)"feedurl");
+      /* normalize feed url to make sure it has http:// */
+      char *tmpurl = virgule_xml_get_prop (vr->r->pool, aggregate, (xmlChar *)"feedurl");
+      if (tmpurl)
+	{
+	  char *colon = strchr (tmpurl, ':');
+	  if (!colon || colon[1] != '/' || colon[2] != '/')
+	    feedurl = apr_pstrcat (vr->r->pool, "http://", tmpurl, NULL);
+	  else
+	    feedurl = tmpurl;
+	}
       sflag = TRUE;
     }
     
