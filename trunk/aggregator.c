@@ -1,3 +1,27 @@
+/**
+ *
+ *  aggregator.c
+ *
+ *  Simple Atom, RSS, and RDF Site Summary feed aggregator based on libxml2.
+ *
+ *  Copyright (C) 2006 by R. Steven Rainwater
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ **/
+
 #include <time.h>
 
 #include <apr.h>
@@ -54,6 +78,8 @@ char str[90];
 strftime(str, 90, "%Y-%m-%dT%H:%M:%S%z", gmtime(&(item->post_time)));
 virgule_buffer_printf (vr->b, "<p>Title: [%s]</p><p>post time [%lu] Local :[%s]</p>\n", virgule_xml_get_string_contents (item->title), item->post_time, str);
 
+char str[90];
+strftime(str, 90, "%Y-%m-%dT%H:%M:%S%z", gmtime(&(item->post_time)));
 virgule_buffer_printf (vr->b, "<br/>author [%s]<br />entry permalink [%s]<br/>title [%s]<br/>post time [%lu][%s]<br/>\n", item->blogauthor, item->link, virgule_xml_get_string_contents (item->title), item->post_time, str);
 
 virgule_buffer_printf (vr->b, "<p>Latest Entry: [%s][%lu]</p>", user, latest);
@@ -394,7 +420,6 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 	}
       else if ((item->update_time != -1) && (item->post_time != item->update_time))
 	{
-//virgule_buffer_printf(vr->b, "<p>Should have updated an item here!</p>");
 	  virgule_diary_update_feed_item (vr, user, item);
 	}
     }
