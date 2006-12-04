@@ -107,7 +107,7 @@ rating_crank (VirguleReq *vr, const char *u)
  * cache instead of looping through every account in the XML acct tree and
  * testing to see if it's an alias or not. 
  * There is room for further improvement. The memory pool allocation in
- * each iteration of the loop a work around for a memory leak somewhere 
+ * each iteration of the loop is a work around for a memory leak somewhere 
  * in the eigen code.
  **/
 static int
@@ -120,9 +120,15 @@ rating_crank_all (VirguleReq *vr)
   apr_pool_t *sp;
 
   virgule_render_header (vr, "Cranking all nodes", NULL);
+
   
   while(tmetric[i])
     {
+
+      /* Release lock so we don't hog the system during the update */
+      virgule_db_unlock (vr->lock);
+      apr_sleep(1);
+
       for(j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++); /* EOL */
       for(k = j; k > 0 && tmetric[i + k] != ' '; k--); /* username */
       user = apr_palloc (vr->r->pool, k + 1);
@@ -135,9 +141,14 @@ rating_crank_all (VirguleReq *vr)
 virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", user);
 #endif
       apr_pool_create(&sp,vr->r->pool);
+   
+      /* re-establish XML file system lock */
+      vr->lock = virgule_db_lock (vr->db);
+      
       virgule_eigen_crank (sp, vr, user);
       apr_pool_destroy (sp);
     }
+
 
   return virgule_render_footer_send (vr);
 }

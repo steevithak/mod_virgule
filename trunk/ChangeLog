@@ -21,6 +21,13 @@
 	is running. The lock is now held only during the actual blog update
 	and not during the feed retrieval and parsing process.
 
+	* rating.c (rating_crank_all): The rating loop now releases the XML
+	file system lock, sleeps for 1 microsecond, and re-aquires the lock
+	on each iteration. This increases the total time taken for the
+	eigen vector update slightly but it allow normal use of the site to
+	continue during the calculation, eliminating the several minute wait
+	at the top of each hour.
+
 
 2006-12-02 R. Steven Rainwater <steve@ncc.com>
 
