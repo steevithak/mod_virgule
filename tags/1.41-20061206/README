@@ -1,0 +1,103 @@
+------------------------------------------------------------------------
+Notes on Steve's for of mod_virgule:
+
+This is not the "official" mod_virgule code. The official mod_virgule was
+used to run Advogato.org from it's creation until Oct 1, 2006. I created
+this fork for my robots.net website. On Oct 1, 2006, Advogato was 
+transitioned to this codebase as well. So I think that makes this code
+at least "semi-official" at this point. :-)
+
+The main difference is that this code is much closer to being usable
+out of the box for a new site. There are no hard coded references to URLs
+or site names, etc. Everything like that can be configured in a handy XML
+file at run time.  Here are a few of the other improvements found in this
+codebase over the original mod_virgule:
+
+-Function names now follows Apache module guidelines
+-Compiles against Apache 2.0 (roughly based on James Henstridge's patch)
+-User list is configurable, paged, and sorted by cert level
+-Article index page is a configurable template
+-The sitemap (main navigation menu) is configurable instead of hard-coded.
+-Forgotten password feature (based on Steve Kemp's patch)
+-Headers include link elements for RSS discovery (James Henstridge's patch)
+-Compiles against current libxml2 (Martijn van Beers' libxml2 patch)
+-Usernames may have spaces, dashes, underscores, and dots
+-Articles can have topic/icons like slash or scoop sites
+-Article titles are links to articles
+-Headers include link element for favicons
+-RSS exports 15 (the RSS max) rather than 10 headlines
+-User account page has consistent, easy to read menu layout
+-Users cannot certify themselves
+-Project list is alphabetized
+-Improved, detailed diagnostic info on test page
+-Posting, replying, and project creation authorized independently based
+user certification level
+-Comments added to code to explain purpose
+-Several compiler warnings fixed
+-Underlying code now has the ability to delete as well as add db entries
+-Removed certs are actually deleted
+-Removed project relations are actually deleted
+-Experimental acct_kill() function to remove a user account
+-XML tag for banner ad rotation
+-path handler allowing banner ad to be inserted as SSI
+-XML tag for an externally updated field
+
+Features that have also been integrated into the "official" codebase:
+-Permalinks for diary entries
+-Usernames are passed to Apache and logged
+-Configurable pass-through directories
+-XML tag that renders differently based on user login state
+-Code to prevent duplicate replies to articles
+-External CSS used to configure color scheme
+-External CSS used to configure cert colors
+-Cert levels are configurable
+-Trust metric seeds are configurable
+-Removed much illegal HTML
+-DoS vulnerability in cookie parsing fixed
+
+
+What follows is the original mod_virgule readme file
+------------------------------------------------------------------------
+
+This is mod_virgule, the source code to Advogato,
+http://www.advogato.org/ . I am releasing it under GPL with the hope
+that members of the free software community will:
+
+* Enhance Advogato.
+
+* Develop mod_virgule as a generic tool for creating community web
+  sites.
+
+* Learn from mod_virgule's design and implementation, which is unusual
+  in a number of respects.
+
+mod_virgule is implemented as an Apache C module, using gnome-xml to
+store the state as a XML files in the filesystem. There is an
+abstraction layer, however, which means that using a different backend
+(such as a "real" database) should be possible.
+
+Right now, there's quite a bit of stuff in the C code that's specific
+to Advogato. A medium-term goal is to push most of that stuff into the
+XML, so the code itself is more generic. There are a fair number of
+core changes here, so it's probably not a good place to hack in
+without coordinating with me.
+
+Raph Levien
+13 Nov 1999
+
+Development continues slowly. There's a new canonical home for
+mod_virgule in ghostscript cvs. You can access it thus:
+
+cvs -z3 -d:pserver:anonymous@cvs.ghostscript.com:/cvs/mod_virgule login
+[just press 'enter' if asked for a password]
+cvs -z3 -d:pserver:anonymous@cvs.ghostscript.com:/cvs/mod_virgule \
+	checkout mod_virgule
+
+There's also a discussion mailing list (virgule-dev) hosted at zork.net.
+You can sign up in the usual way, or visit the web interface at
+
+http://zork.net/mailman/listinfo/virgule-dev
+
+Happy Hacking,
+rillian
+2002 March 25
