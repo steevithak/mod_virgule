@@ -307,7 +307,7 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
     tree = xmlNewChild (root, NULL, "bloglink", item->bloglink);
   if(item->blogauthor)
     tree = xmlNewChild (root, NULL, "blogauthor", item->blogauthor);
-  if(item->post_time)
+  if(item->post_time != -1)
     tree = xmlNewChild (root, NULL, "feedposttime", virgule_time_t_to_iso(vr,item->post_time));
   if(item->update_time != -1)
     tree = xmlNewChild (root, NULL, "feedupdatetime", virgule_time_t_to_iso(vr,item->update_time));

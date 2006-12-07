@@ -274,6 +274,7 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
       item->post_time = virgule_rfc822_to_time_t (vr, virgule_xml_find_child_string (entry, "pubDate", NULL));
       if(item->post_time == -1)
         item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "date", NULL));
+	
       item->update_time = -1;
     }
 
@@ -462,7 +463,7 @@ aggregator_getfeeds_serve(VirguleReq *vr)
   xmlNode *feed;
   xmlChar *user;
   char *feedbuffer, *feedurl;
-  int status;
+  int feed_status = 0;
   
   virgule_render_header (vr, "mod_virgule Aggregator", NULL);
 
@@ -481,9 +482,12 @@ aggregator_getfeeds_serve(VirguleReq *vr)
         feedbuffer = apr_psprintf (vr->r->pool, "/acct/%s/feed.xml", (char *)user);
         virgule_db_del (vr->db, feedbuffer);
 	feedbuffer = virgule_db_mk_filename (vr->r->pool, vr->db, feedbuffer);
-	status = xmlNanoHTTPFetch(feedurl, feedbuffer, NULL);	
-        virgule_buffer_printf (vr->b, "<p><b>User:</b> %s <b>FeedURL:</b> %s <b>Result:</b> %s</p>\n",user,feedurl, (status ? "Error": "Ok"));
-	if(status == 0)
+	feed_status = xmlNanoHTTPFetch(feedurl, feedbuffer, NULL);
+        virgule_buffer_printf (vr->b,
+	                       "<p><b>User:</b> %s <b>FeedURL:</b> %s <b>Retrieval:</b> %s</p>\n",
+			       user,feedurl,
+			       (feed_status ? "Error": "Ok"));
+	if(feed_status == 0)
 	  aggregator_post_feed (vr, user);
     }
 
