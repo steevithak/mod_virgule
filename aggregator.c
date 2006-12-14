@@ -199,6 +199,7 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
       FeedItem *item = (FeedItem *)apr_array_push (result);
       item->blogauthor = author;
       item->bloglink = link;
+      item->id = virgule_xml_find_child_string (entry, "id", NULL);
       
       tmp = virgule_xml_find_child (entry, "link");
       if (tmp == NULL)
@@ -261,6 +262,13 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
       FeedItem *item = (FeedItem *)apr_array_push (result);
       item->blogauthor = author;
       item->bloglink = link;
+
+      item->id = virgule_xml_find_child_string (entry, "guid", NULL);
+      if(item->id == NULL)
+        item->id = virgule_xml_find_child_string (entry, "link", NULL);
+      if(item->id == NULL)
+        item->id = virgule_xml_find_child_string (entry, "title", NULL);
+
       item->link = virgule_xml_find_child_string (entry, "link", NULL);
       if(item->link == NULL)
         item->link = virgule_xml_find_child_string (entry, "guid", NULL);
@@ -320,6 +328,7 @@ aggregator_index_rdf_site_summary_10 (VirguleReq *vr, xmlDoc *feedbuffer)
       FeedItem *item = (FeedItem *)apr_array_push (result);
       item->blogauthor = author;
       item->bloglink = link;
+      item->id = virgule_xml_get_prop (vr->r->pool, entry, (xmlChar *)"about");
       item->link = virgule_xml_find_child_string (entry, "link", NULL);
       item->title = virgule_xml_find_child (entry, "title");
       item->content = virgule_xml_find_child (entry, "encoded");
