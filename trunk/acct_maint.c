@@ -676,7 +676,7 @@ acct_index_serve (VirguleReq *vr)
 		   "</p>\n"
 		   "<input type=\"hidden\" name=\"forgot\" value=\"checked\"/>"
 		   "<input type=\"submit\" value=\"Forgot Password\"/>\n"
-		   "</form></div>\n");
+		   "</form></div><div style=\"clear: both;\"></div>\n");
 
       return virgule_render_footer_send (vr);
     }

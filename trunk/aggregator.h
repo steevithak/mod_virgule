@@ -4,6 +4,7 @@ struct _FeedItem {
   char *blogauthor;
   char *bloglink;
   char *link;
+  char *id;
   xmlNode *title;
   xmlNode *content;
 };
