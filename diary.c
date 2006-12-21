@@ -301,12 +301,14 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
 
   tree = xmlNewChild (root, NULL, "date", date);
   tree = xmlNewTextChild (root, NULL, "title", virgule_xml_get_string_contents(item->title));
+  if(item->id)
+    tree = xmlNewTextChild (root, NULL, "id", item->link);
   if(item->link)
-    tree = xmlNewChild (root, NULL, "entrylink", item->link);
+    tree = xmlNewTextChild (root, NULL, "entrylink", item->link);
   if(item->bloglink)
-    tree = xmlNewChild (root, NULL, "bloglink", item->bloglink);
+    tree = xmlNewTextChild (root, NULL, "bloglink", item->bloglink);
   if(item->blogauthor)
-    tree = xmlNewChild (root, NULL, "blogauthor", item->blogauthor);
+    tree = xmlNewTextChild (root, NULL, "blogauthor", item->blogauthor);
   if(item->post_time != -1)
     tree = xmlNewChild (root, NULL, "feedposttime", virgule_time_t_to_iso(vr,item->post_time));
   if(item->update_time != -1)

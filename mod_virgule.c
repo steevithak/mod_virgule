@@ -328,9 +328,6 @@ test_page (VirguleReq *vr)
   virgule_buffer_printf (b, "<p>Article Topics are %s</p>\n",
 		 vr->priv->use_article_topics ? "on" : "off");
 
-//  virgule_buffer_printf (b, "<p>Aggregator test: %s</p>\n",
-//		 virgule_aggregator_test("http://advogato.org/rss/articles.xml"));
-  
   count (r->pool, b, db, "misc/admin/counter/count");
   
   virgule_buffer_puts (b, "</body></html>\n");
