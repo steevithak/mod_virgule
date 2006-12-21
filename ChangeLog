@@ -22,7 +22,7 @@
 
 	* aggregator.c (aggregator_index_rss_20): Unlike Atom or RDF Site
 	Summary, RSS has no required unqiue identifier for items. So, we
-	first try to use the option guid element. If that's not present, we
+	first try to use the optional guid element. If that's not present, we
 	try to use the link element, which should be unique. If neither is
 	present, we make a final attempt to use the title element which
 	might be unique (but possibly not stable). RSS sucks.
