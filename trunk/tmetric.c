@@ -278,42 +278,6 @@ tmetric_index_serve (VirguleReq *vr)
 }
 
 
-/**
- * This appears to be a db lock test and is probably not needed anymore.
- * This function and the corresponding code in virgule_tmetric_serve
- * should be removed.
- **/
-static int
-tmetric_test_serve (VirguleReq *vr)
-{
-  request_rec *r = vr->r;
-  Db *db = vr->db;
-  DbLock *lock;
-
-  if (vr->lock)
-    virgule_db_unlock (vr->lock);
-  vr->lock = NULL;
-
-  r->content_type = "text/html; charset=UTF-8";
-  ap_rprintf (r, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Test</title></head><body bgcolor=white><h1>Test</h1> <p>Testing lock...</p>\n");
-
-  ap_rflush (r);
-  lock = virgule_db_lock_key (db, "tmetric/.lock", F_SETLK);
-  if (lock == NULL)
-    {
-      ap_rprintf (r, "<p> Lock is taken by someone else. </p>\n");
-    }
-  else
-    {
-      ap_rprintf (r, "<p> Lock acquired. </p>\n");
-      ap_rflush (r);
-      sleep (10);
-      virgule_db_unlock (lock);
-    }
-  ap_rprintf (r, "<p> Done. </p>\n</body></html>\n");
-  
-  return OK;
-}
 
 int
 virgule_tmetric_serve (VirguleReq *vr)
@@ -324,8 +288,6 @@ virgule_tmetric_serve (VirguleReq *vr)
 
   if (!strcmp (uri, "/tmetric/"))
     return tmetric_index_serve (vr);
-  if (!strcmp (uri, "/tmetric/test.html"))
-    return tmetric_test_serve (vr);
   return DECLINED;
 }
 
