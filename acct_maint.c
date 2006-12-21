@@ -1258,7 +1258,6 @@ virgule_acct_person_index_serve (VirguleReq *vr, int max)
     virgule_buffer_printf (vr->b, "<a href=\"%s?start=%i\"><< Previous Page</a>&nbsp;&nbsp;\n", uri, start-max);
   if (line == start+max && tmetric[i])
     virgule_buffer_printf (vr->b, "<a href=\"%s?start=%i\">Next Page >></a>\n", uri, start+max);
-  virgule_buffer_puts (vr->b, "<p> Go to <x>a person</x>'s page to certify them. </p>\n");
 }
 
 

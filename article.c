@@ -84,7 +84,7 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
     }
   else
     {
-      virgule_buffer_printf (b, "<p> Error reading <x>article</x> %d.\n", art_num);
+      virgule_buffer_printf (b, "<p>Error reading <x>article</x> %d.\n", art_num);
     }
 }
 
@@ -101,7 +101,7 @@ article_render_replies (VirguleReq *vr, int art_num)
   n_art = virgule_db_dir_max (vr->db, base) + 1;
   lastread = virgule_acct_get_lastread (vr, "articles", apr_psprintf(p, "%d", art_num));
 #if 0
-  virgule_buffer_printf (vr->b, "<p> Rendering %d replies. </p>\n", n_art);
+  virgule_buffer_printf (vr->b, "<p>Rendering %d replies.</p>\n", n_art);
 #endif
   if (n_art > 0)
     {
@@ -183,22 +183,22 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
       char *body;
       body = virgule_xml_find_child_string (root, "body", NULL);
       if (body)
-	  virgule_buffer_printf (b, "<p> %s\n", body);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", body);
 
       article_render_replies (vr, art_num);
 
       if (virgule_req_ok_to_reply (vr))
         {
-	  virgule_buffer_printf (b, "<hr> <p> Post a reply to <x>article</x>: %s. </p>\n"
+	  virgule_buffer_printf (b, "<hr><p>Post a reply to <x>article</x>: %s.</p>\n"
                  "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-		 " <p> Reply title: <br>\n"
-		 " <input type=\"text\" name=\"title\" size=\"50\" maxlength=\"60\"> </p>\n"
-		 " <p> Body of reply: <br>\n"
-		 " <textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
-		 "</textarea> </p>\n"
-		 " <input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
-		 " <p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
-		 " <input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
+		 "<p>Reply title: <br>\n"
+		 "<input type=\"text\" name=\"title\" size=\"50\" maxlength=\"60\"></p>\n"
+		 "<p> Body of reply: <br>\n"
+		 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
+		 "</textarea></p>\n"
+		 "<input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
+		 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 		 "</form>\n", title, art_num);
 
           virgule_render_acceptable_html (vr);
@@ -221,13 +221,13 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 	n_new = n_replies;
 
 
-      virgule_buffer_printf (b, "<p> <a href=\"%s/article/%d.html\">Read more...</a> (%d repl%s) ",
+      virgule_buffer_printf (b, "<p><a href=\"%s/article/%d.html\">Read more...</a> (%d repl%s) ",
 		     vr->prefix,
 		     art_num, n_replies, n_replies == 1 ? "y" : "ies");
       if (n_new > 0)
         virgule_buffer_printf (b, "(<a href=\"%s/article/%d.html#lastread\">%d new</a>) ",
 		       vr->prefix, art_num, n_new);
-      virgule_buffer_puts (b, "</p> \n");
+      virgule_buffer_puts (b, "</p>\n");
     }
   virgule_buffer_printf (b, "</%s>\n", lead_tag);
 }
@@ -244,7 +244,7 @@ article_render (VirguleReq *vr, int art_num, int render_body)
 
   key = apr_psprintf (p, "articles/_%d/article.xml", art_num);
 #if 0
-  virgule_buffer_printf (b, "<p> Article %d: key %s</p>\n", art_num, key);
+  virgule_buffer_printf (b, "<p>Article %d: key %s</p>\n", art_num, key);
 #endif
 
   doc = virgule_db_xml_get (p, vr->db, key);
@@ -254,7 +254,7 @@ article_render (VirguleReq *vr, int art_num, int render_body)
     }
   else
     {
-      virgule_buffer_printf (b, "<p> Error reading <x>article</x> %d.\n", art_num);
+      virgule_buffer_printf (b, "<p>Error reading <x>article</x> %d.\n", art_num);
     }
 }
 
@@ -295,14 +295,14 @@ article_form_serve (VirguleReq *vr)
 	       "of the story complete with links to original sources when "
 	       "appropriate.<br>"
 	       " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>"
-	       "</textarea> </p>\n"
-	       " <p><b><x>Article</x> Body</b>. This should contain the body "
+	       "</textarea></p>\n"
+	       "<p><b><x>Article</x> Body</b>. This should contain the body "
 	       "of your article and may be as long as needed. If your entire "
 	       "article is only one paragraph, put it in the lead field above "
 	       "and leave this one empty.<br>"
-	       " <textarea name=\"body\" cols=72 rows=16 wrap=hard>"
-	       "</textarea> </p>\n"
-	       " <p><input type=\"submit\" name=preview value=\"Preview\">\n"
+	       "<textarea name=\"body\" cols=72 rows=16 wrap=hard>"
+	       "</textarea></p>\n"
+	       "<p><input type=\"submit\" name=preview value=\"Preview\">\n"
 	       "</form>\n");
 
   virgule_render_acceptable_html (vr);
@@ -379,20 +379,20 @@ article_generic_submit_serve (VirguleReq *vr,
 	{
 	  virgule_render_header (vr, "Reply preview", NULL);
 	  virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
-	  virgule_buffer_printf (b, "<font size=+2><b>%s</b></font> <br>\n", nice_title);
+	  virgule_buffer_printf (b, "<font size=+2><b>%s</b></font><br>\n", nice_title);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
-	  virgule_buffer_printf (b, "<p> %s </p>\n", nice_body);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_body);
 	  virgule_buffer_puts (b, "<hr>\n");
-	  virgule_buffer_printf (b, "<p> Edit your reply: </p>\n"
+	  virgule_buffer_printf (b, "<p>Edit your reply:</p>\n"
 			 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-			 " <p> <x>Article</x> title: <br>\n"
-			 " <input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"60\"></p>\n"
-			 " <p> Body of <x>article</x>: <br>\n"
-			 " <textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"hard\">%s"
+			 "<p><x>Article</x> title: <br>\n"
+			 "<input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"60\"></p>\n"
+			 "<p> Body of <x>article</x>: <br>\n"
+			 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"hard\">%s"
 			 "</textarea></p>\n"
-			 " <input type=\"hidden\" name=\"art_num\" value=\"%s\">\n"
-			 " <p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
-			 " <input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
+			 "<input type=\"hidden\" name=\"art_num\" value=\"%s\">\n"
+			 "<p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
+			 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 			 "</form>\n",
 			 virgule_str_subst (p, title, "\"", "&quot;"),
 			 ap_escape_html (p, body),
@@ -418,15 +418,15 @@ article_generic_submit_serve (VirguleReq *vr,
 	  if(vr->priv->use_article_topics)
             virgule_buffer_puts (b, "</td></tr></table>\n");
 
-	  virgule_buffer_printf (b, "<p>\n%s\n", nice_lead);
-	  virgule_buffer_printf (b, "<p> %s </p>\n", nice_body);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_lead);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_body);
 	  virgule_buffer_puts (b, "<hr>\n");
-	  virgule_buffer_puts (b, "<p> Edit your <x>article</x>: </p>\n"
+	  virgule_buffer_puts (b, "<p>Edit your <x>article</x>:</p>\n"
 		"<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
 
 	  if(vr->priv->use_article_topics)
 	    {
-	      virgule_buffer_puts (b, " <p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
+	      virgule_buffer_puts (b, "<p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
 
               for (t = vr->priv->topics; *t; t++)
 	        virgule_buffer_printf (b, "<option%s>%s</option>\n",
@@ -437,36 +437,36 @@ article_generic_submit_serve (VirguleReq *vr,
 
 
 	  virgule_buffer_printf (b,
-			 " <p><b><x>Article</x> title</b>:<br>\n"
-			 " <input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"%i\"> </p>\n"
-	        	 " <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
+			 "<p><b><x>Article</x> title</b>:<br>\n"
+			 "<input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"%i\"></p>\n"
+	        	 "<p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
 	    		 "of the story complete with links to the original "
 	    		 "sources when appropriate.<br>"			 
-			 " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>%s"
+			 "<textarea name=\"lead\" cols=72 rows=6 wrap=hard>%s"
 			 "</textarea> </p>\n",
 			 virgule_str_subst (p, title, "\"", "&quot;"),
 			 vr->priv->article_title_maxsize,
 			 ap_escape_html (p, lead));
 	  if (lead_error != NULL)
-	    virgule_buffer_printf (b, "<p> <b>Warning:</b> %s </p>\n", lead_error);
+	    virgule_buffer_printf (b, "<p><b>Warning:</b> %s</p>\n", lead_error);
 
-	  virgule_buffer_printf (b," <p><b><x>Article</x> Body</b>. This should "
+	  virgule_buffer_printf (b,"<p><b><x>Article</x> Body</b>. This should "
 	    		 "contain the body of your article and may be as long as "
 			 "needed. If your entire article is only one paragraph, "
 			 "put it in the lead field above and leave this one empty<br>"
-			 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
-			 "</textarea> </p>\n"
-			 " <p><b>Warning:</b> Please proof read your article "
+			 "<textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
+			 "</textarea></p>\n"
+			 "<p><b>Warning:</b> Please proof read your article "
 			 "and verify spelling and any html markup before posting. "
 			 "Click the <b>Preview</b> button to see changes. Once "
 			 "you click the <b>Post</b> button your article will be "
 			 "posted and changes are no longer possible."
-			 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-			 " <input type=\"submit\" name=preview value=\"Preview\">\n"
+			 "<p><input type=\"submit\" name=post value=\"Post\">\n"
+			 "<input type=\"submit\" name=preview value=\"Preview\">\n"
 			 "</form>\n",
 			 ap_escape_html (p, body));
 	  if (body_error != NULL)
-	    virgule_buffer_printf (b, "<p> <b>Warning:</b> %s </p>\n", body_error);
+	    virgule_buffer_printf (b, "<p><b>Warning:</b> %s </p>\n", body_error);
 
 	  virgule_render_acceptable_html (vr);
 
@@ -613,16 +613,16 @@ article_reply_form_serve (VirguleReq *vr)
 
   virgule_render_header (vr, "Post a reply", NULL);
 
-  virgule_buffer_printf (b, "<p> Post a reply to <x>article</x>: %s. </p>\n"
+  virgule_buffer_printf (b, "<p>Post a reply to <x>article</x>: %s.</p>\n"
 		 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-		 " <p> Reply title: <br>\n"
-		 " <input type=\"text\" name=\"title\" size=50 maxlength=50> </p>\n"
-		 " <p> Body of reply: <br>\n"
-		 " <textarea name=\"body\" cols=72 rows=16 wrap=hard>"
-		 "</textarea> </p>\n"
-		 " <input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
-		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
+		 "<p>Reply title: <br>\n"
+		 "<input type=\"text\" name=\"title\" size=50 maxlength=50></p>\n"
+		 "<p>Body of reply: <br>\n"
+		 "<textarea name=\"body\" cols=72 rows=16 wrap=hard>"
+		 "</textarea></p>\n"
+		 "<input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
+		 "<p><input type=\"submit\" name=post value=\"Post\">\n"
+		 "<input type=\"submit\" name=preview value=\"Preview\">\n"
 		 "</form>\n", title, art_num);
 
   virgule_render_acceptable_html (vr);
@@ -710,18 +710,18 @@ virgule_article_recent_render (VirguleReq *vr, int n_arts_max, int start)
     }
 
   if (n_arts == 0)
-    virgule_buffer_puts (b, "<p> No <x>articles</x>. </p>");
+    virgule_buffer_puts (b, "<p>No <x>articles</x>.</p>");
   if (art_num >= 0)
     {
-    virgule_buffer_printf (b, "<p> <a href=\"%s/article/older.html?start=%d\">%d older <x>article%s</x>...</a> </p>\n",
+    virgule_buffer_printf (b, "<p><a href=\"%s/article/older.html?start=%d\">%d older <x>article%s</x>...</a></p>\n",
 		   vr->prefix, art_num,
 		   art_num + 1, art_num == 0 ? "" : "s");
     }
 
   if (virgule_req_ok_to_post (vr))
-    virgule_buffer_printf (b, "<p> <a href=\"%s/article/post.html\">Post</a> a new <x>article</x>... </p>\n", vr->prefix);
+    virgule_buffer_printf (b, "<p><a href=\"%s/article/post.html\">Post</a> a new <x>article</x>...</p>\n", vr->prefix);
   else 
-    virgule_buffer_printf (b, "<p> <a href=\"mailto:%s?subject=Story suggestion\">Suggest a story</a>\n", vr->priv->admin_email);
+    virgule_buffer_printf (b, "<p><a href=\"mailto:%s?subject=Story suggestion\">Suggest a story</a></p>\n", vr->priv->admin_email);
 
   return 0;
 }

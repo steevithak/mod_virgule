@@ -1,5 +1,10 @@
 2006-12-20 R. Steven Rainwater <steve@ncc.com>
 
+	* acct.c (virgule_acct_person_index_serve): Removed some hard-coded
+	HTML that should be in the person index template.
+
+	* article.c: Cleaned up some HTML formatting cruft.
+
 	* diary.c (virgule_diary_store_feed_item): The item's unique 
 	identifier is now stored if it's available.
 
