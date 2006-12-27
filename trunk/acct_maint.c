@@ -1287,7 +1287,11 @@ acct_person_graph_serve (VirguleReq *vr)
       virgule_buffer_printf (b, "   /* %s */\n", issuer);
 
       db_key = virgule_acct_dbkey (vr, issuer);
+      if (db_key == NULL)
+        continue;
       profile = virgule_db_xml_get (p, db, db_key);
+      if (profile == NULL)
+        continue;
       tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
       if (tree == NULL)
 	continue;

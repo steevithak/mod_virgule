@@ -1,3 +1,10 @@
+2006-12-27 R. Steven Rainwater <steve@ncc.com>
+
+	* acct.c (acct_person_graph_serve): Added some sanity checks to the
+	graph.dot code that should prevent it from segfaulting if it hits
+	a malformed user account XML file.
+
+
 2006-12-20 R. Steven Rainwater <steve@ncc.com>
 
 	* acct.c (virgule_acct_person_index_serve): Removed some hard-coded
@@ -9,6 +16,7 @@
 	identifier is now stored if it's available.
 
 	* tmetric.c (tmetric_test_serve): Removed this unused DB lock test.
+
 
 2006-12-13 R. Steven Rainwater <steve@ncc.com>
 
