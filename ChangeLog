@@ -4,6 +4,14 @@
 	graph.dot code that should prevent it from segfaulting if it hits
 	a malformed user account XML file.
 
+	* mod_virgule (test_page): Added display of vr->priv->base_uri and
+	vr->priv->base_path to test page.
+	
+	* mod_virgule (virgule_handler): Fixed minor bug in config.xml
+	pathname (had extra slash - didn't seem to hurt anything).
+
+	* req.c (virgule_get_tmetric): Fixed bug that was causing trust
+	metric cache to be loaded unnecessarily.
 
 2006-12-20 R. Steven Rainwater <steve@ncc.com>
 
@@ -72,9 +80,9 @@
 	and not during the feed retrieval and parsing process.
 
 	* rating.c (rating_crank_all): The rating loop now releases the XML
-	file system lock, sleeps for 1 microsecond, and re-aquires the lock
+	file system lock, sleeps for 1 microsecond, and re-acquires the lock
 	on each iteration. This increases the total time taken for the
-	eigen vector update slightly but it allow normal use of the site to
+	eigen vector update slightly but it allows normal use of the site to
 	continue during the calculation, eliminating the several minute wait
 	at the top of each hour.
 
