@@ -1,6 +1,7 @@
 #include <apr.h>
 #include <apr_strings.h>
 #include <httpd.h>
+#include <http_log.h>
 
 #include "private.h"
 #include "buffer.h"
@@ -86,16 +87,18 @@ virgule_req_get_tmetric (VirguleReq *vr)
   apr_finfo_t finfo;
 
   /* Stat the trust metric cache file */
-  apr_stat(&finfo, ap_make_full_path (vr->r->pool, vr->priv->base_uri, "/tmetric/default"),
+  apr_stat(&finfo, ap_make_full_path (vr->r->pool, vr->priv->base_path, "tmetric/default"),
            APR_FINFO_MIN, vr->r->pool);
 
   /* Load the trust metric cache and reset timestamp */
   if (vr->priv->tmetric == NULL || finfo.mtime != vr->priv->tm_mtime)
     {
-
       /* free existing memory if needed */
       if(vr->priv->tmetric != NULL)
-        apr_pool_destroy (vr->priv->tm_pool);
+        {
+          apr_pool_destroy (vr->priv->tm_pool);
+	  vr->priv->tm_mtime = 0L;
+	}
 
       /* allocate a sub pool and load the tmetric cache */
       apr_pool_create(&vr->priv->tm_pool, vr->priv->pool);

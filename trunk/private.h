@@ -34,6 +34,7 @@ struct virgule_private {
   unsigned long      count;        /* Thread request counter */
   const char        *site_name;
   const char        *base_uri;
+  const char	    *base_path;    /* Path to virgule DB in apache config */
   const char	    *admin_email;
   int                recentlog_as_posted;
   const char       **cert_level_names;

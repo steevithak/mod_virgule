@@ -213,6 +213,8 @@ test_page (VirguleReq *vr)
   virgule_buffer_printf (b, "<p> The unparsed uri is: <tt>%s</tt> </p>\n", r->unparsed_uri);
   virgule_buffer_printf (b, "<p> The uri (r->uri): <tt>%s</tt> </p>\n", r->uri);
   virgule_buffer_printf (b, "<p> The adjusted uri (vr->uri) is: <tt>%s</tt></p>\n",vr->uri);
+  virgule_buffer_printf (b, "<p> The base_uri (vr->priv->base_uri) is: <tt>%s</tt></p>\n",vr->priv->base_uri);
+  virgule_buffer_printf (b, "<p> The base_path (vr->priv->base_path) is: <tt>%s</tt></p>\n",vr->priv->base_path);
   virgule_buffer_printf (b, "<p> The filename is: <tt>%s</tt> </p>\n", r->filename);
   virgule_buffer_printf (b, "<p> The path_info is: <tt>%s</tt> </p>\n", r->path_info);
   virgule_buffer_printf (b, "<p> The document root is: <tt>%s</tt> </p>\n", ap_document_root (r));
@@ -485,6 +487,7 @@ read_site_config (VirguleReq *vr)
   /* Don't bother reading in the tmetric data until we need it */
   vr->priv->tmetric = NULL;
   vr->priv->tm_pool = NULL;
+  vr->priv->tm_mtime = 0L;
 
   /* Figure out the local time zone offset using thread-safe POSIX func */
   now = time(NULL);
@@ -878,8 +881,9 @@ read_site_config (VirguleReq *vr)
   *t_item = NULL;
   vr->priv->allowed_tags = (const AllowedTag **)stack->elts;
 
-/* debug */
+/* debug 
 ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"Debug: read config.xml");
+*/
 
   return CONFIG_READ;
 }
@@ -945,7 +949,7 @@ static int virgule_handler(request_rec *r)
   }
 
   /* Stat the site config file in case it got updated */
-  apr_stat(&finfo, ap_make_full_path (r->pool, cfg->db, "/config.xml"),
+  apr_stat(&finfo, ap_make_full_path (r->pool, cfg->db, "config.xml"),
            APR_FINFO_MIN, r->pool);
 
   /* If config file was updated, dump and reload private data */
@@ -978,6 +982,9 @@ static int virgule_handler(request_rec *r)
 
     /* set mtime for config file */
     vr->priv->mtime = finfo.mtime;
+    
+    /* remember the base path */
+    vr->priv->base_path = apr_pstrdup(vr->priv->pool, cfg->db);
   }
 
   /* set buffer translations */
