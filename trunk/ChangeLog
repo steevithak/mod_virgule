@@ -1,3 +1,10 @@
+2006-01-04 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (virgule_site_render_person_link): Removed hardcode anchor
+	style. The external stylesheet can now be used to control appearance
+	of the person links.
+
+
 2006-12-27 R. Steven Rainwater <steve@ncc.com>
 
 	* acct.c (acct_person_graph_serve): Added some sanity checks to the
@@ -12,6 +19,7 @@
 
 	* req.c (virgule_get_tmetric): Fixed bug that was causing trust
 	metric cache to be loaded unnecessarily.
+
 
 2006-12-20 R. Steven Rainwater <steve@ncc.com>
 

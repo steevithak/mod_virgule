@@ -76,7 +76,7 @@ site_render_children (RenderCtx *ctx, xmlNode *node)
 void
 virgule_site_render_person_link (VirguleReq *vr, const char *name)
 {
-  virgule_buffer_printf (vr->b, "<a href=\"%s/person/%s/\" style=\"text-decoration: none\">%s</a>\n",
+  virgule_buffer_printf (vr->b, "<a href=\"%s/person/%s/\">%s</a>\n",
 		 vr->prefix, ap_escape_uri(vr->r->pool, name), name);
 }
 
