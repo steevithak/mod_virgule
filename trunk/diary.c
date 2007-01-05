@@ -410,41 +410,48 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
 }
 
 
+/**
+ * virgule_diary_store_entry - this a total rewrite of the original code.
+ * Instead of wiping out the old entry and replacing it with a new one, we
+ * read the old one and update only the entry contents themselves, leaving
+ * other tags (such as syndication info) intact.
+ */
 int
 virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
 {
   apr_pool_t *p = vr->r->pool;
   const char *date = virgule_iso_now (p);
-  xmlDoc *entry_doc, *old_entry_doc;
+  xmlDoc *entry_doc;
   xmlNode *root, *tree;
 
-  entry_doc = virgule_db_xml_doc_new (p);
-  root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
-  xmlAddChild (root, xmlNewDocText (entry_doc, entry));
-  entry_doc->xmlRootNode = root;
+  /* read the old entry */
+  entry_doc = virgule_db_xml_get (p, vr->db, key);
 
-  old_entry_doc = virgule_db_xml_get (p, vr->db, key);
-
-  if (old_entry_doc == NULL)
+  if (entry_doc == NULL)
     {
+      /* if no old entry is found, generate a new one */
+      entry_doc = virgule_db_xml_doc_new (p);
+      root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
+      xmlAddChild (root, xmlNewDocText (entry_doc, entry));
+      entry_doc->xmlRootNode = root;
       tree = xmlNewChild (root, NULL, "date", date);
-
       virgule_add_recent (p, vr->db, "recent/diary.xml", vr->u, 100,
 		  vr->priv->recentlog_as_posted);
     }
   else
     {
-      xmlNode *old_date_el;
-
-      old_date_el = virgule_xml_find_child (old_entry_doc->xmlRootNode, "date");
-      if (old_date_el != NULL)
-	tree = xmlNewChild (root, NULL, "date",
-			    virgule_xml_get_string_contents (old_date_el));
-      tree = xmlNewChild (root, NULL, "update", date);
-	
+      /* replace old entry with new entry */
+      root = xmlDocGetRootElement (entry_doc);
+      virgule_xml_del_string_contents(root);
+      xmlNodeAddContent (root, entry);
+      tree = virgule_xml_ensure_child (root, "update");
+      xmlNodeSetContent (tree, date);
     }
-  return virgule_db_xml_put (p, vr->db, key, entry_doc);
+
+  /* write the entry back to the data store */
+  return virgule_db_xml_put (p, vr->db, key, entry_doc);    
 }
+
     
 static int
 diary_post_serve (VirguleReq *vr)
@@ -488,6 +495,7 @@ diary_post_serve (VirguleReq *vr)
   return virgule_send_error_page (vr, "Blog", "Ok, your <a href=\"/recentlog.html\">blog</a> entry was posted. Thanks!");
 }
 
+
 static int
 diary_index_serve (VirguleReq *vr)
 {
@@ -524,6 +532,7 @@ diary_index_serve (VirguleReq *vr)
   return virgule_render_footer_send (vr);
 }
 
+
 static int
 diary_edit_serve (VirguleReq *vr)
 {
@@ -554,6 +563,9 @@ diary_edit_serve (VirguleReq *vr)
     {
       const char *entry_nice;
       xmlNode *date_el;
+      char *feedposttime = NULL;
+      char *feedupdatetime = NULL;
+      char *title;
       char *error;
       char *contents;
 
@@ -567,11 +579,29 @@ diary_edit_serve (VirguleReq *vr)
 	  virgule_render_header (vr, str, NULL);
 	}
 
+      feedposttime = virgule_xml_find_child_string (entry->xmlRootNode, "feedposttime", NULL);
+      feedupdatetime = virgule_xml_find_child_string (entry->xmlRootNode, "feedupdatetime", NULL);
+      if (feedposttime != NULL)
+        {
+	  virgule_buffer_printf (b, "<p>This is a syndicated blog entry. "
+				    "Editing locally is not recommended."
+				    "<br />Syndicated on %s "
+				    "(last syndication update: %s)</p>\n",
+				    feedposttime,
+				    feedupdatetime ? feedupdatetime : "None");
+	}
+
+      title = virgule_xml_find_child_string (entry->xmlRootNode, "title", NULL);
+      if (title != NULL)
+        {
+	  virgule_buffer_printf (b, "<p><b>%s</b></p>\n", title);
+	}
+
       contents = virgule_xml_get_string_contents (entry->xmlRootNode);
       if (contents != NULL)
 	{
 	  entry_nice = virgule_nice_htext (vr, contents, &error);
-	  virgule_buffer_printf (b, "<p> %s </p>\n", entry_nice);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", entry_nice);
 	}
 
       virgule_buffer_printf (b, "<p> Edit your entry: </p>\n"
@@ -580,10 +610,14 @@ diary_edit_serve (VirguleReq *vr)
 		     "</textarea>\n"
 		     "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
 		     "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
-		     "<input type=\"hidden\" name=\"key\" value=\"%s\">\n"
-		     "</form>\n",
+		     "<input type=\"hidden\" name=\"key\" value=\"%s\">\n",
 		     contents == NULL ? "" : ap_escape_html(p, contents),
 		     apr_table_get (args, "key"));
+
+      if(title)
+        virgule_buffer_printf (b, "<input type=\"hidden\" name=\"title\" value=\"%s\" >\n", ap_escape_quotes(p, title));
+
+      virgule_buffer_puts (b, "</form>\n");
     }
   else
     {
@@ -630,6 +664,7 @@ virgule_diary_serve (VirguleReq *vr)
   return virgule_send_error_page (vr, "Blog", "Welcome to your blog.");
 #endif
 }
+
 
 /**
  * diary_export: Export a diary into an xml tree.
@@ -703,6 +738,7 @@ virgule_diary_export (VirguleReq *vr, xmlNode *root, char *u)
 
   return 0;
 }
+
 
 /**
  * diary_rss_export: Export a diary into an rss xml tree.
