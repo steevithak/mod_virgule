@@ -1,6 +1,18 @@
+2006-01-05 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (virgule_diary_store_entry): Completely rewrote this code
+	to make the function safe to use on syndicated entries. All the
+	syndication tags are now preserved when an updated entry is stored
+	through the local website or through the xml-rpc interface.
+
+	* diary.c (diary_edit_serve): Added support for syndication-related
+	fields, so we can warn users to be careful editing syndicated posts.
+	Also added initial support for the title field.
+
+
 2006-01-04 R. Steven Rainwater <steve@ncc.com>
 
-	* site.c (virgule_site_render_person_link): Removed hardcode anchor
+	* site.c (virgule_site_render_person_link): Removed hardcoded anchor
 	style. The external stylesheet can now be used to control appearance
 	of the person links.
 
