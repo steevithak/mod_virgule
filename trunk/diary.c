@@ -817,7 +817,11 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
  * virgule_diary_latest_feed_entry - return the Unix time_t value of the most
  * recent syndicated diary entry for the specified user. If the user has no 
  * diary entries yet, a value of 0 is returned. This function should only be
- * called for value usernames. It does not validate the username.
+ * called for valid usernames. It does not validate the username.
+ *
+ * Because some users post entries locally and use the syndication feature,
+ * it's possible that the most recent entry doesn't have a feedposttime tag.
+ * So, we search back a maximum of 20 entries looking for one.
  *
  * Note: virgule_iso_to_time_t is broken with respect to time zones. It 
  * converts all time strings as if they were UTC. Until mod_virgule time
@@ -826,7 +830,7 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 time_t
 virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
 {
-  int n;
+  int i, n;
   char *diary, *key;
   xmlDoc *entry = NULL;
   xmlNode *date = NULL;
@@ -836,14 +840,33 @@ virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
   n = virgule_db_dir_max (vr->db, diary);
   if (n < 0)
     return 0;
+
+  for (result = 0, i = n; result == 0 && i > n - 20; i--)
+    {
+      key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, i);
+      entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+      if (entry == NULL)
+        continue;
+
+      date = virgule_xml_find_child (entry->xmlRootNode, "feedposttime");
+      if (date == NULL)
+        continue;
+
+      result = virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
+    }
+
+    if(result > 0)
+      return result - vr->priv->utc_offset;
+    else
+      return 0;
     
-  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, n);
-  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
-  if (entry == NULL)
-    return 0;
+//  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, n);
+//  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+//  if (entry == NULL)
+//    return 0;
     
-  date = virgule_xml_find_child (entry->xmlRootNode, "feedposttime");
-  result = virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
-  return result - vr->priv->utc_offset;
+//  date = virgule_xml_find_child (entry->xmlRootNode, "feedposttime");
+//  result = virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
+//  return result - vr->priv->utc_offset;
 }
 
