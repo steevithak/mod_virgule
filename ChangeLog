@@ -1,3 +1,11 @@
+2006-01-06 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (virgule_diary_latest_feed_entry): Extended search for a
+	recent entry with a feedpost tag to 20 more recent entries. This
+	should handle any reasonable case of combined local and syndicated
+	usage.
+
+
 2006-01-05 R. Steven Rainwater <steve@ncc.com>
 
 	* diary.c (virgule_diary_store_entry): Completely rewrote this code
