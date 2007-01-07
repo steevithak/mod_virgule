@@ -1,5 +1,19 @@
 2006-01-06 R. Steven Rainwater <steve@ncc.com>
 
+	* aggregator.c (aggregator_post_feed): When an entry with new date
+	is found, if the entry has a unique ID, a search done against the
+	existing entries for a match. If a match is found, we assume the date
+	is incorrect and perform an update on the existing entry rather than
+	adding as a new entry. This should solve the problem of	duplicate 
+	posts with certain RSS feeds that alter entry dates retroactively.
+
+	* diary.c (virgule_diary_entry_id_exists): Search diary entries for
+	the specified entry ID and return the entry index number.
+
+	* diary.c (virgule_diary_update_feed_item): Added entry index number
+	to parameter list. This optional value allows the entry to be
+	accessed directly without a search, if it is known.
+
 	* diary.c (virgule_diary_latest_feed_entry): Extended search for a
 	recent entry with a feedpost tag to 20 more recent entries. This
 	should handle any reasonable case of combined local and syndicated

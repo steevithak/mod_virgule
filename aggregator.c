@@ -252,7 +252,7 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
   for (entry = tmp->children; entry != NULL; entry = entry->next)
    if (!strcmp ((char *)entry->name, "item"))
     {
-      /* We can't use feeds that don't have a date (for unique item ID) */
+      /* We can't use feeds that don't have a date */
       tmp = virgule_xml_find_child (entry, "pubDate");
       if (tmp == NULL) 
         tmp = virgule_xml_find_child (entry, "date");
@@ -320,7 +320,7 @@ aggregator_index_rdf_site_summary_10 (VirguleReq *vr, xmlDoc *feedbuffer)
   for (entry = root->children; entry != NULL; entry = entry->next)
    if (!strcmp ((char *)entry->name, "item"))
     {
-      /* We can't use feeds that don't have a date (for unique item ID) */
+      /* We can't use feeds that don't have a date */
       tmp = virgule_xml_find_child (entry, "date");
       if (tmp == NULL) 
         continue;
@@ -439,12 +439,21 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
       FeedItem *item = &((FeedItem *)(item_list->elts))[i];
       if (item->post_time > latest)
 	{
-	  virgule_diary_store_feed_item (vr, user, item);
-	  post = 1;
+          int e;
+	  e = virgule_diary_entry_id_exists(vr, user, item->id);
+	  /* some broken feeds alter the post time on existing post */
+	  if (e > -1)
+	    virgule_diary_update_feed_item (vr, user, item, e);
+	  /* it should be safe to assume this is really a new entry */
+	  else
+	    {
+	      virgule_diary_store_feed_item (vr, user, item);
+	      post = 1;
+	    }
 	}
       else if ((item->update_time != -1) && (item->post_time != item->update_time))
 	{
-	  virgule_diary_update_feed_item (vr, user, item);
+	  virgule_diary_update_feed_item (vr, user, item, -1);
 	}
     }
 
