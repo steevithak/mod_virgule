@@ -23,10 +23,13 @@ int
 virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item);
 
 int
-virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item);
+virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, int e);
 
 int
 virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry);
 
 time_t
 virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u);
+
+int
+virgule_diary_entry_id_exists(VirguleReq *vr, xmlChar *u, char *id);

@@ -364,9 +364,11 @@ find_entry_by_feedposttime (VirguleReq *vr, xmlChar *user, time_t posttime)
 /**
  * virgule_diary_update_feed_item - Check to see if the specified entry
  * needs to be updated. If it does, replace it with the updated entry.
+ * If the entry number is not specified, use the item post date to search
+ * for the entry.
  **/
 int
-virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
+virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, int e)
 {
   char *key = NULL;
   char *feedupdatetime = NULL;
@@ -378,7 +380,11 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
     return 0;
 
   /* find the entry */
-  key = find_entry_by_feedposttime (vr, user, item->post_time);
+  if (e != -1)
+    key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)user, e);
+  else
+    key = find_entry_by_feedposttime (vr, user, item->post_time);
+
   if (key == NULL)
     return 0;
     
@@ -390,7 +396,7 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
   if (feedupdatetime != NULL)
     {
       utime = virgule_virgule_to_time_t (vr, feedupdatetime);
-      if (utime == item->update_time)
+      if (utime >= item->update_time)
         return 0;
     }
 
@@ -870,3 +876,41 @@ virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
 //  return result - vr->priv->utc_offset;
 }
 
+
+/**
+ * Search for the specified entry ID value. If no match is found, the return
+ * value is -1. If a match is found, the diary entry number is returned.
+ */
+int
+virgule_diary_entry_id_exists(VirguleReq *vr, xmlChar *u, char *id)
+{
+  int i, n;
+  int e = -1;
+  char *diary, *key, *eid;
+  xmlDoc *entry = NULL;
+
+  if (id == NULL)
+    return -1;
+
+  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", (char *)u);
+  n = virgule_db_dir_max (vr->db, diary);
+  if (n < 0)
+    return -1;
+
+  for (i = n; e < 0 && i >= 0; i--)
+    {
+      key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, i);
+      entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
+      if (entry == NULL)
+        continue;
+
+      eid = virgule_xml_find_child_string (entry->xmlRootNode, "id", NULL);
+      if (eid == NULL)
+        continue;
+
+      if (strcmp (eid, id) == 0)
+        e = i;
+    }
+    
+  return e;
+}
