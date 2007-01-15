@@ -1,0 +1,188 @@
+<page><title>Advogato's trust metric</title>
+
+<p> This document briefly describes the technical details of
+Advogato's trust metric. </p>
+
+<p> The basic trust metric evaluates a set of peer certificates,
+resulting in a set of accounts accepted. These certificates are
+represented as a graph, with each account as a node, and each
+certificate as a directed edge. The goal of the trust metric is to
+accept as many valid accounts as possible, while also reducing the
+impact of attackers. </p>
+
+<p> Advogato performs certification to three different levels:
+Apprentice, Journeyer, and Master. This is actually done by running
+the basic trust metric three times, using the "level" value in the
+certificate as a threshold. Thus, certification of Apprentices is
+computed using all certificates, while Master is computed using Master
+certificates only. </p>
+
+<p> The computation of the trust metric is performed relative to a
+"seed" of trusted accounts. At the time of this writing (22 Feb 2000),
+the seed consists of <a href="/person/raph/">raph</a>, <a
+href="/person/miguel/">miguel</a>, <a
+href="/person/federico/">federico</a>, and <a
+href="/person/alan/">alan</a>. </p>
+
+<p> The core of the trust metric is a network flow
+operation. Informally, if there is a rich web of interconnections,
+flow reaches almost all the nodes. However, only a few accounts would
+be accepted from a large nest of bogus accounts, as long as there are
+only a few certificates from the "good" web to the bogus
+accounts. Those certificates represent a bottleneck in the network
+flow. </p>
+
+<p> The remainder of this document presents the actual trust metric in
+more detail, as well as an argument for the security against
+attackers. </p>
+
+<h2>Mapping into graph</h2>
+
+<p> The mapping of certificates into a graph is dependent on a
+parameter: the certification level <i>l</i>. Each account on Advogato
+corresponds to a node in the graph. An edge exists from node <i>s</i> to node
+<i>t</i> when account <i>s</i> has certified account <i>t</i> at level
+<i>l</i> or higher. </p>
+
+<p> In addition, there is a distinguished "seed" node, with predefined
+edges to accounts. These are currently configured in the mod_virgule
+source, file <a
+href="http://cvs.gnome.org/lxr/source/mod_virgule/tmetric.c">tmetric.c</a>. </p>
+
+<h2>Assignment of capacities</h2>
+
+<p> The next step is to assign a capacity to each node in the
+graph. This is done by breath-first searching the graph from the seed,
+computing a shortest distance from the seed to each node. </p>
+
+<p> Then, capacities are assigned simply as a function of this
+distance. Nodes closer to the root have high capacity, which
+diminishes with distance. Currently: </p>
+
+<blockquote>
+cap(0) = 800<br/>
+cap(1) = 200<br/>
+cap(2) = 200<br/>
+cap(3) = 50<br/>
+cap(4) = 12<br/>
+cap(5) = 4<br/>
+cap(6) = 2<br/>
+cap(<i>i</i>) = 1 for <i>i</i> > 6
+</blockquote>
+
+<p> An example of the capacity assignment is shown below, although
+with much smaller capacities than used on Advogato: </p>
+
+<p align="center"><img src="http://www.levien.com/tmetric/dist.png"
+width="277" height="214"/></p>
+
+<h2>Conversion into single source, single sink</h2>
+
+<p> At this point, the network flow problem is defined as a single
+source, multiple sink problem. In addition, capacities are specified
+on nodes rather than edges. Since standard network flow algorithms are
+specified as a single source, single sink problem with capacity
+constraints on edges, we modify the graph slightly. A new node, the
+"supersink" is added to serve as a single sink for the network flow
+algorithm. </p>
+
+<p> Each node <i>x</i> is split into two nodes, <i>x-</i> and
+<i>x+</i>. For a node <i>x</i> with capacity <i>c</i>, an edge is
+added from <i>x-</i> to <i>x+</i> with capacity c - 1. For each edge
+from <i>s</i> to <i>t</i> in the original graph, we add an infinite
+capacity edge from <i>s+</i> to <i>t-</i> in the new graph. Finally,
+from each node <i>x</i>, we add a unit capacity edge from <i>x-</i> to
+the supersink node. </p>
+
+<p> This conversion is shown graphically below: </p>
+
+<p align="center"><img src="http://www.levien.com/tmetric/cap.png"
+width="435" height="448"/></p>
+
+<h2>Computation of network flow</h2>
+
+<p> At this point, computation of the network flow is fairly
+straightforward, using a standard algorithm to compute a maximum flow
+from the seed to the supersink, subject to the capacity constraints
+placed on the edges. An additional constraint is placed on the result:
+if there is flow on the <i>x-</i> to <i>x+</i> edge, there must also
+be flow on the <i>x-</i> to supersink edge. </p>
+
+<p> Happily, when using the standard Ford-Fulkerson algorithm
+(repeatedly finding an augmenting path through the residual graph
+until no such path exists), this constraint is easily satisfied:
+simply use the heuristic of always choosing the shortest augmenting
+path. The fact that this heuristic satisfies the constraint also
+proves that the maximum flow satisfying the additional constraint is
+equal to the maximum flow. </p>
+
+<p> An example of such a flow is shown below: </p>
+
+<p align="center"><img src="http://www.levien.com/tmetric/flow.png"
+width="277" height="239"/></p>
+
+<h2>Security proof</h2>
+
+<p> To set up the security proof, we need a model of the attack. Here,
+we present a simple one. </p>
+
+<p> The nodes are split into three categories: good, confused, and
+bad. The bad nodes are under the attackers control. The confused nodes
+themselves represent valid accounts, but may contain certificates to
+the bad nodes. The good nodes are both valid accounts and have
+certificates only for other good nodes and confused nodes. This
+partition is shown graphically below: </p>
+
+<p align="center"><img src="http://www.levien.com/tmetric/model.png"
+width="421" height="306"/></p>
+
+<p>In addition, we represent the capacity of node <i>x</i> as
+<i>c<sub>x</sub></i>. We are now ready to prove the following theorem:</p>
+
+<p><b>Theorem 1</b></p>
+
+<blockquote>
+The number of bad servers chosen by the above metric is bounded by the
+sum of (<i>c<sub>x</sub></i> - 1) over each of the confused servers <i>x</i>.
+</blockquote>
+
+<p align="center"><img src="http://www.levien.com/tmetric/cut.png"
+width="421" height="309"/></p>
+
+<p><b>Proof outline.</b> Consider the cut that includes all edges from good
+or confused nodes to the supersink, and all edges
+from confused nodes to bad nodes. This is clearly a cut because there
+are no direct edges from good to bad nodes.</p>
+
+The total flow across this cut is equal to the total number of nodes
+chosen. Thus, the number of bad nodes chosen is equal to the total
+flow minus the number of good and confused nodes chosen. It follows
+that the flow from confused to bad nodes is equal to the number of
+bad nodes chosen.
+
+<p> The flow from a confused node <i>x</i> to bad nodes cannot exceed
+<i>c<sub>x</sub> - 1</i>, as the total flow into <i>x</i> is bounded
+by <i>c<sub>x</sub></i> and the above-mentioned constraint requires
+that there be unit flow from <i>x-</i> to the supersink if there is
+any flow at all. The constraint also ensures that the flow from
+non-chosen confused nodes is zero. Thus, the total number of bad nodes
+chosen is bounded by the sum of (<i>c<sub>x</sub></i> - 1) over each of the
+confused servers <i>x</i>. QED. </p>
+
+<p> Note that the number of bad servers accepted depends only on the
+number of confused servers, not on the number of bad servers. Thus,
+spam attacks are frustrated. </p>
+
+<h2>Conclusion</h2>
+
+<p> The trust metric used in Advogato has a property not known in any
+previous trust metric: resistance to catastrophic failure in the face
+of a sufficiently massive attack. Instead, the number of bad nodes
+accepted scales linearly, and with a fairly small constant, with the
+number of certificates from valid accounts to bogus ones. It is also
+easy to compute efficiently and fairly simple to understand. As such,
+it should find applications in security infrastructures, as well as
+defining online communities, reliably excluding spammers, trolls, and
+other common annoyances. </p>
+
+</page>
