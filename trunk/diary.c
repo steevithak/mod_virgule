@@ -828,10 +828,6 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
  * Because some users post entries locally and use the syndication feature,
  * it's possible that the most recent entry doesn't have a feedposttime tag.
  * So, we search back a maximum of 20 entries looking for one.
- *
- * Note: virgule_iso_to_time_t is broken with respect to time zones. It 
- * converts all time strings as if they were UTC. Until mod_virgule time
- * handling can be fixed, the result is offset to the local zone here.
  **/
 time_t
 virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
@@ -861,10 +857,12 @@ virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
       result = virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
     }
 
-    if(result > 0)
-      return result - vr->priv->utc_offset;
-    else
-      return 0;
+  return result;
+
+//    if(result > 0)
+//      return result - vr->priv->utc_offset;
+//    else
+//      return 0;
     
 //  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, n);
 //  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);

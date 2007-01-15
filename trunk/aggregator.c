@@ -226,7 +226,7 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
 /**
  * aggregator_index_rss_20 - Returns a pointer to Apache APR array containing
  * an unsorted index of blog entries from the raw feed. Returns NULL if the
- * feed cannot be parsed or doesn't not contain enough information.
+ * feed cannot be parsed or does not contain enough information.
  **/
 static apr_array_header_t *
 aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
@@ -441,7 +441,7 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 	{
           int e;
 	  e = virgule_diary_entry_id_exists(vr, user, item->id);
-	  /* some broken feeds alter the post time on existing post */
+	  /* some broken feeds alter the post time on existing posts */
 	  if (e > -1)
 	    virgule_diary_update_feed_item (vr, user, item, e);
 	  /* it should be safe to assume this is really a new entry */
@@ -460,7 +460,7 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
   /* Release the write lock */
   virgule_db_lock_downgrade(vr->lock);
 
-  /* Post one recentlog entry even if we get multiple new posts */
+  /* Post only one recentlog entry even if we get multiple new posts */
   if (post == 1)
     virgule_add_recent (vr->r->pool, vr->db, "recent/diary.xml", (char *)user,
 			100, vr->priv->recentlog_as_posted);

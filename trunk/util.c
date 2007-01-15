@@ -938,12 +938,12 @@ virgule_nice_htext (VirguleReq *vr, const char *utf8, char **p_error)
 
 /**
  * virgule_time_t_to_iso: Converts a Unix time_t value to string in an ISO
- * format ("YYYY-MM-DD hh:mm:ss"). Returned time will be in the local time
- * zone. For a time_t value of 0 or -1, the current time is returned.
+ * format ("YYYY-MM-DD hh:mm:ss"). Returned time is UTC (GMT) time zone.
+ * For a time_t value of 0 or -1, the current time is returned.
  *
- * ToDo: It would probably be wise to add a timezone and use either the
- * full ISO 8661 or RFC-3339 formats. This would require conversion of all
- * the existing dates in the XML database, however.
+ * ToDo: It would probably be wise to use either the full ISO 8661 or 
+ * RFC-3339 formats. This would require conversion of all the existing 
+ * dates in the XML database, however.
  **/
 char *
 virgule_time_t_to_iso (VirguleReq *vr, time_t t)
@@ -955,25 +955,19 @@ virgule_time_t_to_iso (VirguleReq *vr, time_t t)
   else 
     apr_time_ansi_put (&time, t);
   
-  return ap_ht_time (vr->r->pool, time, "%Y-%m-%d %H:%M:%S", 0);
+  return ap_ht_time (vr->r->pool, time, "%Y-%m-%d %H:%M:%S", 1);
 }
 
 
 /**
  * iso_now: Current date/time in iso format.
- * Return value: Time in "YY-MM-DD hh:mm:ss" format.
- *
- * Note: we should at least be adding a timezone.
- * 
- * Steve's notes:
- * Need to investigate whether or not ap_ht_time compensates for the local
- * time zone.
+ * Return value: UTC (GMT) Time in "YY-MM-DD hh:mm:ss" format.
  **/
 char *
 virgule_iso_now (apr_pool_t *p)
 {
   return ap_ht_time (p, (apr_time_t) (time (NULL)) * 1000000,
-                     "%Y-%m-%d %H:%M:%S", 0);
+                     "%Y-%m-%d %H:%M:%S", 1);
 }
 
 
@@ -1061,8 +1055,8 @@ virgule_rfc3339_to_time_t (VirguleReq *vr, const char *time_string)
  * virgule_virgule_to_time_t: Translates an old-style mod_virgule encoded
  * time string into a Unix time_t value. This could probably replace the
  * older function, virgule_iso_to_time_t(). Unlike the older function,
- * this would should return a valid time_t value provided the system time
- * zone setting has not changed since the time string was created.
+ * this would should return a valid time_t value under all conditions. It
+ * is assumed that all times in the XML data stored are UTC (GMT).
  **/
 time_t
 virgule_virgule_to_time_t (VirguleReq *vr, const char *time_string)
@@ -1077,7 +1071,11 @@ virgule_virgule_to_time_t (VirguleReq *vr, const char *time_string)
   strptime(time_string, "%F %T", &tm);
   t = timegm(&tm);
 
+  return t;
+/*
+  compensate for time stored using system local time zone
   return t - vr->priv->utc_offset;
+*/
 }
 
 
@@ -1087,11 +1085,12 @@ virgule_virgule_to_time_t (VirguleReq *vr, const char *time_string)
  *
  * Return value: Unix time, roughly number of seconds since 1970-01-01.
  *
- * Note: we should recognize and parse timezone code also.
- *
  * Steve's notes:
- * This code is currently broken in that it assumes the ISO time zone is UTC.
- * The resulting time_t value will be off by the amount of local time offset.
+ * This code returns the approximate time but will not return the exact
+ * time under all conditions. If an exact match is needed when converting
+ * a time string from the XML data store, the virgule_virgule_to_time_t()
+ * function should be used instead. This function is deprecated and will
+ * be totally removed eventually.
  **/
 time_t
 virgule_iso_to_time_t (const char *iso)

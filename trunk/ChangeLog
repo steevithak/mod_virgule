@@ -1,3 +1,23 @@
+2006-01-14 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (virgule_iso_now): Time is returned in UTC (GMT) rather than
+	server local time. By using UTC times consistently in the XML data
+	store, it simplifies time calculations and becomes easier to render
+	user-specific time zones and formats later on.
+
+	* util.c (virgule_time_t_to_iso): Time is returned as UTC (GMT) rather
+	than server local time.
+
+	* util.c (virgule_virgule_to_time_t): Virgule timestamps are now
+	assumed to always be in UTC (GMT) rather than server local time.
+
+	* diary.c (virgule_diary_latest_feed_entry): Diary timestamps are
+	now assumed to be in UTC (GMT) rather than server local time.
+
+	* style.c (virgule_render_date): Time is now rendered as UTC rather
+	than server local time zone.
+
+	
 2006-01-06 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_post_feed): When an entry with new date

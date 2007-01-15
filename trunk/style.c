@@ -174,14 +174,14 @@ virgule_send_error_page (VirguleReq *vr, const char *error_short,
  * @iso: The date in ISO format (YYYY-MM-DD)
  * @showtime: 0 = date only, 1 = date + time, 2 = date + time (RFC 822)
  *
- * Currently just renders date as "11 Nov 1999", but this maybe 
  * Return value: Nicely formatted date string.
  **/
 char *
 virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
 {
   int year, month, day;
-  char *hhmm, *zone;
+  char *hhmm;
+//  char *zone;
   const char *months[] = {
     "Nilember",
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -199,19 +199,19 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
   if (showtime == 2)
     {
       hhmm = apr_pstrndup (vr->r->pool, iso + 11, 5);
-      zone = ap_ht_time (vr->r->pool, (apr_time_t) (time (NULL)) * 1000000,
-                         "%Z", 0);
+//      zone = ap_ht_time (vr->r->pool, (apr_time_t) (time (NULL)) * 1000000,
+//                         "%Z", 0);
       return apr_psprintf (vr->r->pool, "%s, %d %s %d %s %s", 
                           days[dayofweek(day,month,year)],
-			  day, months[month], year, hhmm, zone);
+			  day, months[month], year, hhmm, "UTC");
     }
   if (showtime == 1)
     {
       hhmm = apr_pstrndup (vr->r->pool, iso + 11, 5);
-      zone = ap_ht_time (vr->r->pool, (apr_time_t) (time (NULL)) * 1000000,
-                         "%Z", 0);
+//      zone = ap_ht_time (vr->r->pool, (apr_time_t) (time (NULL)) * 1000000,
+//                         "%Z", 0);
       return apr_psprintf (vr->r->pool, "%d %s %d at %s %s", 
-                          day, months[month], year, hhmm, zone);
+                          day, months[month], year, hhmm, "UTC");
     }
   return apr_psprintf (vr->r->pool, "%d %s %d", day, months[month], year);
 }
