@@ -761,6 +761,7 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
   char *diary;
   char *content_str;
   char *url;
+  char *pubdate;
   int n;
   int i;
 
@@ -770,43 +771,65 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
   channel = xmlNewChild (root, NULL, "channel", NULL);
   xmlNewChild (channel, NULL, "title",
 	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
-  xmlNewChild (channel, NULL, "description",
-	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
   url = ap_make_full_path (p, vr->priv->base_uri,
 			   apr_psprintf (p, "person/%s/", u));
   xmlNewChild (channel, NULL, "link", url);
+  xmlNewChild (channel, NULL, "description",
+	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
+  xmlNewChild (channel, NULL, "language", "en-us");
+  xmlNewChild (channel, NULL, "generator", "mod_virgule");
+  pubdate = virgule_render_date (vr, virgule_iso_now(vr->r->pool), 2);
+  xmlNewChild (channel, NULL, "pubDate", pubdate);
 
   for (i = n; i >= 0 && i > n - 10; i--)
     {
-      xmlNode *item;
+      xmlNode *item, *root;
       char *key;
       xmlDoc *entry;
-
+      
       key = apr_psprintf (p, "acct/%s/diary/_%d", u, i);
       item = xmlNewChild (channel, NULL, "item", NULL);
       entry = virgule_db_xml_get (p, vr->db, key);
+      root = xmlDocGetRootElement (entry);
+
+      pubdate = NULL;
       if (entry != NULL)
 	{
 	  xmlNode *date_el;
 	  xmlNode *subtree;
+	  char *iso = NULL;
+	  char *title = NULL;
 
-	  date_el = virgule_xml_find_child (entry->xmlRootNode, "date");
+	  date_el = virgule_xml_find_child (root, "date");
 	  if (date_el != NULL)
 	    {
-	      char *iso = virgule_xml_get_string_contents (date_el);
-	      time_t t = virgule_iso_to_time_t (iso);
+	      iso = virgule_xml_get_string_contents (date_el);
+	      pubdate = virgule_render_date (vr, iso, 2);	      
+	      subtree = xmlNewChild (item, NULL, "pubDate", pubdate);
+//	      time_t t = virgule_iso_to_time_t (iso);
 	      /* Warning: the following code incorrectly assumes a timezone. */
-	      char *rfc822_s = ap_ht_time (p, (apr_time_t)t * 1000000,
-	                                   "%a, %d %b %Y %H:%M:%S -0700", 1);
-
-	      subtree = xmlNewChild (item, NULL, "title",
-				     virgule_render_date (vr, iso, 0));
-	      subtree = xmlNewChild (item, NULL, "pubDate", rfc822_s);
+//	      char *rfc822_s = ap_ht_time (p, (apr_time_t)t * 1000000,
+//	                                   "%a, %d %b %Y %H:%M:%S -0700", 1);
 	    }
+
+	  title = virgule_xml_find_child_string (root, "title", NULL);
+	  if(title != NULL)
+            subtree = xmlNewChild (item, NULL, "title", title);
+	  else if(iso != NULL)
+	    {
+	      pubdate = virgule_render_date (vr, iso, 0);
+              subtree = xmlNewChild (item, NULL, "title", pubdate);
+	    }
+	  else
+	    subtree = xmlNewChild (item, NULL, "title",
+	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
+
 	  url = ap_make_full_path (p, vr->priv->base_uri,
 		    apr_psprintf (p, "person/%s/diary.html?start=%d", u, i));
 	  xmlNewChild (item, NULL, "link", url);
-	  content_str = virgule_xml_get_string_contents (entry->xmlRootNode);
+	  xmlNewChild (item, NULL, "guid", url);
+	  
+	  content_str = virgule_xml_get_string_contents (root);
 	  if (content_str != NULL)
 	    {
 	      content_str = virgule_rss_massage_text (p, content_str, vr->priv->base_uri);
