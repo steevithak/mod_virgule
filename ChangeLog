@@ -7,6 +7,16 @@
 	* rss_export.c (rss_index_serve): Minor tweaks to generate RSS 2.0
 	feeds.
 
+	* acct_maint.c (acct_person_diary_rss_serve): Changed RSS version
+	in XML header to 2.0.
+	
+	* diary.c (virgule_diary_rss_export): Converted hard-coded time zone
+	to use GMT instead.  Added required RSS 2.0 tags and several optional
+	one include guid and geneator. Title is now export correct if it is
+	present in the diary entry. If a title is not available, the date is
+	used as the title. If neither title nor date is available, the channel
+	title is used for the item title.
+
 2006-01-14 R. Steven Rainwater <steve@ncc.com>
 
 	* util.c (virgule_iso_now): Time is returned in UTC (GMT) rather than

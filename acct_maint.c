@@ -1343,6 +1343,11 @@ acct_person_diary_xml_serve (VirguleReq *vr, char *u)
   return virgule_send_response (vr);
 }
 
+
+/*
+ * RSR notes - Some of this code should be moved to virgule_diary_rss_export
+ * and/or possibly merged with similar code in rss_export.c.
+ */
 static int
 acct_person_diary_rss_serve (VirguleReq *vr, char *u)
 {
@@ -1352,15 +1357,14 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   int size;
 
   doc = xmlNewDoc ((xmlChar *)"1.0");
-
   vr->r->content_type = "text/xml; charset=UTF-8";
 
-  xmlCreateIntSubset(doc, (xmlChar *)"rss",
-		    (xmlChar *)"-//Netscape Communications//DTD RSS 0.91//EN",
-		    (xmlChar *)"http://my.netscape.com/publish/formats/rss-0.91.dtd");
+//  xmlCreateIntSubset(doc, (xmlChar *)"rss",
+//		    (xmlChar *)"-//Netscape Communications//DTD RSS 0.91//EN",
+//		    (xmlChar *)"http://my.netscape.com/publish/formats/rss-0.91.dtd");
 
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"rss", NULL);
-  xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"0.91");
+  xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"2.0.");
   virgule_diary_rss_export (vr, doc->xmlRootNode, u);
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
   virgule_buffer_write (b, (char *)mem, size);
