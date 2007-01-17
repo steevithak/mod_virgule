@@ -38,7 +38,7 @@ static const char basis_64[] =
  * are no named entity values in HTML (e.g. Chinese characters). Instead,
  * these are simply converted to numerical entity values. A patch was
  * submitted and accepted but we'll have to include the code here if we
- * want to work with libxml2 v2.6.26 and earlier. Once all major distros
+ * want to work with libxml2 v2.6.27 and earlier. Once all major distros
  * include a new version we can pull this and start relying on libxml2.
  *
  * UTF8ToHtml:
