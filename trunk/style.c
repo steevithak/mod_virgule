@@ -203,7 +203,7 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
 //                         "%Z", 0);
       return apr_psprintf (vr->r->pool, "%s, %d %s %d %s %s", 
                           days[dayofweek(day,month,year)],
-			  day, months[month], year, hhmm, "UTC");
+			  day, months[month], year, hhmm, "GMT");
     }
   if (showtime == 1)
     {

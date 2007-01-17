@@ -1,3 +1,12 @@
+2006-01-17 R. Steven Rainwater <steve@ncc.com>
+
+	* rss_export.c (rss_render_from_xml): Added RSS 2.0 required tags,
+	removed RSS 0.91 DTD reference, added several options tags such as
+	guid and generator.
+	
+	* rss_export.c (rss_index_serve): Minor tweaks to generate RSS 2.0
+	feeds.
+
 2006-01-14 R. Steven Rainwater <steve@ncc.com>
 
 	* util.c (virgule_iso_now): Time is returned in UTC (GMT) rather than
