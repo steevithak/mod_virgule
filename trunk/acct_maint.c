@@ -1627,8 +1627,11 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (first[0] == 0)
     virgule_buffer_puts (b, "</ul>\n");
 
-  virgule_buffer_printf (b, "<p> Recent blog entries for %s: <br />\n", u);
-  virgule_buffer_printf (b, "<a href=\"rss.xml\"><img src=\"/images/rss.png\" width=36 height=20 border=0 alt=\"RSS\" /></a></p>\n", u);
+  virgule_buffer_printf (b, "<h3>Recent blog entries for %s</h3>\n", u);
+  virgule_buffer_printf (b, "<div class=\"feeds\">Syndication: <a href=\"rss.xml\">RSS 2.0</a></div>\n", u);
+
+//  virgule_buffer_printf (b, "<p> Recent blog entries for %s: <br />\n", u);
+//  virgule_buffer_printf (b, "<a href=\"rss.xml\"><img src=\"/images/rss.png\" width=36 height=20 border=0 alt=\"RSS\" /></a></p>\n", u);
 
   virgule_diary_render (vr, u, 5, -1);
 
