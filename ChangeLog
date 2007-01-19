@@ -1,4 +1,10 @@
-2006-01-17 R. Steven Rainwater <steve@ncc.com>
+2007-01-19 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Removed hard-coded RSS icons and
+	related HTML. Replaced with div that can be configured in CSS.
+
+
+2007-01-17 R. Steven Rainwater <steve@ncc.com>
 
 	* rss_export.c (rss_render_from_xml): Added RSS 2.0 required tags,
 	removed RSS 0.91 DTD reference, added several options tags such as
@@ -17,7 +23,8 @@
 	used as the title. If neither title nor date is available, the channel
 	title is used for the item title.
 
-2006-01-14 R. Steven Rainwater <steve@ncc.com>
+
+2007-01-14 R. Steven Rainwater <steve@ncc.com>
 
 	* util.c (virgule_iso_now): Time is returned in UTC (GMT) rather than
 	server local time. By using UTC times consistently in the XML data
@@ -37,7 +44,7 @@
 	than server local time zone.
 
 	
-2006-01-06 R. Steven Rainwater <steve@ncc.com>
+2007-01-06 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_post_feed): When an entry with new date
 	is found, if the entry has a unique ID, a search done against the
@@ -59,7 +66,7 @@
 	usage.
 
 
-2006-01-05 R. Steven Rainwater <steve@ncc.com>
+2007-01-05 R. Steven Rainwater <steve@ncc.com>
 
 	* diary.c (virgule_diary_store_entry): Completely rewrote this code
 	to make the function safe to use on syndicated entries. All the
@@ -71,7 +78,7 @@
 	Also added initial support for the title field.
 
 
-2006-01-04 R. Steven Rainwater <steve@ncc.com>
+2007-01-04 R. Steven Rainwater <steve@ncc.com>
 
 	* site.c (virgule_site_render_person_link): Removed hardcoded anchor
 	style. The external stylesheet can now be used to control appearance
