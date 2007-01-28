@@ -1373,6 +1373,55 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   return virgule_send_response (vr);
 }
 
+
+/**
+ * generate a FOAF RDF file for this user
+ */
+static int
+acct_person_foaf_serve (VirguleReq *vr, char *u)
+{
+  apr_pool_t *p = vr->r->pool;
+  xmlDocPtr foaf, profile;
+  xmlNodePtr tree, ptree;
+  xmlChar *mem;
+  char *db_key, *name;
+  int size;
+
+  db_key = virgule_acct_dbkey (vr, u);
+  if (db_key == NULL)
+    return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
+
+  profile = virgule_db_xml_get (p, vr->db, db_key);
+  if (profile == NULL)
+    {
+      vr->r->status = 404;
+      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
+      return virgule_send_error_page (vr, "<x>Person</x> not found", "Account <tt>%s</tt> was not found.", u);
+    }
+  ptree = virgule_xml_find_child (profile->xmlRootNode, "info");
+
+  foaf = xmlNewDoc ((xmlChar *)"1.0");
+  vr->r->content_type = "application/rdf+xml; charset=UTF-8";
+  foaf->xmlRootNode = xmlNewDocNode (foaf, NULL, (xmlChar *)"rdf:RDF", NULL);
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdfs", "http://www.w3.org/2000/01/rdf-schema#");
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:foaf", "http://xmlns.com/foaf/0.1/");
+  
+  tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Person", NULL);
+
+  name = apr_pstrcat (p,
+	       virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname"), " ",
+	       virgule_xml_get_prop (p, ptree, (xmlChar *)"surname"), NULL);
+  xmlNewChild (tree, NULL, (xmlChar *)"foaf:name", name);
+
+  xmlDocDumpFormatMemory (foaf, &mem, &size, 1);
+  virgule_buffer_write (vr->b, (char *)mem, size);
+  xmlFree (mem);
+  xmlFreeDoc (foaf);
+  return virgule_send_response (vr);
+}
+
+
 static int
 acct_person_diary_serve (VirguleReq *vr, char *u)
 {
@@ -1466,6 +1515,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);
+
+  if (!strcmp (q + 1, "foaf.rdf"))
+    return acct_person_foaf_serve (vr, u);
 
   if (!strcmp (q + 1, "spam"))
     return acct_flag_as_spam (vr, u);
