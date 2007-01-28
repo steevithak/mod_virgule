@@ -1734,6 +1734,10 @@ acct_person_serve (VirguleReq *vr, const char *path)
   return virgule_render_footer_send (vr);
 }
 
+
+/**
+ * Handles POSTs from the certification form on the user profile page
+ */
 static int
 acct_certify_serve (VirguleReq *vr)
 {

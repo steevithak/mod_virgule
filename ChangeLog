@@ -1,3 +1,9 @@
+2007-01-27 R. Steve Rainwater <steve@ncc.com>
+
+	* certs.c (virgule_cert_set): Certifications now include a date and
+	time stamp. These will be used in the near future.
+
+
 2007-01-19 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Removed hard-coded RSS icons and

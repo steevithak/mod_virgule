@@ -96,6 +96,10 @@ virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject)
   return result;
 }
 
+
+/**
+ * Adds a certification of level to subject from issuer
+ */
 int
 virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level)
 {
@@ -146,7 +150,10 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
       xmlFreeNode(cert);
     }
   else
-    xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)virgule_cert_level_to_name (vr, level));
+    {
+      xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)virgule_cert_level_to_name (vr, level));
+      xmlSetProp (cert, (xmlChar *)"date", (xmlChar *)virgule_iso_now(vr->r->pool));
+    }
 
   status = virgule_db_xml_put (p, db, db_key, profile);
   virgule_db_xml_free (p, db, profile);
@@ -189,8 +196,11 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
       xmlFreeNode(cert);
     }
   else
-    xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)virgule_cert_level_to_name (vr, level));
-
+    {
+      xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)virgule_cert_level_to_name (vr, level));
+      xmlSetProp (cert, (xmlChar *)"date", (xmlChar *)virgule_iso_now(vr->r->pool));
+    }
+    
   status = virgule_db_xml_put (p, db, db_key, profile);
   virgule_db_xml_free (p, db, profile);
 
