@@ -1511,11 +1511,14 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
 
-/*
   if (!strcmp (q + 1, "diary.xml"))
-    return acct_person_diary_xml_serve (vr, u);
-*/
-
+    {
+/*    return acct_person_diary_xml_serve (vr, u); */
+      vr->r->status = 404;
+      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
+      return virgule_send_error_page (vr, "Function deprecated", "This function has been deprecated. Please use the XML-RPC interface instead.");
+    }
+    
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);
 
