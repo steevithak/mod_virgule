@@ -1323,6 +1323,7 @@ acct_person_graph_serve (VirguleReq *vr)
   return virgule_send_response (vr);
 }
 
+/*
 static int
 acct_person_diary_xml_serve (VirguleReq *vr, char *u)
 {
@@ -1342,7 +1343,7 @@ acct_person_diary_xml_serve (VirguleReq *vr, char *u)
   xmlFreeDoc (doc);
   return virgule_send_response (vr);
 }
-
+*/
 
 /*
  * RSR notes - Some of this code should be moved to virgule_diary_rss_export
@@ -1510,8 +1511,10 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
 
+/*
   if (!strcmp (q + 1, "diary.xml"))
     return acct_person_diary_xml_serve (vr, u);
+*/
 
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);

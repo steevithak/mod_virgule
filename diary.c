@@ -689,6 +689,7 @@ virgule_diary_serve (VirguleReq *vr)
  * It may even be better to remove this function altogether. The newer
  * XML-RPC code replaces it.
  **/
+ /*
 int
 virgule_diary_export (VirguleReq *vr, xmlNode *root, char *u)
 {
@@ -732,7 +733,7 @@ virgule_diary_export (VirguleReq *vr, xmlNode *root, char *u)
 	  }
 	  if (content_tree != NULL)
 	    {
-	      /* this moves nodes from doc to doc and is not cool */
+	      // this moves nodes from doc to doc and is not cool
 	      xmlUnlinkNode (content_tree);
 	      content_html->xmlRootNode = NULL;
 	      xmlAddChild (subtree, content_tree);
@@ -744,7 +745,7 @@ virgule_diary_export (VirguleReq *vr, xmlNode *root, char *u)
 
   return 0;
 }
-
+*/
 
 /**
  * diary_rss_export: Export a diary into an rss xml tree.
@@ -806,10 +807,6 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 	      iso = virgule_xml_get_string_contents (date_el);
 	      pubdate = virgule_render_date (vr, iso, 2);	      
 	      subtree = xmlNewChild (item, NULL, "pubDate", pubdate);
-//	      time_t t = virgule_iso_to_time_t (iso);
-	      /* Warning: the following code incorrectly assumes a timezone. */
-//	      char *rfc822_s = ap_ht_time (p, (apr_time_t)t * 1000000,
-//	                                   "%a, %d %b %Y %H:%M:%S -0700", 1);
 	    }
 
 	  title = virgule_xml_find_child_string (root, "title", NULL);
@@ -881,20 +878,6 @@ virgule_diary_latest_feed_entry (VirguleReq *vr, xmlChar *u)
     }
 
   return result;
-
-//    if(result > 0)
-//      return result - vr->priv->utc_offset;
-//    else
-//      return 0;
-    
-//  key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", (char *)u, n);
-//  entry = virgule_db_xml_get (vr->r->pool, vr->db, key);
-//  if (entry == NULL)
-//    return 0;
-    
-//  date = virgule_xml_find_child (entry->xmlRootNode, "feedposttime");
-//  result = virgule_iso_to_time_t (virgule_xml_get_string_contents (date));
-//  return result - vr->priv->utc_offset;
 }
 
 
