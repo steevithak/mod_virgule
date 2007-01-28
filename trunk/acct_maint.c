@@ -1383,9 +1383,9 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
 {
   apr_pool_t *p = vr->r->pool;
   xmlDocPtr foaf, profile;
-  xmlNodePtr tree, ptree;
+  xmlNodePtr tree, ptree, tmpnode;
   xmlChar *mem;
-  char *db_key, *name;
+  char *db_key, *name, *url;
   int size;
 
   db_key = virgule_acct_dbkey (vr, u);
@@ -1413,7 +1413,19 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
   name = apr_pstrcat (p,
 	       virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname"), " ",
 	       virgule_xml_get_prop (p, ptree, (xmlChar *)"surname"), NULL);
-  xmlNewChild (tree, NULL, (xmlChar *)"foaf:name", name);
+  xmlNewChild (tree, NULL, (xmlChar *)"foaf:name", (xmlChar *)name);
+
+  xmlNewChild (tree, NULL, (xmlChar *)"foaf:nick", (xmlChar *)u);
+    
+  url = virgule_xml_get_prop (p, ptree, (xmlChar *)"url");
+  if (url == NULL)
+    url = apr_pstrcat (p, "http://www.advogato.org/person/", u, "/", NULL);
+  tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:homepage", NULL);
+  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)url);
+
+  url = apr_pstrcat (p, "http://www.advogato.org/person/", u, "/diary.html", NULL);
+  tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:weblog", NULL);
+  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)url);
 
   xmlDocDumpFormatMemory (foaf, &mem, &size, 1);
   virgule_buffer_write (vr->b, (char *)mem, size);
@@ -1570,8 +1582,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
 		"}\n"
 		"// -->\n"
 		"</script>\n"
-		"<link rel=\"alternate\" type=\"application/rss+xml\" "
-		"title=\"RSS\" href=\"rss.xml\" />\n"
+		"<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"rss.xml\" />\n"
+		"<link rel=\"meta\" type=\"application/rdf+xml\" title=\"FOAF\" href=\"foaf.rdf\" />\n"
 		);
 
   if (virgule_user_is_special(vr,vr->u))
