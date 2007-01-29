@@ -187,9 +187,9 @@ count (apr_pool_t *p, Buffer *b, Db *db, const char *key)
     virgule_buffer_puts (b, "Error updating count\n");
 }
 
-/* Displays a useful diagnostic page if /foo.html is requested */
+/* Displays a useful diagnostic page if /admin/info.html is requested */
 static int
-test_page (VirguleReq *vr)
+info_page (VirguleReq *vr)
 {
   request_rec *r = vr->r;
   virgule_dir_conf *cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
@@ -204,10 +204,10 @@ test_page (VirguleReq *vr)
 
   virgule_buffer_puts(b, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
 	      "<html>\n<head><title>\n"
-	      "Virgule\n"
+	      "mod_virgule diagnostics page\n"
 	      "</title></head>\n"
 	      "<body bgcolor=white>");
-  virgule_buffer_puts (b, "<h1>Virgule test</h1>\n");
+  virgule_buffer_puts (b, "<h1>mod_virgule diagnostics</h1>\n");
   apr_ctime(tm,vr->priv->mtime);
   virgule_buffer_printf (b, "<p> Timestamp of loaded configuration: <tt>%s</tt> </p>\n", tm);
   virgule_buffer_printf (b, "<p> The unparsed uri is: <tt>%s</tt> </p>\n", r->unparsed_uri);
@@ -996,25 +996,15 @@ static int virgule_handler(request_rec *r)
 			    "There was an error acquiring the lock, %s.",
 			    strerror (errno));
 
-  if (!strcmp (virgule_match_prefix(r->uri, vr->prefix), "/foo.html"))
-    return test_page (vr);
-
-  if (!strcmp (virgule_match_prefix(r->uri, vr->prefix), "/cgi-bin/ad"))
-    return virgule_site_send_banner_ad (vr);
-
-  status = virgule_xmlrpc_serve (vr);
+  status = virgule_rss_serve (vr);
   if (status != DECLINED)
-    return status;  
-  
+    return status;
+
   status = virgule_site_serve (vr);
   if (status != DECLINED)
     return status;
 
   status = virgule_acct_maint_serve (vr);
-  if (status != DECLINED)
-    return status;
-
-  status = virgule_tmetric_serve (vr);
   if (status != DECLINED)
     return status;
 
@@ -1043,7 +1033,18 @@ static int virgule_handler(request_rec *r)
   if (status != DECLINED)
     return status;
 
-  status = virgule_rss_serve (vr);
+  status = virgule_xmlrpc_serve (vr);
+  if (status != DECLINED)
+    return status;  
+  
+  if (vr->priv->render_diaryratings)
+    {
+      status = virgule_rating_serve (vr);
+      if (status != DECLINED)
+	return status;
+    }
+
+  status = virgule_tmetric_serve (vr);
   if (status != DECLINED)
     return status;
 
@@ -1051,12 +1052,11 @@ static int virgule_handler(request_rec *r)
   if (status != DECLINED)
     return status;
     
-  if (vr->priv->render_diaryratings)
-    {
-      status = virgule_rating_serve (vr);
-      if (status != DECLINED)
-	return status;
-    }
+  if (!strcmp (virgule_match_prefix(r->uri, vr->prefix), "/admin/info.html"))
+    return info_page (vr);
+
+  if (!strcmp (virgule_match_prefix(r->uri, vr->prefix), "/cgi-bin/ad"))
+    return virgule_site_send_banner_ad (vr);
 
   return HTTP_NOT_FOUND;
 }

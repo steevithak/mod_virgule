@@ -6,6 +6,17 @@
 	* acct_maint.c (acct_person_foaf_serve): Added name, nick, homepage,
 	and weblog tags to FOAF file. 
 
+	* mod_virgule (info_page): renamed from test_page() and changed the
+	URL to /admin/info.html from /foo.html. This will allow the URL to be
+	added to a general password protected admin area of the site. The
+	info page exposes diagnostsic information that would be helpful to 
+	script kiddies and crackers.
+
+	* mod_virgule (virgule_handler): Reordered dispatching sequence to
+	put administration and less used handlers last. Highly used handlers
+	such as RSS, articles, and diaries are now first. This should provide
+	a (very) small performance improvement.
+
 
 2007-01-27 R. Steve Rainwater <steve@ncc.com>
 
