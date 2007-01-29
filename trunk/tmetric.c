@@ -286,7 +286,7 @@ virgule_tmetric_serve (VirguleReq *vr)
 
   cert_level_n = virgule_cert_num_levels (vr);
 
-  if (!strcmp (uri, "/tmetric/"))
+  if (!strcmp (uri, "/admin/crank-tmetric.html"))
     return tmetric_index_serve (vr);
   return DECLINED;
 }
@@ -298,7 +298,7 @@ virgule_tmetric_serve (VirguleReq *vr)
  * Retrieves trust metric information from the cache in the database.
  * Thus, to insure that the results of this function are fresh, you'll
  * need to make sure the cache gets updated regularly (for example,
- * by retrieving /tmetric/ from a cron job).
+ * by retrieving /admin/crank-tmetric.html from a cron job).
  *
  * Return value: the trust metric info.
  **/
