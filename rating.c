@@ -175,7 +175,7 @@ virgule_rating_serve (VirguleReq *vr)
 
   if (!strcmp (vr->uri, "/rating/rate_diary.html"))
     return rating_rate_diary (vr);
-  if (!strcmp (vr->uri, "/rating/crank.html"))
+  if (!strcmp (vr->uri, "/admin/crank-diaryratings.html"))
     return rating_crank_all (vr);
   if ((tail = virgule_match_prefix (vr->uri, "/rating/crank/")) != NULL)
     return rating_crank (vr, tail);

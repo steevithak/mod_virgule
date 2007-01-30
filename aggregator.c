@@ -615,7 +615,7 @@ virgule_update_aggregator_list (VirguleReq *vr)
 int
 virgule_aggregator_serve (VirguleReq *vr)
 {
-  if (!strcmp (vr->uri, "/aggregator/getfeeds.html"))
+  if (!strcmp (vr->uri, "/admin/crank-aggregator.html"))
     return aggregator_getfeeds_serve (vr);
   return DECLINED;
 }
