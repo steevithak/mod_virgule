@@ -1,3 +1,14 @@
+2007-01-29 R. Steve Rainwater <steve@ncc.com>
+
+	* rating.c (virgule_rating_serve): Changed the diary (blog) ranking
+	crank URL from /rating/crank.html to /admin/crank-diaryrating.html 
+	to move it to a password protectable area where it can't be abused.
+
+	* aggregator.c (virgule_aggregator_serve): Changed aggregator crank
+	URL from /aggregator/getfeeds.html to /admin/crank-aggregator.html
+	to move it to a password protectable area where it can't be abused.
+
+
 2007-01-28 R. Steve Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Added FOAF auto-discovery URL
@@ -18,8 +29,9 @@
 	a (very) small performance improvement.
 
 	* tmetric.c (virgule_tmetric_serve): Changed the trust metric crank
-	URL from /tmetric/ to /admin/crank-tmetric.html to move it to as
+	URL from /tmetric/ to /admin/crank-tmetric.html to move it to a
 	password protectable area where it can't be abused.
+
 
 2007-01-27 R. Steve Rainwater <steve@ncc.com>
 
