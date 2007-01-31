@@ -1,3 +1,10 @@
+2007-01-30 R. Steve Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_foaf_serve): Added foaf:knows properties
+	for each outbound cert in a user's profile. Added foaf:Project
+	properties for each project associated with the user.
+
+
 2007-01-29 R. Steve Rainwater <steve@ncc.com>
 
 	* rating.c (virgule_rating_serve): Changed the diary (blog) ranking
