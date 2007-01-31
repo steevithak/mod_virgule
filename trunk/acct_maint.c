@@ -22,7 +22,6 @@
 #include "style.h"
 #include "auth.h"
 #include "xml_util.h"
-#include "util.h"
 #include "certs.h"
 #include "aggregator.h"
 #include "db_ops.h"
@@ -1359,11 +1358,6 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
 
   doc = xmlNewDoc ((xmlChar *)"1.0");
   vr->r->content_type = "text/xml; charset=UTF-8";
-
-//  xmlCreateIntSubset(doc, (xmlChar *)"rss",
-//		    (xmlChar *)"-//Netscape Communications//DTD RSS 0.91//EN",
-//		    (xmlChar *)"http://my.netscape.com/publish/formats/rss-0.91.dtd");
-
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"rss", NULL);
   xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"2.0.");
   virgule_diary_rss_export (vr, doc->xmlRootNode, u);
@@ -1382,7 +1376,7 @@ static int
 acct_person_foaf_serve (VirguleReq *vr, char *u)
 {
   apr_pool_t *p = vr->r->pool;
-  xmlDocPtr foaf, profile;
+  xmlDocPtr foaf, profile, staff;
   xmlNodePtr tree, ptree, tmpnode;
   xmlChar *mem;
   char *db_key, *name, *url;
@@ -1419,13 +1413,65 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
     
   url = virgule_xml_get_prop (p, ptree, (xmlChar *)"url");
   if (url == NULL)
-    url = apr_pstrcat (p, "http://www.advogato.org/person/", u, "/", NULL);
+    url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, u), "/", NULL);
+//    apr_pstrcat (p, "http://www.advogato.org/person/", u, "/", NULL);
+
   tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:homepage", NULL);
   xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)url);
 
-  url = apr_pstrcat (p, "http://www.advogato.org/person/", u, "/diary.html", NULL);
+  url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, u), "/diary.html", NULL);
   tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:weblog", NULL);
   xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)url);
+
+  /* Convert outbound certs to foaf:knows properties */
+  ptree = virgule_xml_find_child (profile->xmlRootNode, "certs");
+  if (ptree)
+    {
+      xmlNodePtr cert, n1, n2;
+      for (cert = ptree->children; cert != NULL; cert = cert->next)
+	if (cert->type == XML_ELEMENT_NODE &&
+	    !xmlStrcmp (cert->name, (xmlChar *)"cert"))
+	  {
+	    xmlChar *subject, *level;
+	    subject = xmlGetProp (cert, (xmlChar *)"subj");
+	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
+	      {
+                n1 = xmlNewChild (tree, NULL, (xmlChar *)"foaf:knows", NULL);
+		n1 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:Person", NULL);
+                xmlNewChild (n1, NULL, (xmlChar *)"foaf:nick", (xmlChar *)subject);
+                url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, subject), "/", NULL);
+                n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:homepage", NULL);
+                xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
+		url = apr_pstrcat (p, url, "foaf.rdf", NULL);
+                n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:seeAlso", NULL);
+                xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
+	      }
+	  }
+    }
+
+  /* Convert project staff associations to foaf:Project properties */
+  db_key = apr_psprintf (p, "acct/%s/staff-person.xml", u);
+  staff = virgule_db_xml_get (p, vr->db, db_key);
+  if (staff != NULL)
+    {
+      xmlNodePtr n1, n2;
+      for (ptree = staff->xmlRootNode->children; ptree != NULL; ptree = ptree->next)
+	{
+	  char *name, *type;
+	  name = virgule_xml_get_prop (p, ptree, (xmlChar *)"name");
+	  type = virgule_xml_get_prop (p, ptree, (xmlChar *)"type");
+
+	  if (! !strcmp (type, "None"))
+	    {
+              n1 = xmlNewChild (tree, NULL, (xmlChar *)"foaf:Project", NULL);
+              n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:homepage", NULL);
+              url = apr_pstrcat (p, vr->priv->base_uri, "/proj/", ap_escape_uri(p, name), "/", NULL);
+              xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
+	    }
+	}
+    }
+
 
   xmlDocDumpFormatMemory (foaf, &mem, &size, 1);
   virgule_buffer_write (vr->b, (char *)mem, size);
