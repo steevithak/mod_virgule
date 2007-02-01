@@ -30,6 +30,7 @@
 #include "hashtable.h"
 #include "eigen.h"
 #include "diary.h"
+#include "foaf.h"
 #include "acct_maint.h"
 
 typedef struct _ProfileField ProfileField;
@@ -1375,103 +1376,17 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
 static int
 acct_person_foaf_serve (VirguleReq *vr, char *u)
 {
-  apr_pool_t *p = vr->r->pool;
-  xmlDocPtr foaf, profile, staff;
-  xmlNodePtr tree, ptree, tmpnode;
+  xmlDocPtr foaf;
   xmlChar *mem;
-  char *db_key, *name, *url;
   int size;
-
-  db_key = virgule_acct_dbkey (vr, u);
-  if (db_key == NULL)
-    return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
-
-  profile = virgule_db_xml_get (p, vr->db, db_key);
-  if (profile == NULL)
-    {
-      vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
-      return virgule_send_error_page (vr, "<x>Person</x> not found", "Account <tt>%s</tt> was not found.", u);
-    }
-  ptree = virgule_xml_find_child (profile->xmlRootNode, "info");
-
-  foaf = xmlNewDoc ((xmlChar *)"1.0");
-  vr->r->content_type = "application/rdf+xml; charset=UTF-8";
-  foaf->xmlRootNode = xmlNewDocNode (foaf, NULL, (xmlChar *)"rdf:RDF", NULL);
-  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
-  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdfs", "http://www.w3.org/2000/01/rdf-schema#");
-  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:foaf", "http://xmlns.com/foaf/0.1/");
-  
-  tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Person", NULL);
-
-  name = apr_pstrcat (p,
-	       virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname"), " ",
-	       virgule_xml_get_prop (p, ptree, (xmlChar *)"surname"), NULL);
-  xmlNewChild (tree, NULL, (xmlChar *)"foaf:name", (xmlChar *)name);
-
-  xmlNewChild (tree, NULL, (xmlChar *)"foaf:nick", (xmlChar *)u);
-    
-  url = virgule_xml_get_prop (p, ptree, (xmlChar *)"url");
-  if (url == NULL)
-    url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, u), "/", NULL);
-//    apr_pstrcat (p, "http://www.advogato.org/person/", u, "/", NULL);
-
-  tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:homepage", NULL);
-  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)url);
-
-  url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, u), "/diary.html", NULL);
-  tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:weblog", NULL);
-  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)url);
-
-  /* Convert outbound certs to foaf:knows properties */
-  ptree = virgule_xml_find_child (profile->xmlRootNode, "certs");
-  if (ptree)
-    {
-      xmlNodePtr cert, n1, n2;
-      for (cert = ptree->children; cert != NULL; cert = cert->next)
-	if (cert->type == XML_ELEMENT_NODE &&
-	    !xmlStrcmp (cert->name, (xmlChar *)"cert"))
-	  {
-	    xmlChar *subject, *level;
-	    subject = xmlGetProp (cert, (xmlChar *)"subj");
-	    level = xmlGetProp (cert, (xmlChar *)"level");
-	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
-	      {
-                n1 = xmlNewChild (tree, NULL, (xmlChar *)"foaf:knows", NULL);
-		n1 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:Person", NULL);
-                xmlNewChild (n1, NULL, (xmlChar *)"foaf:nick", (xmlChar *)subject);
-                url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, subject), "/", NULL);
-                n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:homepage", NULL);
-                xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
-		url = apr_pstrcat (p, url, "foaf.rdf", NULL);
-                n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:seeAlso", NULL);
-                xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
-	      }
-	  }
-    }
-
-  /* Convert project staff associations to foaf:Project properties */
-  db_key = apr_psprintf (p, "acct/%s/staff-person.xml", u);
-  staff = virgule_db_xml_get (p, vr->db, db_key);
-  if (staff != NULL)
-    {
-      xmlNodePtr n1, n2;
-      for (ptree = staff->xmlRootNode->children; ptree != NULL; ptree = ptree->next)
-	{
-	  char *name, *type;
-	  name = virgule_xml_get_prop (p, ptree, (xmlChar *)"name");
-	  type = virgule_xml_get_prop (p, ptree, (xmlChar *)"type");
-
-	  if (! !strcmp (type, "None"))
-	    {
-              n1 = xmlNewChild (tree, NULL, (xmlChar *)"foaf:Project", NULL);
-              n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:homepage", NULL);
-              url = apr_pstrcat (p, vr->priv->base_uri, "/proj/", ap_escape_uri(p, name), "/", NULL);
-              xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
-	    }
-	}
-    }
-
+      
+  foaf = virgule_foaf_person (vr, u);
+  if (foaf == NULL)
+  {
+    vr->r->status = 404;
+    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
+    return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user.");
+  }
 
   xmlDocDumpFormatMemory (foaf, &mem, &size, 1);
   virgule_buffer_write (vr->b, (char *)mem, size);
