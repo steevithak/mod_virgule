@@ -1,3 +1,10 @@
+2007-02-03 R. Steven Rainwater <steve@ncc.com>
+
+	* foaf.c (virgule_foaf_person): Changed foaf:seeAlso to the
+	correct rdfs:seeAlso. Oops. (thanks to Morten Frederiksen for
+	point out the bug).
+
+
 2007-02-02 R. Steven Rainwater <steve@ncc.com>
 
 	* foaf.c (virgule_foaf_person): More FOAF changes (thanks go to 
