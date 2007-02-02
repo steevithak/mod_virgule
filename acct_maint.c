@@ -1579,7 +1579,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
     {
       givenname = virgule_xml_get_prop (p, tree, (xmlChar *)"givenname");
       surname = virgule_xml_get_prop (p, tree, (xmlChar *)"surname");
-      virgule_buffer_printf (b, "<p> Name: %s %s<br />\n",
+      virgule_buffer_printf (b, "<p>Name: %s %s<br />\n",
 // rsr		     givenname ? virgule_nice_utf8(p, givenname) : "",
 //		     surname ? virgule_nice_utf8(p, surname) : "", date);
 // raph		     givenname ? virgule_nice_text(p, givenname) : "",
@@ -1598,7 +1598,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
       if(!date)
         date = "N/A";
 	
-      virgule_buffer_printf (b, "Last Login: %s<br />\n", date);
+      virgule_buffer_printf (b, "Last Login: %s</p>\n", date);
+
+      virgule_buffer_puts (b, "<p><a href=\"foaf.rdf\"><img src=\"/images/foaf.png\" height=\"20\" width=\"40\" border=\"none\" alt=\"FOAF RDF\" title=\"FOAF RDF\" /></a></p>\n");
 
       url = virgule_xml_get_prop (p, tree, (xmlChar *)"url");
       if (url && url[0])
@@ -1611,7 +1613,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	  if (!colon || colon[1] != '/' || colon[2] != '/')
 	    url2 = apr_pstrcat (p, "http://", url, NULL);
 
-	  virgule_buffer_printf (b, "<p> Homepage: <a href=\"%s\"", url2);
+	  virgule_buffer_printf (b, "<p>Homepage: <a href=\"%s\"", url2);
 	  if(observer)
 	    virgule_buffer_puts (b, " rel=\"nofollow\"");
 	  virgule_buffer_printf (b, ">%s</a></p>\n", virgule_nice_text (p, url));
@@ -1621,17 +1623,17 @@ acct_person_serve (VirguleReq *vr, const char *path)
       if (notes && notes[0])
 	{
 	  if(observer)
-  	    virgule_buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", virgule_nice_htext (vr, virgule_strip_a (vr, notes), &err));
+  	    virgule_buffer_printf (b, "<p><b>Notes:</b> %s</p>\n", virgule_nice_htext (vr, virgule_strip_a (vr, notes), &err));
 	  else 
-	    virgule_buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", virgule_nice_htext (vr, notes, &err));
+	    virgule_buffer_printf (b, "<p><b>Notes:</b> %s</p>\n", virgule_nice_htext (vr, notes, &err));
 	  any = 1;
 	}
     }
   if (!any)
-    virgule_buffer_puts (b, "<p> No personal information is available. </p>\n");
+    virgule_buffer_puts (b, "<p>No personal information is available.</p>\n");
 
   /* Render staff listings */
-  first = "<p> This <x>person</x> is: </p>\n"
+  first = "<h3><x>Projects</x></h3>\n"
     "<ul>\n";
   db_key = apr_psprintf (p, "acct/%s/staff-person.xml", u);
 
@@ -1650,7 +1652,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	    {
 	      virgule_buffer_puts (b, first);
 	      first = "";
-	      virgule_buffer_printf (b, "<li>a %s on <x>project</x> %s.\n",
+	      virgule_buffer_printf (b, "<li>%s on %s</li>\n",
 			     type, virgule_render_proj_name (vr, name));
 	    }
 	}
@@ -1660,9 +1662,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   virgule_buffer_printf (b, "<h3>Recent blog entries for %s</h3>\n", u);
   virgule_buffer_printf (b, "<div class=\"feeds\">Syndication: <a href=\"rss.xml\">RSS 2.0</a></div>\n", u);
-
-//  virgule_buffer_printf (b, "<p> Recent blog entries for %s: <br />\n", u);
-//  virgule_buffer_printf (b, "<a href=\"rss.xml\"><img src=\"/images/rss.png\" width=36 height=20 border=0 alt=\"RSS\" /></a></p>\n", u);
 
   virgule_diary_render (vr, u, 5, -1);
 

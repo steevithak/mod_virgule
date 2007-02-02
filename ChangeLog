@@ -7,6 +7,10 @@
 	instead of foaf:Project records, which should be more consistent 
 	with the latest interpretations of the FOAF 0.1 spec.
 
+	* acct_maint.c (acct_person_serve): Normalized and corrected the
+	HTML used to describe a user's projects on the profile page. Added
+	a FOAF badge and link.
+
 
 2007-02-01 R. Steven Rainwater <steve@ncc.com>
 
