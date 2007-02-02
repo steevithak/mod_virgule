@@ -121,7 +121,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
                 xmlSetProp (n1, (xmlChar *)"rdf:about", apr_pstrcat(p, url, "#me", NULL));
                 xmlNewTextChild (n1, NULL, (xmlChar *)"foaf:nick", (xmlChar *)subject);
                 url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, subject), "/foaf.rdf", NULL);
-                n2 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:seeAlso", NULL);
+                n2 = xmlNewChild (n1, NULL, (xmlChar *)"rdfs:seeAlso", NULL);
                 xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
 	      }
 	  }
