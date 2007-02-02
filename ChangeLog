@@ -15,7 +15,7 @@
 2007-02-01 R. Steven Rainwater <steve@ncc.com>
 
 	* foaf.c (virgule_foaf_person): Refactored the code a bit to move all
-	the FOAF-specific code into it's own file. This should make things
+	the FOAF-specific code into its own file. This should make things
 	easier down the line if we add FOAF files for the projects. Added a
 	number of additional new properties to the FOAF output and made some
 	minor corrections to the syntax based on feedback from the foaf-dev
