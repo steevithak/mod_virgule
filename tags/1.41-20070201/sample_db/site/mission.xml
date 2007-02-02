@@ -1,0 +1,53 @@
+<page><title>
+Mission statement
+</title>
+
+<p> Advogato is a community site for free software developers. It also
+serves as a research testbed for my research on group trust metrics
+for peer certification. </p>
+
+<p> Currently, I'm ramping up features and capabilities as fast as I
+can. I want the site to serve as a nice, friendly gathering place for
+all the wonderful people in our community. To that end, there's a <a
+href="http://slashdot.org">Slashdot</a> style news flow with
+comments. A neat feature I'm particularly proud of is a diary
+server. This is a convenient place to record your notes and
+observations regarding free software development, and to browse
+through what others are saying. I'm hoping to add other features such
+as book reviews soon. </p>
+
+<p> While "Advogato" is a pun on the word "advocate," the goal of this
+site is quite different than the usual sense of OS advocacy or free
+software advocacy. Advogato's advocacy is for <i>developers</i> of
+free software: to make life more enjoyable, the work more satisfying,
+and to help balance the tension between the free nature of the
+enterprise and the human need for tangible compensation. Advogato
+doesn't care about the market share growth percent of the free
+software operating systems. What Advogato cares about is how to make
+the best use of the opportunities, and deal with the challenges, that
+this growth is creating. </p>
+
+<p> The other major focus of this site is a peer certification
+system. The members of this site certify each other, specifying one of
+three skill levels. Then, I've got a <a href="trust-metric.html">trust
+metric</a> that takes the whole pile of certificates and decides a
+trust level for each member. What makes the system interesting is that
+it's attack resistant. If a bunch of attackers were to create lots of
+accounts and mutually certify each other, only a very few would be
+accepted by the trust metric, assuming there were only a few
+certificates from legitimate members to the hackers. </p>
+
+<p> A more detailed writeup of the technical details is in a <a
+href="http://www.levien.com/fc.ps">draft</a> paper
+submission on the topic. </p>
+
+<p> The source code of this site is itself a free software project.
+It's written as an Apache C module, using gnome-xml to store the state
+of the site. It's now <a href="code.html">released</a>! </p>
+
+<p> In summary, welcome! And please bear with the site design as I
+continue to work on it. </p>
+
+<p> <i>-- Raph Levien,</i> updated 22 Feb 2000 </p>
+
+</page>

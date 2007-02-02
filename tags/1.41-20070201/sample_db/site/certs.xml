@@ -1,0 +1,69 @@
+<page><title>
+Certification
+</title>
+
+<p> One of the more interesting features of Advogato is its mechanism
+for certifying free software developers. The current system recognizes
+the combination of talent and dedication in three levels: Apprentice,
+Journeyer, and Master. All these levels are determined by peer
+certification. These certificates are entered in individual records
+from the <a href="person/">People</a> page. This document explains
+what the levels mean, and guidelines for deciding what level of
+certification to use. </p>
+
+<p> Please feel free to certify all of the free software developers
+you know who have accounts here, especially those without many
+certificates to begin with. The trust metric used to evaluate the
+certificates is most robust when the certificate graph is dense. </p>
+
+<p> All of these levels are based on free software only, as defined by
+the <a href="http://www.debian.org/social_contract">Debian Free
+Software Guidelines</a>. In general, you should base the level on work
+done in the last year. </p>
+
+<p> To certify someone, make sure you're logged in, then go to the
+person's page and use the pulldown form. </p>
+
+<h2>Master</h2>
+
+<p> A Master is the principal author or hard-working co-author of an
+"important" free software project, i.e. one that many people depend
+on, or one that stands out in quality. A Master has command of the
+tools and is an excellent programmer. Generally, a Master works
+equivalent to full time (or more) on free software. Ideally, a Master
+writes clearly about the work and its broader context, and serves as a
+mentor to others in the free software community. </p>
+
+<h2>Journeyer</h2>
+
+<p> Journeyers are the people who make free software happen. A
+journeyer contributes significantly to an important free software
+project, or is the author of a useful or technically innovative
+project. A Journeyer is generally a competent programmer, but
+significant contributions of documentation, artwork, or other non-code
+goodies counts too. Ideally, a Journeyer works with others in the free
+software community to polish and refine the library of free
+software. While not necessarily the equivalent of full time, a
+Journeyer spends a significant amount of time on free software. </p>
+
+<h2>Apprentice</h2>
+
+<p> An apprentice is someone who has contributed in some way to a free
+software project, but is still striving to acquire the skills and
+standing in the community to make more significant
+contributions. Ideally, the Apprentice is in touch with either an
+individual mentor or a community that helps to gain these skills. An
+Apprentice spends a significant amount of time learning the craft of
+software development, whether by hands-on practice, academic study, or
+careful observation. </p>
+
+<h2>Evaluation of the certs</h2>
+
+<p>The certificates are evaluated using a trust metric, which I'm
+working on implementing and documenting right now. A few things to
+keep in mind: all certs have "at least" semantics, so an Apprentice
+ranking is always better than None. </p>
+
+<p> <b>22 Feb 2000:</b> I now have a write-up of the <a href="trust-metric.html">trust metric</a> used by Advogato. </p>
+
+</page>
