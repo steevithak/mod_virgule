@@ -164,7 +164,7 @@ virgule_send_error_page (VirguleReq *vr, const char *error_short,
   va_start (ap, fmt);
   virgule_buffer_puts (b, apr_pvsprintf (vr->r->pool, fmt, ap));
   va_end (ap);
-  virgule_buffer_puts (b, " </p>\n");
+  virgule_buffer_puts (b, "</p>\n");
   return virgule_render_footer_send (vr);
 }
 
@@ -181,7 +181,6 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
 {
   int year, month, day;
   char *hhmm;
-//  char *zone;
   const char *months[] = {
     "Nilember",
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -199,8 +198,6 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
   if (showtime == 2)
     {
       hhmm = apr_pstrndup (vr->r->pool, iso + 11, 5);
-//      zone = ap_ht_time (vr->r->pool, (apr_time_t) (time (NULL)) * 1000000,
-//                         "%Z", 0);
       return apr_psprintf (vr->r->pool, "%s, %d %s %d %s %s", 
                           days[dayofweek(day,month,year)],
 			  day, months[month], year, hhmm, "GMT");
@@ -208,8 +205,6 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
   if (showtime == 1)
     {
       hhmm = apr_pstrndup (vr->r->pool, iso + 11, 5);
-//      zone = ap_ht_time (vr->r->pool, (apr_time_t) (time (NULL)) * 1000000,
-//                         "%Z", 0);
       return apr_psprintf (vr->r->pool, "%d %s %d at %s %s", 
                           day, months[month], year, hhmm, "UTC");
     }

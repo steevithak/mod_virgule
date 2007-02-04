@@ -335,7 +335,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
 	}        
       else
         {
-	  virgule_buffer_printf (vr->b, "<div class=\"recentproj\"> %s %s</div>\n",
+	  virgule_buffer_printf (vr->b, "<div>%s %s</div>\n",
 			 virgule_render_date (vr, date, 0), virgule_render_proj_name (vr, name));
 	}
       n++;
