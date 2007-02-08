@@ -123,69 +123,15 @@ set_virgule_pass (cmd_parms *parms, void *mconfig, const char *dir)
   return NULL;
 }
 
-/* Prints header data. Used only in test_page() */
+
+/* Prints header data. Used only in info_page() */
 static int header_trace (void *data, const char *key, const char *val)
 {
   Buffer *b = (Buffer *)data;
-  virgule_buffer_printf (b, "<dd>%s: <tt>%s</tt>\n", key, val);
+  virgule_buffer_printf (b, "%s: <b>%s</b><br />\n", key, val);
   return 1;
 }
 
-/* Prints contents of test.xml. Used only in test_page(). Note that the xml
-   file is expected to be in the base rather than site directory */
-static void
-render_doc (Buffer *b, Db *db, const char *key)
-{
-  char *buf;
-  int buf_size;
-  xmlDocPtr doc;
-  xmlNodePtr root;
-
-  buf = virgule_db_get (db, key, &buf_size);
-  if (buf == NULL)
-    {
-      virgule_buffer_append (b, "Error reading key ", key, "\n", NULL);
-    }
-  else
-    {
-      doc = xmlParseMemory (buf, buf_size);
-      if (doc != NULL)
-	{
-	  root = doc->xmlRootNode;
-	  virgule_buffer_printf (b, "&lt;%s&gt;\n", root->name);
-	  xmlFreeDoc (doc);
-	}
-      else
-	virgule_buffer_append (b, "Error parsing key ", key, "\n", NULL);
-    }
-}
-
-/* Counts the number of times a db key has been accessed. Appears to be
-   used only in test_page(). */
-static void
-count (apr_pool_t *p, Buffer *b, Db *db, const char *key)
-{
-  char *buf;
-  int buf_size;
-  int count;
-
-  buf = virgule_db_get (db, key, &buf_size);
-  if (buf == NULL)
-    count = 0;
-  else
-    count = atoi (buf);
-
-  count++;
-  virgule_buffer_printf (b, "<p> This page has been accessed %d time%s. </p>\n",
-		 count, count == 1 ? "" : "s");
-  buf = apr_psprintf (p, "%d\n", count);
-#if 0
-  /* useful for testing locking */
-  sleep (5);
-#endif
-  if (virgule_db_put (db, key, buf, strlen (buf)))
-    virgule_buffer_puts (b, "Error updating count\n");
-}
 
 /* Displays a useful diagnostic page if /admin/info.html is requested */
 static int
@@ -194,8 +140,6 @@ info_page (VirguleReq *vr)
   request_rec *r = vr->r;
   virgule_dir_conf *cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
   Buffer *b = vr->b;
-  Db *db = vr->db;
-  apr_table_t *args_table;
   int i;
   char tm[APR_CTIME_LEN];
   char *args;
@@ -209,80 +153,66 @@ info_page (VirguleReq *vr)
 	      "<body bgcolor=white>");
   virgule_buffer_puts (b, "<h1>mod_virgule diagnostics</h1>\n");
   apr_ctime(tm,vr->priv->mtime);
-  virgule_buffer_printf (b, "<p> Timestamp of loaded configuration: <tt>%s</tt> </p>\n", tm);
-  virgule_buffer_printf (b, "<p> The unparsed uri is: <tt>%s</tt> </p>\n", r->unparsed_uri);
-  virgule_buffer_printf (b, "<p> The uri (r->uri): <tt>%s</tt> </p>\n", r->uri);
-  virgule_buffer_printf (b, "<p> The adjusted uri (vr->uri) is: <tt>%s</tt></p>\n",vr->uri);
-  virgule_buffer_printf (b, "<p> The base_uri (vr->priv->base_uri) is: <tt>%s</tt></p>\n",vr->priv->base_uri);
-  virgule_buffer_printf (b, "<p> The base_path (vr->priv->base_path) is: <tt>%s</tt></p>\n",vr->priv->base_path);
-  virgule_buffer_printf (b, "<p> The filename is: <tt>%s</tt> </p>\n", r->filename);
-  virgule_buffer_printf (b, "<p> The path_info is: <tt>%s</tt> </p>\n", r->path_info);
-  virgule_buffer_printf (b, "<p> The document root is: <tt>%s</tt> </p>\n", ap_document_root (r));
-  virgule_buffer_printf (b, "<p> Browser requested protocol: <tt>%s</tt></p>\n", r->protocol);
-  virgule_buffer_printf (b, "<p> Browser requested host: <tt>%s</tt></p>\n", r->hostname);
-  virgule_buffer_printf (b, "<p> Requested Apache handler is: <tt>%s</tt></p>\n", r->handler);
-  virgule_buffer_printf (b, "<p> Apache thread/process ID: <tt>%lu</tt></p>\n", apr_os_thread_current());
+  virgule_buffer_printf (b, "<p>mod_virgule version: <b>%s</b>", VIRGULE_VERSION);
+  virgule_buffer_printf (b, "<p>Timestamp of loaded configuration: <b>%s</b></p>\n", tm);
+  virgule_buffer_printf (b, "<p>Site name (vr->priv_site_name): <b>%s</b></p>\n", vr->priv->site_name);
+  virgule_buffer_printf (b, "<p>Unparsed uri (r->unparse_uri): <b>%s</b></p>\n", r->unparsed_uri);
+  virgule_buffer_printf (b, "<p>uri (r->uri): <b>%s</b></p>\n", r->uri);
+  virgule_buffer_printf (b, "<p>adjusted uri (vr->uri): <b>%s</b></p>\n",vr->uri);
+  virgule_buffer_printf (b, "<p>base_uri (vr->priv->base_uri) is: <b>%s</b></p>\n",vr->priv->base_uri);
+  virgule_buffer_printf (b, "<p>base_path (vr->priv->base_path) is: <b>%s</b></p>\n",vr->priv->base_path);
+  virgule_buffer_printf (b, "<p>filename (r->filename): <b>%s</b></p>\n", r->filename);
+  virgule_buffer_printf (b, "<p>path_info (r->path_info): <b>%s</b></p>\n", r->path_info);
+  virgule_buffer_printf (b, "<p>document root (ap_document_root()): <b>%s</b></p>\n", ap_document_root (r));
+  virgule_buffer_printf (b, "<p>Request protocol (r->protocol): <b>%s</b></p>\n", r->protocol);
+  virgule_buffer_printf (b, "<p>Request hostname (r->hostname): <b>%s</b></p>\n", r->hostname);
+  virgule_buffer_printf (b, "<p>Request handler (r->handler): <b>%s</b></p>\n", r->handler);
+  virgule_buffer_printf (b, "<p>Apache thread ID (apr_os_thread_current()): <b>%lu</b></p>\n", apr_os_thread_current());
   if (cfg)
-    virgule_buffer_printf (b, "<p> cfg->db=\"%s\", cfg->dir=\"%s\"\n",
-		   cfg->db, cfg->dir);
+    virgule_buffer_printf (b, "<p>Configured virgule DB: <b>"
+                           "[cfg->db=\"%s\"] [cfg->dir=\"%s\"]</b></p>\n",
+			   cfg->db, cfg->dir);
 
   /* Dump pass-through directory names read from httpd.conf */
+  virgule_buffer_puts (b, "<p>Configured Pass-through Directories:\n<ul>\n");
   if (cfg->pass_dirs)
     {
-      virgule_buffer_puts (b, "<p>Pass-through Directory Names:\n<ul>\n");
       for ( i = 0; i < cfg->pass_dirs->nelts; i++ )
-        virgule_buffer_printf (b, "<li>%s", ((char **)cfg->pass_dirs->elts)[i]);
+        virgule_buffer_printf (b, "<li><b>%s</b></li>", ((char **)cfg->pass_dirs->elts)[i]);
       virgule_buffer_puts (b, "</ul></p>");
     }
   else 
     {
-      virgule_buffer_puts (b, "<p> No pass-through directories found.</p>");
+      virgule_buffer_puts (b, "<li><b>None</b></li></ul></p>");
     }
 
   args = vr->args;
   if (args)
-    {
-      const char *key;
-
-      virgule_buffer_printf (b, "<p> The args are: <tt>%s</tt> </p>\n", args);
-      args_table = virgule_get_args_table (vr);
-      key = apr_table_get (args_table, "key");
-      if (key)
-	{
-	  virgule_add_recent (r->pool, db, "test/recent.xml", key, 5, 0);
-	  virgule_buffer_printf (b, "<p> The translation of key %s is %s\n",
-			 key, virgule_db_mk_filename (r->pool, vr->db, key));
-	}
-    }
+    virgule_buffer_printf (b, "<p>URL args: <b>%s</b></p>\n", args);
 
   virgule_auth_user (vr);
   if (vr->u)
-    virgule_buffer_printf (b, "<p> The authenticated user is: <tt>%s</tt> </p>\n",
-		   vr->u);
+    virgule_buffer_printf (b, "<p>Authenticated user: <b>[%s]</b></p>\n", vr->u);
   
-  virgule_buffer_puts (b, "<dl><dt>Headers in:\n");
+  virgule_buffer_puts (b, "<p>Headers in:</p>\n<blockquote>");
   apr_table_do (header_trace, b, r->headers_in, NULL);
-  virgule_buffer_puts (b, "</dl>\n");
   
-  virgule_buffer_puts (b, "<dl><dt>Headers out:\n");
+  virgule_buffer_puts (b, "</blockquote>\n<p>Headers out:</p>\n<blockquote>");
   apr_table_do (header_trace, b, r->headers_out, NULL);
-  virgule_buffer_puts (b, "</dl>\n");
+  virgule_buffer_puts (b, "</blockquote>");
   
-  render_doc (b, db, "test.xml");
-
-//  if(virgule_db_lock_upgrade (vr->lock) == -1) return SERVER_ERROR;
-  virgule_db_lock_upgrade (vr->lock);
+  if(virgule_db_lock_upgrade (vr->lock) != -1)
+    virgule_buffer_puts (b, "<p>Lock upgrade: Upgrade test succeeded</p>");
+  else
+    virgule_buffer_puts (b, "<p>Lock upgrade: Upgrade test failed</p>");
 	   
-  virgule_buffer_printf (b, "<p> The site name is <tt>%s</tt> \n", vr->priv->site_name);
-  virgule_buffer_printf (b, "and it lives at <tt>%s</tt> </p> \n", vr->priv->base_uri);
-
   if (*vr->priv->cert_level_names)
     {
       const char **l;
 
-      virgule_buffer_puts (b, "<p> The certification levels are: </p>\n<ol>");
+      virgule_buffer_puts (b, "<p>Certification levels:</p>\n<ol>");
       for (l = vr->priv->cert_level_names; *l; l++)
-	virgule_buffer_printf (b, "<li> %s </li>\n", *l);
+	virgule_buffer_printf (b, "<li><b>%s</b></li>\n", *l);
       virgule_buffer_puts (b, "</ol>\n");
     }
 
@@ -290,9 +220,9 @@ info_page (VirguleReq *vr)
     {
       const char **s;
 
-      virgule_buffer_puts (b, "<p> The seeds are: </p>\n<ul>");
+      virgule_buffer_puts (b, "<p>Trust metric seeds:</p>\n<ul>");
       for (s = vr->priv->seeds; *s; s++)
-	virgule_buffer_printf (b, "<li> %s </li>\n", *s);
+	virgule_buffer_printf (b, "<li><b>%s</b></li>\n", *s);
       virgule_buffer_puts (b, "</ul>\n");
     }
 
@@ -300,9 +230,9 @@ info_page (VirguleReq *vr)
     {
       const int *c;
 
-      virgule_buffer_puts (b, "<p> The capacities are: </p>\n<ol>");
+      virgule_buffer_puts (b, "<p>Trust flow capacities:</p>\n<ol>");
       for (c = vr->priv->caps; *c; c++)
-	virgule_buffer_printf (b, "<li> %d </li>\n", *c);
+	virgule_buffer_printf (b, "<li><b>%d</b></li>\n", *c);
       virgule_buffer_puts (b, "</ol>\n");
     }
 
@@ -310,104 +240,33 @@ info_page (VirguleReq *vr)
     {
       const char **u;
 
-      virgule_buffer_puts (b, "<p> The following users are special: </p>\n<ul>");
+      virgule_buffer_puts (b, "<p>Special (admin) users:</p>\n<ul>");
       for (u = vr->priv->special_users; *u; u++)
-	virgule_buffer_printf (b, "<li> %s </li>\n", *u);
+	virgule_buffer_printf (b, "<li><b>%s</b></li>\n", *u);
       virgule_buffer_puts (b, "</ul>\n");
     }
 
   if (vr->priv->render_diaryratings)
-    virgule_buffer_puts (b, "<p>Diary rating system is active</p>\n");
+    virgule_buffer_puts (b, "<p>Diary rating: <b>On</b></p>\n");
   else
-    virgule_buffer_puts (b, "<p>Diary rating system is inactive</p>\n");
+    virgule_buffer_puts (b, "<p>Diary rating: <b>Off</b></p>\n");
 
-  virgule_buffer_printf (b, "<p>Recentlog style is %s</p>\n",
+  virgule_buffer_printf (b, "<p>Recentlog style: <b>%s</b></p>\n",
 		 vr->priv->recentlog_as_posted ? "As Posted" : "Unique");
 
-  virgule_buffer_printf (b, "<p>Account creation is %s</p>\n",
+  virgule_buffer_printf (b, "<p>Account creation: <b>%s</b></p>\n",
 		 vr->priv->allow_account_creation ? "allowed" : "not allowed");
 
-  virgule_buffer_printf (b, "<p>Article Topics are %s</p>\n",
+  virgule_buffer_printf (b, "<p>Article Topics (categories): <b>%s</b></p>\n",
 		 vr->priv->use_article_topics ? "on" : "off");
 
-  count (r->pool, b, db, "misc/admin/counter/count");
-  
+  virgule_buffer_printf (b, "<p>Maximum article title length: <b>%i</b></p>\n", 
+                 vr->priv->article_title_maxsize);
+
   virgule_buffer_puts (b, "</body></html>\n");
 
   return virgule_send_response (vr);
 }
-
-#if 0
-/* Generates a test entry in the test/inc directory under site. May not
-   be needed anymore? */
-static int
-test_serve (VirguleReq *vr)
-{
-  int max;
-  char *new_key;
-
-  if (strcmp (vr->r->uri, "/test.html"))
-    return DECLINED;
-  virgule_db_lock_upgrade(vr->lock);
-  max = virgule_db_dir_max (vr->db, "test/inc");
-  new_key = apr_psprintf (vr->r->pool, "test/inc/_%d", max + 1);
-  virgule_db_put (vr->db, new_key, new_key, strlen (new_key));
-  return virgule_send_error_page (vr, "Test page",
-			  "This is a test, max = %d, new_key = %s.",
-			  max, new_key);
-}
-
-static void
-test_hashtable_set (VirguleReq *vr, HashTable *ht,
-		    const char *key, const char *val)
-{
-  virgule_buffer_printf (vr->b, "Setting key %s to \"%s\".<br>\n",
-		 key, val);
-  virgule_hash_table_set (vr->r->pool, ht, key, (void *)val);
-}
-
-static void
-test_hashtable_get (VirguleReq *vr, HashTable *ht,
-		    const char *key)
-{
-  char *val = (char *)virgule_hash_table_get (ht, key);
-
-  if (val == NULL)
-    virgule_buffer_printf (vr->b, "Key %s has no value.<br>\n", key);
-  else
-    virgule_buffer_printf (vr->b, "Key %s has value \"%s\".<br>\n",
-		 key, val);
-}
-
-static int
-test_hashtable_serve (VirguleReq *vr)
-{
-  HashTable *ht = virgule_hash_table_new (vr->r->pool);
-  HashTableIter *iter;
-  const char *key, *val;
-
-  virgule_render_header (vr, "Hash table test", NULL);
-  test_hashtable_get (vr, ht, "foo");
-  test_hashtable_set (vr, ht, "foo", "bar");
-  test_hashtable_get (vr, ht, "foo");
-  test_hashtable_set (vr, ht, "first", "one");
-  test_hashtable_set (vr, ht, "second", "two");
-  test_hashtable_set (vr, ht, "third", "three");
-  test_hashtable_set (vr, ht, "fourth", "four");
-  test_hashtable_get (vr, ht, "foo");
-  test_hashtable_get (vr, ht, "first");
-  test_hashtable_get (vr, ht, "second");
-  test_hashtable_get (vr, ht, "third");
-  test_hashtable_get (vr, ht, "fourth");
-  test_hashtable_set (vr, ht, "foo", "baz");
-  test_hashtable_get (vr, ht, "foo");
-  for (iter = virgule_hash_table_iter (vr->r->pool, ht);
-       virgule_hash_table_iter_get (iter, &key, (void **)&val);
-       virgule_hash_table_iter_next (iter))
-    virgule_buffer_printf (vr->b, "(%s, %s)<br>\n", key, val);
-  return virgule_render_footer_send (vr);
-}
-#endif
 
 
 /**
@@ -435,7 +294,6 @@ static void virgule_child_init(apr_pool_t *p, server_rec *s)
 }
 
 
-
 /**
  * virgule_init_handler: Module Initialization Handler. This function is
  * called once during server initialization. The module version number and
@@ -447,6 +305,7 @@ static int virgule_init_handler(apr_pool_t *pconf, apr_pool_t *plog,
   ap_add_version_component(pconf, VIRGULE_VERSION);
   return OK;
 }
+
 
 /* make sure this doesn't clash with any HTTP status codes */
 #define CONFIG_READ 1000
@@ -1007,19 +866,6 @@ static int virgule_handler(request_rec *r)
   status = virgule_acct_maint_serve (vr);
   if (status != DECLINED)
     return status;
-
-#if 0
-  status = test_serve (vr);
-  if (status != DECLINED)
-    return status;
-
-  if (!strcmp (vr->uri, "/test/ht.html"))
-    {
-      status = test_hashtable_serve (vr);
-      if (status != DECLINED)
-	return status;
-    }
-#endif
 
   status = virgule_diary_serve (vr);
   if (status != DECLINED)

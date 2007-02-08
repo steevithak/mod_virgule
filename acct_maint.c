@@ -1894,6 +1894,22 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
   virgule_db_xml_put (p, vr->db, db_key, profile);  
 }
 
+
+/**
+ * acct_maint - sequentially analyzes and repairs, if needed, each user
+ * profile. Checks done:
+ *
+ *  Certificate symmetry - Restores missing inbound or outbound certs
+ *  XML validity - Corrupt profiles are report for manual repair
+ *
+ **/
+static int
+acct_maint (VirguleReq *vr)
+{
+  return virgule_send_error_page (vr, "Account Maintenance", "Account Maintenance test!\n");
+}
+
+
 int
 virgule_acct_maint_serve (VirguleReq *vr)
 {
@@ -1915,5 +1931,7 @@ virgule_acct_maint_serve (VirguleReq *vr)
     return acct_person_serve (vr, p);
   if (!strcmp (vr->uri, "/acct/certify.html"))
     return acct_certify_serve (vr);
+  if (!strcmp (vr->uri, "/admin/acctmaint.html"))
+    return acct_maint (vr);
   return DECLINED;
 }
