@@ -197,7 +197,7 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
   day = atoi (iso + 8);
   if (showtime == 2)
     {
-      hhmm = apr_pstrndup (vr->r->pool, iso + 11, 5);
+      hhmm = apr_pstrndup (vr->r->pool, iso + 11, 8);
       return apr_psprintf (vr->r->pool, "%s, %d %s %d %s %s", 
                           days[dayofweek(day,month,year)],
 			  day, months[month], year, hhmm, "GMT");

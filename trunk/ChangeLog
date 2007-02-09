@@ -1,3 +1,14 @@
+2007-02-09 R. Steven Rainwater <steve@ncc.com>
+
+
+
+2007-02-08 R. Steven Rainwater <steve@ncc.com>
+
+	* style.c (virgule_render_date): Added seconds to the timestamp
+	rendering style used for RSS pubDate field. Props to 
+	Wade Berrier <wberrier@novell.com> for noticing this bug. 
+
+
 2007-02-07 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule.c: Removed some cruft and several test functions that
