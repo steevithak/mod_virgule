@@ -1906,6 +1906,9 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
 static int
 acct_maint (VirguleReq *vr)
 {
+
+  // see rating.c rating_crank_all in rev 16 or older SVN code for
+  // example of looping through all accounts
   return virgule_send_error_page (vr, "Account Maintenance", "Account Maintenance test!\n");
 }
 
