@@ -195,6 +195,10 @@ acct_kill(VirguleReq *vr, const char *u)
   virgule_db_del (vr->db, db_key);
   virgule_db_xml_free(p, vr->db, profile);
 
+  /* Remove blog feed buffer, if any */
+  db_key2 = apr_psprintf (p, "acct/%s/feed.xml", user);
+  virgule_db_del (vr->db, db_key2);
+
   /* Remove from feedlist */
   agglist = virgule_db_xml_get (vr->r->pool, vr->db, "feedlist");
   if (agglist != NULL)
@@ -204,10 +208,10 @@ acct_kill(VirguleReq *vr, const char *u)
 	  {
 	    xmlUnlinkNode (feed);
 	    xmlFreeNode (feed);
+	    virgule_db_xml_put (vr->r->pool, vr->db, "feedlist", agglist);
 	    break;
 	  }
     }
-  virgule_db_xml_put (vr->r->pool, vr->db, "feedlist", agglist);  
 
   return TRUE;
 }
@@ -490,7 +494,6 @@ virgule_validate_username (VirguleReq *vr, const char *u)
 
   if (vr->priv->allow_account_extendedcharset)
     {
-
       if (!isalnum(u[0]))
         return "First character must be alphanumeric.";
   
@@ -498,19 +501,16 @@ virgule_validate_username (VirguleReq *vr, const char *u)
         {
           if (!isalnum (u[i]) && u[i]!='-' && u[i]!='_' && u[i]!=' ' && u[i]!= '.' )
 	    return "The username must contain only alphanumeric, dash, underscore, space, or dot characters.";
-        }
-	
+        }	
     }
 
   else
     {
-
       for (i = 0; i < len; i++)
         {
 	  if (!isalnum (u[i]))
 	    return "The username must contain only alphanumeric characters.";
 	}
-
     }
 
   return NULL;
@@ -1899,17 +1899,181 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
  * acct_maint - sequentially analyzes and repairs, if needed, each user
  * profile. Checks done:
  *
- *  Certificate symmetry - Restores missing inbound or outbound certs
- *  XML validity - Corrupt profiles are report for manual repair
+ *  Certificate symmetry - Restores missing inbound or outbound certs.
+ *
+ *  Cert level symmetry - correct mismatching levels to issuer level.
+ *
+ *  Alias links - Missing or corrupt  profile aliases are reported.
+ *
+ *  XML validity - Corrupt profiles are reported for manual repair.
+ *
+ * ToDo
+ * - remove cert to or from non-existent accounts
+ * - remove observer certs
+ * - remove self certs
  *
  **/
 static int
 acct_maint (VirguleReq *vr)
 {
+    xmlDocPtr profile = NULL;
+    xmlNodePtr root, alias, ctree, cert;
+    DbCursor *dbc;
+    Buffer *b = vr->b;
+    apr_pool_t *sp = NULL;
+    int ecount = 1;
+    char *u, *dbkey;
+    char *cerr[] =
+     {
+       "",
+       "Normalized assymetric cert levels.",
+       "Created missing subject cert.",
+       "Subject profile missing.",
+       "Created missing issuer cert.",
+       "Issuer cert level mismatch.",
+       "Issuer profile missing."
+     };
 
-  // see rating.c rating_crank_all in rev 16 or older SVN code for
-  // example of looping through all accounts
-  return virgule_send_error_page (vr, "Account Maintenance", "Account Maintenance test!\n");
+    virgule_render_header (vr, "Account maintenance", NULL);
+    virgule_buffer_puts (b, "<h2>Analyzing account profiles...</h2>\n");
+    
+    dbc = virgule_db_open_dir (vr->db, "acct");
+    while ((u = virgule_db_read_dir_raw (dbc)) != NULL)
+      {
+        if (sp != NULL)
+	    apr_pool_destroy (sp);
+	    
+	apr_pool_create (&sp, vr->r->pool);
+
+	dbkey = apr_pstrcat (sp, "acct/", u, "/profile.xml", NULL);
+	profile = virgule_db_xml_get (sp, vr->db, dbkey);
+	if (profile == NULL)
+	  {
+	    virgule_buffer_printf (b, "%i [%s] : invalid profile [%s]<br />\n", ecount++, u, dbkey);
+	    continue;
+	  }
+
+	root = xmlDocGetRootElement (profile);
+	if (root == NULL)
+	  {
+	    virgule_buffer_printf (b, "%i [%s] : profile [%s] has no root node<br />\n", ecount++, u, dbkey);
+	    continue;	    
+	  }
+
+	/* check for an alias */
+	alias = virgule_xml_find_child (root, "alias");
+	if(alias != NULL)
+	  {
+	    u = virgule_xml_get_prop (sp, alias, (xmlChar *)"link");
+	    virgule_db_xml_free (sp, vr->db, profile);
+	    dbkey = apr_pstrcat (sp, "acct/", u, "/profile.xml", NULL);
+	    profile = virgule_db_xml_get (sp, vr->db, dbkey);
+	    if (profile == NULL)
+	      {
+		virgule_buffer_printf (b, "%i [%s] : invalid alias proflie [%s]<br />\n", ecount++, u, dbkey);
+		continue;
+	      }
+	    root = xmlDocGetRootElement (profile);
+	    if (root == NULL)
+	      {
+		virgule_buffer_printf (b, "%i [%s] : alias profile [%s] has no root node<br />\n", ecount++, u, dbkey);
+		continue;
+	      }
+    	  }
+	  
+	/* loop through outbound certs */
+	ctree = virgule_xml_find_child (root, "certs");
+	if (ctree != NULL)
+	  {	
+	    for (cert = ctree->children; cert != NULL; cert = cert->next)
+	      {
+	        int rc;
+		char *subject = NULL;
+		char *level = NULL;
+		char *date = NULL;
+	    
+		if (cert->type != XML_ELEMENT_NODE || xmlStrcmp (cert->name, (xmlChar *)"cert"))
+		    continue;
+
+//subject = (char *)xmlGetProp (cert, (xmlChar *)"subject");
+//if(subject != NULL)
+//  {
+//virgule_buffer_printf (b, "%i [%s] : subject instead of subj property detected! Subject [%s]<br />\n", ecount++, u, subject);
+//xmlUnlinkNode(cert);
+//xmlFreeNode(cert);
+//virgule_db_xml_put (sp, vr->db, dbkey, profile);
+//cert = ctree->children;
+//continue;
+//  }
+
+		subject = (char *)xmlGetProp (cert, (xmlChar *)"subj");
+		if (subject == NULL)
+		  {
+		    virgule_buffer_printf (b, "%i [%s] : Invalid outbound cert - no subject<br />\n", ecount++, u);
+		    continue;
+		  }
+
+		level = (char *)xmlGetProp (cert, (xmlChar *)"level");
+		date = (char *)xmlGetProp (cert, (xmlChar *)"date");
+
+		rc = virgule_cert_verify_outbound (vr, sp, u, subject, level, date);
+		if(rc != 0) 
+		    virgule_buffer_printf (b, "%i [%s] : %s Cert subject [%s]<br />\n", ecount++, u, cerr[rc], subject);
+
+		xmlFree (subject);
+		if (level != NULL)
+		  xmlFree (level);
+		if (date != NULL)
+		  xmlFree (date);
+
+		apr_sleep(1);
+	      }
+	  }
+	  	      
+
+	/* loop through inbound certs */
+	ctree = virgule_xml_find_child (root, "certs-in");
+	if (ctree != NULL)
+	  {	
+	    for (cert = ctree->children; cert != NULL; cert = cert->next)
+	      {
+	        int rc;
+		char *issuer = NULL;
+		char *level = NULL;
+		char *date = NULL;
+	    
+		if (cert->type != XML_ELEMENT_NODE || xmlStrcmp (cert->name, (xmlChar *)"cert"))
+		    continue;
+
+		issuer = (char *)xmlGetProp (cert, (xmlChar *)"issuer");
+		if (issuer == NULL)
+		  {
+		    virgule_buffer_printf (b, "%i [%s] : Invalid inbound cert - no issuer<br />\n", ecount++, u);
+		    continue;
+		  }
+
+		level = (char *)xmlGetProp (cert, (xmlChar *)"level");
+		date = (char *)xmlGetProp (cert, (xmlChar *)"date");
+
+		rc = virgule_cert_verify_inbound (vr, sp, u, issuer, level, date);
+		if(rc != 0) 
+		    virgule_buffer_printf (b, "%i [%s] : %s Cert issuer [%s]<br />\n", ecount++, u, cerr[rc], issuer);
+
+		xmlFree (issuer);
+		if (level != NULL)
+		  xmlFree (level);
+		if (date != NULL)
+		  xmlFree (date);
+
+		apr_sleep(1);
+	      }
+	  }
+	  
+	apr_sleep(1);
+      }
+    virgule_buffer_printf (b, "<p><b>%i total errors found</b></p>\n", ecount-1);
+
+    return virgule_render_footer_send (vr);
 }
 
 

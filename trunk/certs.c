@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include <apr.h>
+#include <apr_strings.h>
 #include <httpd.h>
 
 #include <libxml/tree.h>
@@ -51,6 +52,167 @@ virgule_cert_level_to_name (VirguleReq *vr, CertLevel level)
     return vr->priv->cert_level_names[level];
   return "None";
 }
+
+
+/**
+ * virgule_cert_verify_outbound - Checks the specified outbound certification
+ * for symmetry with an inbound cert record within the subject's profile.
+ * Unlike other cert functions, existing certification dates are preserved.
+ * 
+ * Returns:
+ * 0 No action needed, certs are symmetric
+ * 1 Cert levels asymmetric, normalized to issuer level 
+ * 2 Subject cert missing, created from issuer cert
+ * 3 Subject profile does not exist
+ **/
+int
+virgule_cert_verify_outbound (VirguleReq *vr, apr_pool_t *p, const char *issuer, const char *subject, const char *level, const char *date)
+{
+  xmlDoc *profile;
+  xmlNode *certs, *cert;
+  int rc = 0;
+  char *sname;
+  char *slevel = NULL;
+  char *db_key = apr_pstrcat (p, "acct/", subject, "/profile.xml", NULL);
+
+  profile = virgule_db_xml_get (p, vr->db, db_key);
+  if (profile == NULL)
+    return 3;
+  
+  certs = virgule_xml_ensure_child (profile->xmlRootNode, "certs-in");
+  if (certs != NULL)
+    {
+      for (cert = certs->children; cert != NULL; cert = cert->next)
+        {
+          if (cert->type != XML_ELEMENT_NODE || xmlStrcmp (cert->name, (xmlChar *)"cert"))
+	    continue;
+
+	  sname = (char *)xmlGetProp (cert, (xmlChar *)"issuer");
+	  if (sname)
+	    {
+	      if (!strcmp (sname, issuer))
+	        {
+		  slevel = (char *)xmlGetProp (cert, (xmlChar *)"level");
+		  break;
+		}
+	      xmlFree (sname);
+	    }
+        }
+    }
+
+  if(slevel != NULL)
+    {
+      /* subject inbound cert exists and matches issuer cert! */
+      if (!strcmp (slevel, level))
+        {
+	  xmlFree(slevel);
+          return 0;
+	}
+
+      /* subject inbound cert exists but is incorrect */
+      xmlFree(slevel);
+      rc = 1;
+    }
+  else
+    {
+      /* subject inbound cert is missing, create new cert */
+      cert = xmlNewChild (certs, NULL, (xmlChar *)"cert", NULL);
+      rc = 2;
+    }
+
+  /* correct the cert */
+  xmlSetProp (cert, (xmlChar *)"issuer", (xmlChar *)issuer);
+  xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)level);
+  if(date != NULL)
+    xmlSetProp (cert, (xmlChar *)"date", (xmlChar *)date);
+
+  /* upgrade XML lock to write and write the corrected profile */
+  virgule_db_lock_upgrade (vr->lock);
+  virgule_db_xml_put (p, vr->db, db_key, profile);
+  virgule_db_xml_free (p, vr->db, profile);
+  virgule_db_lock_downgrade(vr->lock);
+
+  return rc;
+}
+
+
+/**
+ * virgule_cert_verify_inbound - Checks the specified inbound certification
+ * for symmetry with an outbound cert record within the issuer's profile.
+ * Unlike other cert functions, existing certification dates are preserved.
+ * Note: error numbers are shared with virgule_cert_verify_outbound.
+ * 
+ * Returns:
+ * 0 No action needed, certs are symmetric
+ * 4 Issuer cert missing, created from subject cert
+ * 5 Issuer cert exists but levels don't match
+ * 6 Issuer profile does not exist
+ **/
+int
+virgule_cert_verify_inbound (VirguleReq *vr, apr_pool_t *p, const char *subject, const char *issuer, const char *level, const char *date)
+{
+  xmlDoc *profile;
+  xmlNode *certs, *cert;
+  int rc = 0;
+  char *sname;
+  char *slevel = NULL;
+  char *db_key = apr_pstrcat (p, "acct/", issuer, "/profile.xml", NULL);
+
+  profile = virgule_db_xml_get (p, vr->db, db_key);
+  if (profile == NULL)
+    return 6;
+  
+  certs = virgule_xml_ensure_child (profile->xmlRootNode, "certs");
+  if (certs != NULL)
+    {
+      for (cert = certs->children; cert != NULL; cert = cert->next)
+        {
+          if (cert->type != XML_ELEMENT_NODE || xmlStrcmp (cert->name, (xmlChar *)"cert"))
+	    continue;
+
+	  sname = (char *)xmlGetProp (cert, (xmlChar *)"subj");
+	  if (sname)
+	    {
+	      if (!strcmp (sname, subject))
+	        {
+		  slevel = (char *)xmlGetProp (cert, (xmlChar *)"level");
+		  break;
+		}
+	      xmlFree (sname);
+	    }
+        }
+    }
+  
+  if(slevel != NULL)
+    {
+      /* issuer outbound cert exists and matches subject cert! */
+      if (!strcmp (slevel, level))
+        rc = 0;
+      /* issuer outbound cert exists but level is incorrect */
+      else
+        rc = 5;
+      xmlFree(slevel);
+    }
+  else
+    {
+      /* subject inbound cert is missing, create new cert */
+      cert = xmlNewChild (certs, NULL, (xmlChar *)"cert", NULL);
+      xmlSetProp (cert, (xmlChar *)"subj", (xmlChar *)subject);
+      xmlSetProp (cert, (xmlChar *)"level", (xmlChar *)level);
+      if(date != NULL)
+        xmlSetProp (cert, (xmlChar *)"date", (xmlChar *)date);
+
+      /* upgrade XML lock to write and write the corrected profile */
+      virgule_db_lock_upgrade (vr->lock);
+      virgule_db_xml_put (p, vr->db, db_key, profile);
+      virgule_db_xml_free (p, vr->db, profile);
+      virgule_db_lock_downgrade(vr->lock);
+      rc = 4;
+    }
+
+  return rc;
+}
+
 
 CertLevel
 virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject)
