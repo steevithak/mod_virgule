@@ -47,10 +47,8 @@ virgule_render_header_raw (VirguleReq *vr, const char *title, const char *head_c
                  "<html>\n<head><title>%s</title>\n", title);
                  
   virgule_buffer_printf (b, "<link rel=\"stylesheet\" type=\"text/css\" "
-                 "href=\"%s/css/global.css\">\n"
-		 "<link rel=\"shortcut icon\" href=\"/images/favicon.ico\" />"
-                 "<style type=\"text/css\"><!-- "
-                 "@import \"%s/css/notns4.css\"; --></style>\n",
+                 "href=\"%s/css/global.css\" />\n"
+		 "<link rel=\"shortcut icon\" href=\"/images/favicon.ico\" />\n",
                  vr->prefix, vr->prefix);
 
   virgule_buffer_printf (b,"<script language=\"JavaScript\" type=\"text/javascript\">\n"
