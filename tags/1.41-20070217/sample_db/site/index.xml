@@ -1,0 +1,51 @@
+<page raw="yes"><title>
+Advogato
+</title>
+
+<table width="100%"><tr valign="middle"><td>
+<h1><img src="/images/advogato-rodent.gif" width="300" height="100" alt="Advogato"/></h1>
+</td>
+<td align="right">
+<sitemap/>
+</td></tr>
+</table>
+
+<table width="99%" cellpadding="0" cellspacing="10" border="0">
+<tr><td valign="top">
+
+<articles nmax="10"/>
+
+</td>
+
+
+<td valign="top" width="200" class="sidebar">
+<p> Welcome to Advogato, the free software developer's advocate. The
+goal of the site is to serve as a community resource for free software
+developers around the world, as well as a research testbed for work on
+group trust metrics.
+ </p>
+
+<p> Here's the <a href="mission.html">mission statement</a>. </p>
+
+<p> Curious how the <a href="trust-metric.html">trust metric</a> works? </p>
+
+<p> Advogato is devoted to the public good through its support of free
+software. To help maintain balance in the force, visit <a href="http://www.badvogato.org/">Badvogato</a>. </p>
+
+<p><b><a href="recentlog.html">Recent diary entries</a></b></p>
+<recent list="diary" nmax="50"/>
+
+
+<p><b>Recent people joining</b></p>
+<recent list="acct" nmax="25"/>
+
+<p> <a href="syndicate.html">Syndicate</a> this! <br/>
+<a href="xmlrpc.html">Control</a> this! <br/>
+Show me the <a href="code.html">code</a>! </p>
+
+<p> Advogato logo by <a href="/person/drc/">Ville P&#228;tsi</a>. </p>
+
+</td></tr>
+</table>
+
+</page>

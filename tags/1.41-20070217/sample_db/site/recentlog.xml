@@ -1,0 +1,6 @@
+<page><title>Recent diary entries</title>
+
+<p> <b>Recent diary entries:</b> </p>
+<recentlog nmax="50"/>
+
+</page>
