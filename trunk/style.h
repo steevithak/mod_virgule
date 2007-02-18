@@ -7,6 +7,9 @@ void
 virgule_render_header (VirguleReq *vr, const char *title, const char *head_content);
 
 void
+virgule_render_userstats (VirguleReq *vr);
+
+void
 virgule_render_sitemap (VirguleReq *vr, int enclose);
 
 //void

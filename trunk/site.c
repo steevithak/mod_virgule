@@ -475,6 +475,10 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	    nmax = 30;
 	  virgule_acct_person_index_serve (vr, nmax);
 	}
+      else if (!strcmp (node->name, "userstats"))
+        {
+          virgule_render_userstats (vr);
+	}
       else if (!strcmp (node->name, "sitemap"))
 	{
 	  virgule_render_sitemap (vr, 0);
