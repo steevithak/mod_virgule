@@ -6,7 +6,7 @@
  * Released under GPL v2.
  */ 
 
-#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20070201"
+#define VIRGULE_VERSION "mod_virgule-rsr/1.41-20070217"
 
 #include <string.h>
 

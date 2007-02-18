@@ -11,6 +11,8 @@
 #include "private.h"
 #include "buffer.h"
 #include "db.h"
+#include "db_xml.h"
+#include "xml_util.h"
 #include "req.h"
 #include "site.h"
 #include "util.h"
@@ -99,6 +101,32 @@ struct _NavOption {
   char *label;
   char *url;
 };
+
+
+/**
+ * virgule_render_userstats - renders a table of user statistics
+ **/
+void
+virgule_render_userstats (VirguleReq *vr)
+{
+  xmlDocPtr stats;
+  xmlNodePtr stat;
+
+  stats = virgule_db_xml_get (vr->r->pool, vr->db, "userstats.xml");
+  if (stats != NULL)
+    {
+      virgule_buffer_puts (vr->b, "<table>\n");
+      for (stat = stats->xmlRootNode->children; stat != NULL; stat = stat->next)
+      {
+        if (stat->type != XML_ELEMENT_NODE)
+	  continue;
+	virgule_buffer_printf (vr->b, "<tr><td>%s</td><td>%s</td></tr>\n", 
+	                       (char *)stat->name,
+			       virgule_xml_get_string_contents (stat));
+      }
+      virgule_buffer_puts (vr->b, "</table>\n");
+    }
+}
 
 
 /*
