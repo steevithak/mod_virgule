@@ -4,6 +4,7 @@
 #include <ctype.h>
 
 #include <apr.h>
+#include <apr_hash.h>
 #include <apr_strings.h>
 #include <httpd.h>
 #include <http_log.h>
@@ -516,6 +517,7 @@ virgule_validate_username (VirguleReq *vr, const char *u)
   return NULL;
 }
 
+
 /* Make the db key. Sanity check the username. */
 char *
 virgule_acct_dbkey (VirguleReq *vr, const char *u)
@@ -525,6 +527,7 @@ virgule_acct_dbkey (VirguleReq *vr, const char *u)
 
   return apr_pstrcat (vr->r->pool, "acct/", u, "/profile.xml", NULL);
 }
+
 
 static void
 acct_set_cookie (VirguleReq *vr, const char *u, const char *cookie,
@@ -543,6 +546,7 @@ acct_set_cookie (VirguleReq *vr, const char *u, const char *cookie,
 		apr_psprintf (r->pool, "id=%s; path=/; Expires=%s",
 			     id_cookie, exp_date));
 }
+
 
 static int
 acct_index_serve (VirguleReq *vr)
@@ -1897,7 +1901,8 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
 
 /**
  * acct_maint - sequentially analyzes and repairs, if needed, each user
- * profile. Checks done:
+ * profile. Some simple statistics are also gathered during the process
+ * and written to a stats XML file for user elsewhere.
  *
  *  Certificate symmetry - Restores missing inbound or outbound certs.
  *
@@ -1908,7 +1913,6 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
  *  XML validity - Corrupt profiles are reported for manual repair.
  *
  * ToDo
- * - remove cert to or from non-existent accounts
  * - remove observer certs
  * - remove self certs
  *
@@ -1916,11 +1920,15 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
 static int
 acct_maint (VirguleReq *vr)
 {
+    xmlDocPtr statdoc = NULL;
     xmlDocPtr profile = NULL;
     xmlNodePtr root, alias, ctree, cert;
     DbCursor *dbc;
     Buffer *b = vr->b;
     apr_pool_t *sp = NULL;
+    apr_hash_t *stat;
+    char *statk;
+    int *statv;
     int ecount = 1;
     char *u, *dbkey;
     char *cerr[] =
@@ -1936,6 +1944,12 @@ acct_maint (VirguleReq *vr)
 
     virgule_render_header (vr, "Account maintenance", NULL);
     virgule_buffer_puts (b, "<h2>Analyzing account profiles...</h2>\n");
+
+    /* initialize the statistics hash */
+    stat = apr_hash_make(vr->r->pool);
+    statv = apr_pcalloc (vr->r->pool, sizeof(int));
+    apr_hash_set (stat, "Users", APR_HASH_KEY_STRING, statv);    
+
     
     dbc = virgule_db_open_dir (vr->db, "acct");
     while ((u = virgule_db_read_dir_raw (dbc)) != NULL)
@@ -1980,6 +1994,20 @@ acct_maint (VirguleReq *vr)
 		continue;
 	      }
     	  }
+
+	/* Add this user to the stats */
+	statv = apr_hash_get (stat, "Users", APR_HASH_KEY_STRING);
+	(*statv)++;
+	apr_hash_set (stat, "Users", APR_HASH_KEY_STRING, statv);
+
+	/* Add this user's cert level to the stats */
+	statk = (char *)virgule_req_get_tmetric_level (vr, u);
+	statv = apr_hash_get (stat, statk, APR_HASH_KEY_STRING);
+	if (statv == NULL)
+	  statv = apr_pcalloc (vr->r->pool, sizeof(int));
+	else
+	  (*statv)++;	  
+	apr_hash_set (stat, statk, APR_HASH_KEY_STRING, statv);
 	  
 	/* loop through outbound certs */
 	ctree = virgule_xml_find_child (root, "certs");
@@ -2071,7 +2099,29 @@ acct_maint (VirguleReq *vr)
 	  
 	apr_sleep(1);
       }
-    virgule_buffer_printf (b, "<p><b>%i total errors found</b></p>\n", ecount-1);
+
+    if (ecount > 1)
+      virgule_buffer_printf (b, "<p><b>%i total errors found</b></p>\n", ecount-1);
+    else
+      virgule_buffer_puts (b, "<p><b>No Errors found</b></p>\n");      
+
+    /* Update user stats */
+    statdoc = virgule_db_xml_doc_new (vr->r->pool);
+    statdoc->xmlRootNode = xmlNewDocNode (statdoc, NULL, (xmlChar *)"stats", NULL);
+    statv = apr_hash_get (stat, "Users", APR_HASH_KEY_STRING);
+    xmlNewChild (statdoc->xmlRootNode, NULL, (xmlChar *)"Users", (xmlChar *)apr_itoa (vr->r->pool, *statv));
+    virgule_buffer_printf (b, "<p><b>Users:</b> %i</p>\n", *statv);
+    if (*vr->priv->cert_level_names)
+      {
+	const char **l;
+	for (l = vr->priv->cert_level_names; *l; l++)
+	  {
+	    statv = apr_hash_get (stat, *l, APR_HASH_KEY_STRING);
+	    xmlNewChild (statdoc->xmlRootNode, NULL, (xmlChar *)*l, (xmlChar *)apr_itoa (vr->r->pool, *statv));
+	    virgule_buffer_printf (b, "<p><b>%s:</b> %i</p>\n", *l, *statv);
+	  }
+      }
+    virgule_db_xml_put (vr->r->pool, vr->db, "userstats.xml", statdoc);
 
     return virgule_render_footer_send (vr);
 }
