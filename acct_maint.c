@@ -1755,10 +1755,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 		     " <input type=\"submit\" value=\"Certify\">\n"
 		     " <input type=\"hidden\" name=\"subject\" value=\"%s\">\n"
 		     "</form>\n"
-		     "<p><b>Note</b>: By certifying a user you are making a "
-		     "public statment that you know this person and can "
-		     "vouch for their identity.</p>"
-		     "<p> See the <a href=\"%s/certs.html\">Certification</a> overview for more information.</p>\n",
+		     "<p>Certify this user if you know them. See the "
+                     "<a href=\"%s/certs.html\">certification overview</a> "
+		     "for more information.</p>\n",
 		     u, vr->prefix);
 
       if (vr->priv->render_diaryratings) 
