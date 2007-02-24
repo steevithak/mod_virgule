@@ -1,3 +1,29 @@
+2007-02-24 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (read_site_config): Added support for articledays2edit
+	config value. This will determine the number number of days after
+	posting that an article remains editable by the author.
+
+	* article.c (article_render_from_xml): Added edit link to article
+	subtitle if viewed by the author within edit period.
+
+
+2007-02-23 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (virgule_article_serve): Added handler for edit function.
+
+	* article.c (article_edit_serve): Loads an existing article into the
+	editor. Only works for the original author and within a configurable
+	time period.
+
+	* article.c (article_generic_submit_serve): Added kludge to support
+	editing of existing articles, preservation of original article date,
+	and original article key value. This code is pretty nasty but no
+	worse than the rest of kludges piled on top of each other in here.
+	Functions like this one will be the first against the wall when the 
+	revolution comes.
+	
+
 2007-02-21 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Toned down the certification

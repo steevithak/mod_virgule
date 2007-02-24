@@ -132,6 +132,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   char *lead_tag;
   char *lead_a_open = "";
   char *lead_a_close = "";
+  char *editstr = "";
   int n_replies;
   char *article_dir;
   CertLevel cert_level;
@@ -143,6 +144,9 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   lead = virgule_xml_find_child_string (root, "lead", "(no lead)");
   lead_tag = (style == ARTICLE_RENDER_LEAD) ? "blockquote" : "p";
 
+  if ((virgule_virgule_to_time_t(vr, date) + (vr->priv->article_days_to_edit * 86400)) > time(NULL) && (!strcmp(vr->u, author)))
+    editstr = apr_psprintf (vr->r->pool, " [ <a href=\"/article/edit.html?key=%d\">Edit</a> ] ", art_num);
+  
   virgule_buffer_puts (b, "<table border=0 cellspacing=0 class=\"article\"><tr>");
 
   if(vr->priv->use_article_topics)
@@ -171,8 +175,9 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
                  lead_a_open, title, lead_a_close);
 
   virgule_buffer_printf (b, "</td></tr><tr><td class=\"article-author\">Posted %s by "
-		 "<a href=\"%s/person/%s/\">%s</a></td></tr></table>\n",
-		 virgule_render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author);
+		 "<a href=\"%s/person/%s/\">%s</a>%s</td></tr></table>\n",
+		 virgule_render_date (vr, date, 1), vr->prefix, 
+		 ap_escape_uri(vr->r->pool, author), author, editstr);
 
   virgule_buffer_printf (b, "<%s>\n"
 		 "%s\n", lead_tag, lead);
@@ -316,6 +321,8 @@ article_form_serve (VirguleReq *vr)
  * @title: Title, as raw text.
  * @lead: Lead, as raw text.
  * @body: Body, as raw text.
+ * @olddate: Null for new posts. Original post date for edit of existing post
+ * @oldkey: Null for new posts. Original article/reply key for edits
  * @submit_type: "article" or "reply".
  * @key_base: Base pathname of db key.
  * @key_suffix: Suffix of db key, after article number.
@@ -331,12 +338,18 @@ article_form_serve (VirguleReq *vr)
 static int
 article_generic_submit_serve (VirguleReq *vr,
 			      const char *topic,
-			      const char *title, const char *lead, const char *body,
+			      const char *title, 
+			      const char *lead, 
+			      const char *body,
+			      const char *olddate,
+			      const char *oldkey,
 			      const char *submit_type,
-			      const char *key_base, const char *key_suffix,
+			      const char *key_base, 
+			      const char *key_suffix,
 			      const char *art_num_str)
 {
   apr_pool_t *p = vr->r->pool;
+  apr_table_t *args;
   Buffer *b = vr->b;
   const Topic **t;
   const char *date;
@@ -372,7 +385,15 @@ article_generic_submit_serve (VirguleReq *vr,
   nice_lead = lead == NULL ? NULL : virgule_nice_htext (vr, lead, &lead_error);
   nice_body = body == NULL ? NULL : virgule_nice_htext (vr, body, &body_error);
 
-  if (apr_table_get (virgule_get_args_table (vr), "preview"))
+  args = virgule_get_args_table (vr);
+  if(olddate != NULL)
+    apr_table_set (args, "preview", "Preview");
+  else
+    olddate = apr_table_get (args, "olddate");
+  if(oldkey == NULL)
+    oldkey = apr_table_get (args, "oldkey");
+
+  if (apr_table_get (args, "preview"))
     {
       /* render a preview */
       if (!strcmp (submit_type, "reply"))
@@ -424,6 +445,12 @@ article_generic_submit_serve (VirguleReq *vr,
 	  virgule_buffer_puts (b, "<p>Edit your <x>article</x>:</p>\n"
 		"<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
 
+          if(olddate && oldkey)
+	    {
+	      virgule_buffer_printf (b, "<input type=\"hidden\" name=\"olddate\" value=\"%s\" />\n", olddate);
+	      virgule_buffer_printf (b, "<input type=\"hidden\" name=\"oldkey\" value=\"%s\" />\n", oldkey);
+	    }
+	    
 	  if(vr->priv->use_article_topics)
 	    {
 	      virgule_buffer_puts (b, "<p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
@@ -475,15 +502,23 @@ article_generic_submit_serve (VirguleReq *vr,
     }
 
   key = apr_psprintf (p, "%s/_%d%s",
-		     key_base,
-		     virgule_db_dir_max (vr->db, key_base) + 1,
-		     key_suffix);
+		      key_base,
+		      oldkey ? atoi (oldkey) : virgule_db_dir_max (vr->db, key_base) + 1,
+		      key_suffix);
 
   doc = virgule_db_xml_doc_new (p);
   root = xmlNewDocNode (doc, NULL, (xmlChar *)"article", NULL);
   doc->xmlRootNode = root;
 
-  tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+  if(olddate != NULL)
+    {
+      xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)olddate);
+      xmlNewChild (root, NULL, (xmlChar *)"update", (xmlChar *)date);
+    }
+  else
+    {
+      tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+    }
   tree = xmlNewChild (root, NULL, (xmlChar *)"author", (xmlChar *)vr->u);
 
   tree = xmlNewChild (root, NULL, (xmlChar *)"title", NULL);
@@ -507,6 +542,31 @@ article_generic_submit_serve (VirguleReq *vr,
       xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)nice_body));
     }
 
+  /* sanity-check edit qualifications before saving */
+  if (olddate || oldkey) 
+    {
+      char *a, *d;
+      time_t t;
+      xmlNodePtr r;
+      int art_num = atoi (oldkey);
+      char *k = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
+      xmlDocPtr old = virgule_db_xml_get (vr->r->pool, vr->db, k);
+      if (old == NULL)
+        return virgule_send_error_page (vr, "Read error", "The specified <x>article</x> does not exist.");
+      r = xmlDocGetRootElement (old);
+
+      /* verify the article is not too old to edit */
+      d = virgule_xml_find_child_string (r, "date", NULL);
+      t = virgule_virgule_to_time_t (vr, d);
+      if (t + (vr->priv->article_days_to_edit * 86400) < time (NULL))
+        return virgule_send_error_page (vr, "Not editable", "This <x>article</x> is too old to be edited.");
+
+      /* verify this user can edit this article */
+      a = virgule_xml_find_child_string (r, "author", NULL);
+      if (strcmp (vr->u, a))
+        return virgule_send_error_page (vr, "Authorization problem", "Only <x>articles</x> posted by you may be edited.");
+    }
+
   status = virgule_db_xml_put (p, vr->db, key, doc);
 
   if (status)
@@ -517,10 +577,10 @@ article_generic_submit_serve (VirguleReq *vr,
   if (!strcmp (submit_type, "reply"))
     apr_table_add (vr->r->headers_out, "refresh", 
 		  apr_psprintf(p, "0;URL=/article/%s.html#lastread", art_num_str));
-  else
+  else 
     apr_table_add (vr->r->headers_out, "refresh", 
-		  apr_psprintf(p, "0;URL=/article/%d.html",
-			      virgule_db_dir_max (vr->db, key_base)));
+		  apr_psprintf(p, "0;URL=/article/%d.html", 
+		              oldkey ? atoi (oldkey) : virgule_db_dir_max (vr->db, key_base)));
 
   str = apr_psprintf (p, "Ok, your <x>%s</x> was posted. Thanks!", submit_type);
   return virgule_send_error_page (vr, "Posted", str);
@@ -565,7 +625,65 @@ article_submit_serve (VirguleReq *vr)
 	  return virgule_send_error_page (vr, "Duplicate <x>Article</x>", "Please post your <x>article</x> only once.");
     }
 
-  return article_generic_submit_serve (vr, topic, title, lead, body,
+  return article_generic_submit_serve (vr, topic, title, lead, body, NULL, NULL,
+				       "article",
+				       "articles", "/article.xml", NULL);
+}
+
+
+/**
+ * article_edit_serve - edit an existing article number
+ **/
+static int
+article_edit_serve (VirguleReq *vr)
+{
+  int art_num;
+  time_t t;
+  char *key, *date, *author, *title, *lead, *body, *topic;
+  const char *art_num_str;
+  apr_table_t *args;
+  xmlDocPtr doc;
+  xmlNodePtr root;
+
+  /* user must be logged */
+  virgule_auth_user (vr);
+  if (vr->u == NULL)
+    return virgule_send_error_page (vr, "Not logged in", "You must be logged in to edit an <x>article</x>.");
+
+  /* verify that we got an article key */
+  args = virgule_get_args_table (vr);
+  if (args == NULL)
+    return virgule_send_error_page (vr, "Need key", "No <x>article</x> key was specified.");
+
+  /* try to read the article */
+  art_num_str = apr_table_get (args, "key");
+  art_num = atoi (art_num_str);
+  key = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
+  doc = virgule_db_xml_get (vr->r->pool, vr->db, key);
+  if (doc == NULL)
+    return virgule_send_error_page (vr, "Read error", "The specified <x>article</x> could not be loaded.");
+
+  root = xmlDocGetRootElement (doc);
+
+  /* verify the article is not too old to edit */
+  date = virgule_xml_find_child_string (root, "date", NULL);
+  t = virgule_virgule_to_time_t (vr, date);
+  if (t + (vr->priv->article_days_to_edit * 86400) < time (NULL))
+    return virgule_send_error_page (vr, "Not editable", "This <x>article</x> is too old to be edited.");
+
+  /* verify this user can edit this article */
+  author = virgule_xml_find_child_string (root, "author", NULL);
+  if (strcmp (vr->u, author))
+    return virgule_send_error_page (vr, "Authorization problem", "Only <x>articles</x> posted by you may be edited.");
+
+  topic = virgule_xml_find_child_string (root, "topic", NULL);
+  title = virgule_xml_find_child_string (root, "title", NULL);
+  lead = virgule_xml_find_child_string (root, "lead", NULL);
+  body = virgule_xml_find_child_string (root, "body", NULL);
+ 
+  /* load the editor in preview mode */
+  return article_generic_submit_serve (vr, topic, title, lead, body, date, 
+                                       art_num_str,
 				       "article",
 				       "articles", "/article.xml", NULL);
 }
@@ -673,7 +791,7 @@ article_reply_submit_serve (VirguleReq *vr)
 	  return virgule_send_error_page (vr, "Duplicate Reply", "Please post your reply only once.");
     }
 
-  return article_generic_submit_serve (vr, NULL, title, NULL, body,
+  return article_generic_submit_serve (vr, NULL, title, NULL, body, NULL, NULL,
 				       "reply",
 				       key_base, "/reply.xml", art_num_str);
 }
@@ -806,6 +924,9 @@ virgule_article_serve (VirguleReq *vr)
 
   if (!strcmp (p, "replysubmit.html"))
     return article_reply_submit_serve (vr);
+
+  if (!strcmp (p, "edit.html"))
+    return article_edit_serve (vr);
 
   if (isdigit (p[0]))
     return article_num_serve (vr, p);
