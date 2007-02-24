@@ -1072,10 +1072,6 @@ virgule_virgule_to_time_t (VirguleReq *vr, const char *time_string)
   t = timegm(&tm);
 
   return t;
-/*
-  compensate for time stored using system local time zone
-  return t - vr->priv->utc_offset;
-*/
 }
 
 

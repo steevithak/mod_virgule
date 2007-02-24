@@ -636,6 +636,12 @@ read_site_config (VirguleReq *vr)
   if(vr->priv->article_title_maxsize == 0)
     vr->priv->article_title_maxsize = 80; 
 
+  /* read the number of days after posting to allow article editing */
+  text = virgule_xml_find_child_string (doc->xmlRootNode, "articledays2edit", "");
+  vr->priv->article_days_to_edit = atoi (text);
+  if(vr->priv->article_days_to_edit == 0)
+    vr->priv->article_days_to_edit = 0;
+
   /* read the article topic setting */
   text = virgule_xml_find_child_string (doc->xmlRootNode, "articletopics", "");
   if (!strcasecmp (text, "off"))

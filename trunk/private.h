@@ -52,6 +52,7 @@ struct virgule_private {
   int		     use_article_topics;
   int		     article_post_by_seeds_only;
   int		     article_title_maxsize;
+  int                article_days_to_edit;
   int	             level_articlepost;
   int		     level_articlereply;
   int		     level_projectcreate;
