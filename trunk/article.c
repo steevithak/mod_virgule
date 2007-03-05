@@ -116,6 +116,7 @@ article_render_replies (VirguleReq *vr, int art_num)
   virgule_acct_set_lastread(vr, "articles", apr_psprintf(p, "%d", art_num), n_art - 1);
 }
 
+
 /**
  * Renders an article from the provided XML document
  **/
@@ -125,6 +126,8 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   Buffer *b = vr->b;
   xmlNode *root = doc->xmlRootNode;
   char *date;
+  char *update;
+  char *updatestr = "";
   char *author;
   char *topic;
   char *title;
@@ -140,13 +143,17 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   topic = virgule_xml_find_child_string (root, "topic", "(no topic)");
   title = virgule_xml_find_child_string (root, "title", "(no title)");
   date = virgule_xml_find_child_string (root, "date", "(no date)");
+  update = virgule_xml_find_child_string (root, "update", NULL);
   author = virgule_xml_find_child_string (root, "author", "(no author)");
   lead = virgule_xml_find_child_string (root, "lead", "(no lead)");
   lead_tag = (style == ARTICLE_RENDER_LEAD) ? "blockquote" : "p";
 
-  if ((virgule_virgule_to_time_t(vr, date) + (vr->priv->article_days_to_edit * 86400)) > time(NULL) && (!strcmp(vr->u, author)))
-    editstr = apr_psprintf (vr->r->pool, " [ <a href=\"/article/edit.html?key=%d\">Edit</a> ] ", art_num);
-  
+  if (vr->u != NULL)
+    {
+      if ((virgule_virgule_to_time_t(vr, date) + (vr->priv->article_days_to_edit * 86400)) > time(NULL) && (!strcmp(vr->u, author)))
+        editstr = apr_psprintf (vr->r->pool, " [ <a href=\"/article/edit.html?key=%d\">Edit</a> ] ", art_num);
+    }
+    
   virgule_buffer_puts (b, "<table border=0 cellspacing=0 class=\"article\"><tr>");
 
   if(vr->priv->use_article_topics)
@@ -174,9 +181,12 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   virgule_buffer_printf (b, "<span class=\"article-title\">%s%s%s</span>",
                  lead_a_open, title, lead_a_close);
 
-  virgule_buffer_printf (b, "</td></tr><tr><td class=\"article-author\">Posted %s by "
+  if (update != NULL)
+    updatestr = apr_psprintf (vr->r->pool, " (updated %s)", virgule_render_date (vr, update, 1));
+
+  virgule_buffer_printf (b, "</td></tr><tr><td class=\"article-author\">Posted %s%s by "
 		 "<a href=\"%s/person/%s/\">%s</a>%s</td></tr></table>\n",
-		 virgule_render_date (vr, date, 1), vr->prefix, 
+		 virgule_render_date (vr, date, 1), updatestr, vr->prefix, 
 		 ap_escape_uri(vr->r->pool, author), author, editstr);
 
   virgule_buffer_printf (b, "<%s>\n"
@@ -595,7 +605,7 @@ article_submit_serve (VirguleReq *vr)
   const char *old_author, *old_title;
 
   apr_table_t *args;
-  const char *title, *lead, *body;
+  const char *title, *lead, *body, *oldkey;
   const char *topic = NULL;
 
   args = virgule_get_args_table (vr);
@@ -608,6 +618,7 @@ article_submit_serve (VirguleReq *vr)
   title = apr_table_get (args, "title");
   lead = apr_table_get (args, "lead");
   body = apr_table_get (args, "body");
+  oldkey = apr_table_get (args, "oldkey");
 
   /* Auth user and check for duplicate post */
   virgule_auth_user (vr);
@@ -615,7 +626,7 @@ article_submit_serve (VirguleReq *vr)
     return virgule_send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
 
   art_num = virgule_db_dir_max (vr->db, "articles");
-  if (art_num >= 0)
+  if (art_num >= 0 && oldkey == NULL)
     {
       key = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
       doc = virgule_db_xml_get (vr->r->pool, vr->db, key);
