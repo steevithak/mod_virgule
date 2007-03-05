@@ -1,3 +1,13 @@
+
+2007-03-05 R. Steven Rainwtaer <steve@ncc.com>
+
+	* article.c (article_submit_serve): Duplicate article rejection no
+	longer triggers on article edits of the most recently posted article.
+
+	* article.c (article_render_from_xml): Now displays the article
+	update timestamp for edited articles.
+
+
 2007-02-24 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule.c (read_site_config): Added support for articledays2edit
