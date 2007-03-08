@@ -1,6 +1,9 @@
 void
 virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev, int hcert);
 
+int
+virgule_diary_exists (VirguleReq *vr, const char *u);
+
 void
 virgule_diary_render (VirguleReq *vr, const char *u, int max_num, int start);
 

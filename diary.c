@@ -158,6 +158,34 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
 
 
 /**
+ * virgule_diary_exists - returns 1 if at least one diary posts is found.
+ * returns 0 if no posts are found.
+ **/
+int
+virgule_diary_exists (VirguleReq *vr, const char *u)
+{
+    char *key;
+    DbCursor *dbc;
+    
+    key = apr_psprintf (vr->r->pool, "acct/%s/diary", u);
+    dbc = virgule_db_open_dir (vr->db, key);
+    if (dbc == NULL)
+      return 0;
+
+//    key = virgule_db_read_dir (dbc);
+//    if (key == NULL)
+//      return 0;
+
+    virgule_db_close_dir (dbc);
+    return 1;
+
+//  char *diary;
+//  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", u);
+//  return virgule_db_dir_max (vr->db, diary);
+}
+
+
+/**
  * virgule_diary_render - renders a range of diary entries on a page followed
  * by a link that will generated older etnries.
  **/

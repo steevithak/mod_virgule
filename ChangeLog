@@ -1,3 +1,28 @@
+2007-03-07 R. Steven Rainwtaer <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Account profile "extra junk" 
+	error was replaced with a conventional 404 error. 
+	
+	Requests for invalid account names now return a 404 error as well.
+	
+	FOAF autodiscovery header and FOAF image link now show only for
+	trusted users.  
+	
+	RSS autodiscovery header and RSS link now show only for trusted users
+	who have at least one blog post.
+
+	* acct_maint.c (acct_person_foaf_serve): FOAF files are served only
+	for trusted users. FOAF requests for untrusted users now generate a
+	404 error.
+
+	* acct_maint.c (acct_person_diary_rss_serve): RSS feeds are now 
+	served only for trusted users with at least one blog post. RSS 
+	requests for untrusted users or trusted users who have no blog
+	posts now generate a 404 error.
+
+	* diary.c (virgule_diary_exists): Added this function to test if
+	there are any posts in a diary.
+	
 
 2007-03-05 R. Steven Rainwtaer <steve@ncc.com>
 
