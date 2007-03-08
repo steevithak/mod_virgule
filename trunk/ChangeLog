@@ -1,3 +1,11 @@
+2007-03-08 R. Steven Rainwtaer <steve@ncc.com>
+
+	* acct_maint.c (acct_newsub_serve): The password field is now a
+	required field on new accounts. The password is no longer allowed to
+	be the same as the username. The email field is now required. Also 
+	removed some old debugging cruft from this function.
+	
+
 2007-03-07 R. Steven Rainwtaer <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Account profile "extra junk" 

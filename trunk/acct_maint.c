@@ -686,6 +686,7 @@ acct_index_serve (VirguleReq *vr)
     }
 }
 
+
 static int
 acct_newsub_serve (VirguleReq *vr)
 {
@@ -693,7 +694,7 @@ acct_newsub_serve (VirguleReq *vr)
   apr_pool_t *p = r->pool;
   Db *db = vr->db;
   apr_table_t *args;
-  const char *u, *pass, *pass2;
+  const char *u, *pass, *pass2, *email;
   char *db_key, *db_key_lc;
   xmlDoc *profile;
   xmlNode *root, *tree;
@@ -715,12 +716,7 @@ acct_newsub_serve (VirguleReq *vr)
   u = apr_table_get (args, "u");
   pass = apr_table_get (args, "pass");
   pass2 = apr_table_get (args, "pass2");
-
-#if 0
-  virgule_buffer_printf (b, "Username: %s\n", u);
-  virgule_buffer_printf (b, "Password: %s\n", pass);
-  virgule_buffer_printf (b, "Password 2: %s\n", pass2);
-#endif
+  email = apr_table_get (args, "email");
 
   if (u == NULL || !u[0])
     return virgule_send_error_page (vr, "Specify a username",
@@ -749,15 +745,28 @@ acct_newsub_serve (VirguleReq *vr)
 			    "The account name <tt>%s</tt> already exists.",
 			    u);
 
+  if (pass == NULL || !pass[0])
+    return virgule_send_error_page (vr, "Specify a password",
+			    "You must specify a password.");
+
   if (pass == NULL || pass2 == NULL)
     return virgule_send_error_page (vr,
 			    "Specify a password",
 			    "You must specify a password and enter it twice.");
 
+  if (!strcmp (pass, u))
+    return virgule_send_error_page (vr,
+			    "Password must be differnet than username",
+			    "The username may not be used as the password.");
+
   if (strcmp (pass, pass2))
     return virgule_send_error_page (vr,
 			    "Passwords must match",
 			    "The passwords must match. Have a cup of coffee and try again.");
+
+  if (email == NULL || !email[0])
+    return virgule_send_error_page (vr, "You must specify a valid email address",
+			    "You must specify a valid email address. The email address is needed for account authentication, and password recovery purposes.");
 
   profile = virgule_db_xml_doc_new (p);
 
