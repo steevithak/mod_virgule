@@ -1361,6 +1361,15 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   xmlChar *mem;
   int size;
 
+  if ((!strcmp (virgule_req_get_tmetric_level (vr, u), 
+      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE))) ||
+      virgule_diary_exists (vr, u) == 0)
+  {
+    vr->r->status = 404;
+    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
+    return virgule_send_error_page (vr, "User RSS feed not found", "No RSS feed is available for this user at this time.");
+  }
+
   doc = xmlNewDoc ((xmlChar *)"1.0");
   vr->r->content_type = "text/xml; charset=UTF-8";
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"rss", NULL);
@@ -1383,13 +1392,21 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
   xmlDocPtr foaf;
   xmlChar *mem;
   int size;
+
+  if (!strcmp (virgule_req_get_tmetric_level (vr, u), 
+      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
+  {
+    vr->r->status = 404;
+    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
+    return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user at this time.");
+  }
       
   foaf = virgule_foaf_person (vr, u);
   if (foaf == NULL)
   {
     vr->r->status = 404;
     vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
-    return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user.");
+    return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user at this time.");
   }
 
   xmlDocDumpFormatMemory (foaf, &mem, &size, 1);
@@ -1446,6 +1463,11 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   return virgule_render_footer_send (vr);
 }
 
+
+/**
+ *  acct_person_serve - dispatches requests specfic to a user's account and
+ *  renders a user profile page.
+ **/
 static int
 acct_person_serve (VirguleReq *vr, const char *path)
 {
@@ -1457,11 +1479,14 @@ acct_person_serve (VirguleReq *vr, const char *path)
   xmlDoc *profile, *staff;
   xmlNode *tree, *lastlogin;
   Buffer *b = vr->b;
-  char *str;
+  char *str, *header;
   char *surname, *givenname;
   char *url;
   char *date = NULL;
+  char *foafhdr = "";
+  char *rsshdr = "";
   char *notes;
+  int diaryused = 0;
   int any;
   int observer = FALSE;
   char *err;
@@ -1506,13 +1531,17 @@ acct_person_serve (VirguleReq *vr, const char *path)
     return acct_flag_as_spam (vr, u);
 
   if (q[1] != '\0')
-    return virgule_send_error_page (vr,
-			    "Extra junk",
-			    "Extra junk after <x>person</x>'s name not allowed.");
+    {
+      vr->r->status = 404;
+      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
+      return virgule_send_error_page (vr, "Page not found", "The request page does not exist.");
+    }
 
   db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
     {
+      vr->r->status = 404;
+      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
       return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
     }
     
@@ -1520,7 +1549,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (profile == NULL)
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup(p, "404 Not Found");
+      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
       return virgule_send_error_page (vr,
 			    "<x>Person</x> not found",
 			    "Account <tt>%s</tt> was not found.", u);
@@ -1536,28 +1565,40 @@ acct_person_serve (VirguleReq *vr, const char *path)
 				
     }
 
+  diaryused = virgule_diary_exists (vr, u);
+  
+  if (!strcmp (virgule_req_get_tmetric_level (vr, u), 
+      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
+    {
+      observer = TRUE;
+    }
+  else
+    {
+      foafhdr  = "<link rel=\"meta\" type=\"application/rdf+xml\" title=\"FOAF\" href=\"foaf.rdf\" />\n";
+      if (diaryused > 0)
+        rsshdr = "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"rss.xml\" />\n";
+    }
+
   str = apr_psprintf (p, "Personal info for %s", u);
-  virgule_render_header (vr, str,
-		"<script language=\"JavaScript\" type=\"text/javascript\">\n"
-		"<!-- \n"
-		"function confirmdel(name)\n"
-		"{\n"
-		"  var rc = confirm(\"Are you sure you want to delete user account: \"+name+\"?\");\n"
-		"  return rc;\n"
-		"}\n"
-		"// -->\n"
-		"</script>\n"
-		"<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"rss.xml\" />\n"
-		"<link rel=\"meta\" type=\"application/rdf+xml\" title=\"FOAF\" href=\"foaf.rdf\" />\n"
-		);
+  header = apr_psprintf (p, 
+	"<script language=\"JavaScript\" type=\"text/javascript\">\n"
+	"<!-- \n"
+	"function confirmdel(name)\n"
+	"{\n"
+	"  var rc = confirm(\"Are you sure you want to delete user account: \"+name+\"?\");\n"
+	"  return rc;\n"
+	"}\n"
+	"// -->\n"
+	"</script>\n%s%s", foafhdr, rsshdr);
+  
+  virgule_render_header (vr, str, header);
 
   if (virgule_user_is_special(vr,vr->u))
     {
       virgule_buffer_printf (b, "<div class=\"adminbox\">Admin Functions <form action=\"/acct/killsub.html\" method=\"POST\" accept-charset=\"UTF-8\" onSubmit=\"return confirmdel('%s');\"><input type=\"hidden\" name=\"u\" value=\"%s\" /><input type=\"submit\" value=\" Delete User \" /></form></div>", u, u);
     }
 
-  if (strcmp (virgule_req_get_tmetric_level (vr, u),
-	       virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
+  if (!observer)
     {
       virgule_render_cert_level_begin (vr, u, CERT_STYLE_SMALL);
       virgule_buffer_printf (b, "This <x>person</x> is currently certified at %s level.\n", virgule_req_get_tmetric_level (vr, u));
@@ -1565,7 +1606,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
     }
   else
     {
-      observer = TRUE;
       if (strcmp (virgule_req_get_tmetric_level (vr, vr->u),
     		  virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) != 0)
         {
@@ -1604,7 +1644,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	
       virgule_buffer_printf (b, "Last Login: %s</p>\n", date);
 
-      virgule_buffer_puts (b, "<p><a href=\"foaf.rdf\"><img src=\"/images/foaf.png\" height=\"20\" width=\"40\" border=\"none\" alt=\"FOAF RDF\" title=\"FOAF RDF\" /></a></p>\n");
+      if (!observer)
+        virgule_buffer_puts (b, "<p><a href=\"foaf.rdf\"><img src=\"/images/foaf.png\" height=\"20\" width=\"40\" border=\"none\" alt=\"FOAF RDF\" title=\"FOAF RDF\" /></a></p>\n");
 
       url = virgule_xml_get_prop (p, tree, (xmlChar *)"url");
       if (url && url[0])
@@ -1664,10 +1705,13 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (first[0] == 0)
     virgule_buffer_puts (b, "</ul>\n");
 
-  virgule_buffer_printf (b, "<h3>Recent blog entries for %s</h3>\n", u);
-  virgule_buffer_printf (b, "<div class=\"feeds\">Syndication: <a href=\"rss.xml\">RSS 2.0</a></div>\n", u);
-
-  virgule_diary_render (vr, u, 5, -1);
+  if(diaryused > 0)
+    {
+      virgule_buffer_printf (b, "<h3>Recent blog entries for %s</h3>\n", u);
+      if(!observer)
+        virgule_buffer_printf (b, "<div class=\"feeds\">Syndication: <a href=\"rss.xml\">RSS 2.0</a></div>\n", u);
+      virgule_diary_render (vr, u, 5, -1);
+    }
 
   /* Browse certifications */
   virgule_buffer_puts (b, "<a name=\"certs\">&nbsp;</a>\n");
