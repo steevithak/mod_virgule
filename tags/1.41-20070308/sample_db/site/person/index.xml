@@ -1,0 +1,7 @@
+<page><title>User List</title>
+
+<p><b>User List:</b></p>
+
+<userlist nmax="30"/>
+
+</page>

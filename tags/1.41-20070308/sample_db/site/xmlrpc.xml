@@ -1,0 +1,67 @@
+<page><title>
+Advogato XML-RPC Interface
+</title>
+
+<p> Advogato now has an <a href="http://www.xmlrpc.com/">XML-RPC</a>
+interface available at the URL <tt>http://www.advogato.org/XMLRPC</tt>.
+To test it, try calling one of the test functions below. If you are
+using <a href="/proj/Python/">Python</a>, for example, try the
+following: </p>
+
+<pre>
+&gt;&gt;&gt; import xmlrpclib
+&gt;&gt;&gt; server = xmlrpclib.Server("http://www.advogato.org/XMLRPC")
+&gt;&gt;&gt; server.test.sumprod(5, 7)
+</pre>
+
+<p> It should return <tt>[12, 35]</tt>. </p>
+
+<h2>Authentication</h2>
+
+<dl>
+  <dt><tt>string cookie = authenticate(string user, string pass)</tt></dt>
+  <dd>Returns a cookie which is used as the first argument to all
+  methods requiring authentication.</dd>
+</dl> 
+
+<h2>Diary manipulation</h2>
+
+<dl>
+  <dt><tt>int length = diary.len(string user)</tt></dt>
+  <dd>Return the number of entries in a diary.</dd>
+
+  <dt><tt>string html = diary.get(string user, int index)</tt></dt>
+  <dd>Return a diary entry. The index is zero-based, so if
+  <tt>diary.len()</tt> returns 2 then valid indices are 0 and 1.</dd>
+
+  <dt><tt>date created, date updated = diary.getDates(string user, int index)</tt></dt>
+  <dd>Return the creation and last updated dates of a diary entry. If
+  the entry has not been updated then the updated date will be the
+  same as the creation date.</dd>
+
+  <dt><tt>diary.set(string cookie, int index, string html)</tt></dt>
+  <dd>Set a diary entry. Use -1 as the index to post a new entry,
+  although the value returned by <tt>diary.len()</tt> is also
+  acceptable.</dd>
+</dl>
+
+<h2>Test functions</h2>
+
+<dl>
+  <dt><tt>string s, int i = test.guess()</tt></dt>
+  <dd>Guess a number</dd>
+
+  <dt><tt>int result = test.square(int x)</tt></dt>
+  <dd>Square a number</dd>
+
+  <dt><tt>int sum, int product = test.sumprod(int x, int y)</tt></dt>
+  <dd>Return the sum and product of a pair of numbers</dd>
+
+  <dt><tt>int len = test.strlen(string s)</tt></dt>
+  <dd>Return the length of a string</dd>
+
+  <dt><tt>string s = test.capitalize(string s)</tt></dt>
+  <dd>Capitalize a string</dd>
+</dl>
+
+</page>
