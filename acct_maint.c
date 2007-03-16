@@ -694,7 +694,7 @@ acct_newsub_serve (VirguleReq *vr)
   apr_pool_t *p = r->pool;
   Db *db = vr->db;
   apr_table_t *args;
-  const char *u, *pass, *pass2, *email;
+  const char *u, *pass, *pass2, *email, *subcode;
   char *db_key, *db_key_lc;
   xmlDoc *profile;
   xmlNode *root, *tree;
@@ -717,6 +717,11 @@ acct_newsub_serve (VirguleReq *vr)
   pass = apr_table_get (args, "pass");
   pass2 = apr_table_get (args, "pass2");
   email = apr_table_get (args, "email");
+  subcode = apr_table_get (args, "subcode");
+
+  if (subcode != NULL && subcode[0]) 
+    return virgule_send_error_page (vr, "Error",
+			    "Submission from a banned user agent or IP address.");
 
   if (u == NULL || !u[0])
     return virgule_send_error_page (vr, "Specify a username",

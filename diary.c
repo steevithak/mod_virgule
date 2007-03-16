@@ -172,16 +172,8 @@ virgule_diary_exists (VirguleReq *vr, const char *u)
     if (dbc == NULL)
       return 0;
 
-//    key = virgule_db_read_dir (dbc);
-//    if (key == NULL)
-//      return 0;
-
     virgule_db_close_dir (dbc);
     return 1;
-
-//  char *diary;
-//  diary = apr_psprintf (vr->r->pool, "acct/%s/diary", u);
-//  return virgule_db_dir_max (vr->db, diary);
 }
 
 
@@ -313,10 +305,12 @@ diary_preview_serve (VirguleReq *vr)
 int
 virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
 {
+  char *content = NULL;
   const char *date = virgule_time_t_to_iso (vr,-1);
   const char *diary, *key;
   xmlDoc *entry_doc;
   xmlNode *root, *tree;
+  xmlOutputBuffer *xbuf;
   
   diary = apr_psprintf (vr->r->pool, "acct/%s/diary", (char *)user);
   key = apr_psprintf (vr->r->pool, "%s/_%d", 
@@ -324,9 +318,22 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
   
   entry_doc = virgule_db_xml_doc_new (vr->r->pool);
   root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
-  xmlAddChild (root, xmlNewDocText (entry_doc, virgule_xml_get_string_contents(item->content)));
-  entry_doc->xmlRootNode = root;
 
+  /* use text node content directly */
+  content = virgule_xml_get_string_contents (item->content);
+  /* if not a text node, content is a tree, dump it to text */
+  if (content == NULL)
+    {
+      xbuf = xmlAllocOutputBuffer (NULL);
+      if (xbuf != NULL)
+        {
+	  xmlNodeDumpOutput (xbuf, NULL, item->content, 0, 0, NULL);
+	  content = (char *) xbuf->buffer->content;
+        }
+    }
+
+  xmlAddChild (root, xmlNewDocText (entry_doc, content));
+  entry_doc->xmlRootNode = root;
   tree = xmlNewChild (root, NULL, "date", date);
   tree = xmlNewTextChild (root, NULL, "title", virgule_xml_get_string_contents(item->title));
   if(item->id)
@@ -398,11 +405,13 @@ find_entry_by_feedposttime (VirguleReq *vr, xmlChar *user, time_t posttime)
 int
 virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, int e)
 {
+  char *content = NULL;
   char *key = NULL;
   char *feedupdatetime = NULL;
   time_t utime;
   xmlNode *root, *tmpNode;
   xmlDoc *entry;
+  xmlOutputBuffer *xbuf;
 
   if (user == NULL || item == NULL)
     return 0;
@@ -429,8 +438,22 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, i
     }
 
   /* update the entry */
-  virgule_xml_del_string_contents(root);
-  xmlNodeAddContent (root, virgule_xml_get_string_contents(item->content));
+  virgule_xml_del_string_contents (root);
+
+  /* use text node content directly */
+  content = virgule_xml_get_string_contents (item->content);
+  /* if not a text node, content is a tree, dump it to text */
+  if (content == NULL)
+    {
+      xbuf = xmlAllocOutputBuffer (NULL);
+      if (xbuf != NULL)
+        {
+	  xmlNodeDumpOutput (xbuf, NULL, item->content, 0, 0, NULL);
+	  content = (char *) xbuf->buffer->content;
+        }
+    }
+
+  xmlNodeAddContent (root, content);  
   tmpNode = virgule_xml_ensure_child (root, "title");
   xmlNodeSetContent (tmpNode, virgule_xml_get_string_contents(item->title));  
   tmpNode = virgule_xml_ensure_child (root, "feedupdatetime");
