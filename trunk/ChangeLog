@@ -1,3 +1,11 @@
+2007-03-15 R. Steven Rainwtaer <steve@ncc.com>
+
+	* diary.c (virgule_diary_[store|update]_feed_item): These functions
+	are now able to deal with feed formats that carry the blog content
+	as unescaped XML trees. At least one Blogger ATOM feed uses this
+	method. 
+
+
 2007-03-08 R. Steven Rainwtaer <steve@ncc.com>
 
 	* acct_maint.c (acct_newsub_serve): The password field is now a
