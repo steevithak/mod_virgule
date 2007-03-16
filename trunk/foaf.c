@@ -41,6 +41,7 @@
 #include "db_ops.h"
 #include "hashtable.h"
 #include "acct_maint.h"
+#include "util.h"
 #include "foaf.h"
 
 
@@ -54,7 +55,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   apr_pool_t *p = vr->r->pool;
   xmlDocPtr foaf, profile, staff;
   xmlNodePtr tree, ptree, tmpnode;
-  char *db_key, *name, *url, *label;
+  char *db_key, *name, *url, *label, *email, *emailsha1;
 
   db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
@@ -76,6 +77,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   name = apr_pstrcat (p,
 	       virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname"), " ",
 	       virgule_xml_get_prop (p, ptree, (xmlChar *)"surname"), NULL);
+	       
 
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:PersonalProfileDocument", NULL);
   xmlSetProp (tree, (xmlChar *)"rdf:about", NULL);
@@ -89,7 +91,14 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Person", NULL);
   xmlSetProp (tree, (xmlChar *)"rdf:about", "#me");
   xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:name", (xmlChar *)name);
-  xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:nick", (xmlChar *)u);    
+  xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:nick", (xmlChar *)u);
+
+  email = virgule_xml_get_prop (p, ptree, (xmlChar *)"email");
+  if (email != NULL)
+    {
+      emailsha1 = virgule_sha1 (p, apr_psprintf (p, "mailto:%s", email));
+      xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:mbox_sha1sum", (xmlChar *)emailsha1);
+    }
 
   url = virgule_xml_get_prop (p, ptree, (xmlChar *)"url");
   if (url == NULL)

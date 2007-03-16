@@ -156,6 +156,10 @@ info_page (VirguleReq *vr)
   virgule_buffer_printf (b, "<p>mod_virgule version: <b>%s</b>", VIRGULE_VERSION);
   virgule_buffer_printf (b, "<p>Timestamp of loaded configuration: <b>%s</b></p>\n", tm);
   virgule_buffer_printf (b, "<p>Site name (vr->priv_site_name): <b>%s</b></p>\n", vr->priv->site_name);
+  virgule_buffer_printf (b, "<p>Admin email: <b>%s</b></p>\n", vr->priv->admin_email);
+  virgule_buffer_printf (b, "<p>FOAF SHA-1 Test. Input [mailto:%s] Output [%s]</p>\n",
+         vr->priv->admin_email,
+	 virgule_sha1 (vr->r->pool, apr_psprintf (vr->r->pool, "mailto:%s", vr->priv->admin_email)));
   virgule_buffer_printf (b, "<p>Unparsed uri (r->unparse_uri): <b>%s</b></p>\n", r->unparsed_uri);
   virgule_buffer_printf (b, "<p>uri (r->uri): <b>%s</b></p>\n", r->uri);
   virgule_buffer_printf (b, "<p>adjusted uri (vr->uri): <b>%s</b></p>\n",vr->uri);

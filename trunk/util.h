@@ -68,3 +68,5 @@ virgule_escape_html_attr (apr_pool_t *p, const char *raw);
 int
 virgule_is_input_valid(const char *val);
 
+char *
+virgule_sha1(apr_pool_t *p, const char *input);

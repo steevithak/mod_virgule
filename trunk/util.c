@@ -5,6 +5,7 @@
 #include <apr_strings.h>
 #include <apr_file_io.h>
 #include <apr_date.h>
+#include <apr_sha1.h>
 #include <httpd.h>
 
 #include <libxml/entities.h>
@@ -1349,3 +1350,28 @@ return TRUE;
   return TRUE;
 }
 
+
+/**
+ * virgule_sha1 - return an SHA-1 hash of the input data in the form of
+ * a string of 20 hexadecimal values (40 characters)
+ */
+char *
+virgule_sha1(apr_pool_t *p, const char *input)
+{
+  int i;
+  apr_sha1_ctx_t context;
+  apr_byte_t digest[APR_SHA1_DIGESTSIZE];
+  char *result = apr_pcalloc (p, 2 * APR_SHA1_DIGESTSIZE + 1);
+
+  if(input == NULL)
+    return NULL;
+
+  apr_sha1_init (&context);
+  apr_sha1_update (&context, input, strlen(input));
+  apr_sha1_final (digest, &context);
+  
+  for (i = 0; i < APR_SHA1_DIGESTSIZE; i++)
+    sprintf (result + (i*2), "%02x", digest[i]);
+
+  return result;
+}
