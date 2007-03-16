@@ -1,12 +1,20 @@
-2007-03-15 R. Steven Rainwtaer <steve@ncc.com>
+2007-03-15 R. Steven Rainwater <steve@ncc.com>
 
 	* diary.c (virgule_diary_[store|update]_feed_item): These functions
 	are now able to deal with feed formats that carry the blog content
 	as unescaped XML trees. At least one Blogger ATOM feed uses this
 	method. 
 
+	* util.c (virgule_sha1): Return an SHA-1 hash as a string. Accepts
+	input strings of arbitrary length. Based on the Apache APR SHA-1
+	implementation.
 
-2007-03-08 R. Steven Rainwtaer <steve@ncc.com>
+	* mod_virgule.c (info_page): Added admin email and FOAF SHA-1 test.
+
+	* foaf.c (virgule_foaf_person): Added support for foaf:mbox_sha1sum
+	field (an SHA-1 hash string of the user's email address).
+
+2007-03-08 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_newsub_serve): The password field is now a
 	required field on new accounts. The password is no longer allowed to
@@ -14,7 +22,7 @@
 	removed some old debugging cruft from this function.
 	
 
-2007-03-07 R. Steven Rainwtaer <steve@ncc.com>
+2007-03-07 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Account profile "extra junk" 
 	error was replaced with a conventional 404 error. 
@@ -40,7 +48,7 @@
 	there are any posts in a diary.
 	
 
-2007-03-05 R. Steven Rainwtaer <steve@ncc.com>
+2007-03-05 R. Steven Rainwater <steve@ncc.com>
 
 	* article.c (article_submit_serve): Duplicate article rejection no
 	longer triggers on article edits of the most recently posted article.
