@@ -1,3 +1,10 @@
+2007-03-19 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_diary_serve): Blog pages are now rendered
+	from a template (/site/person/diary.xml) instead of hard-coded HTML.
+	A sample diary.xml template was also added to the sample XML DB.
+	
+
 2007-03-15 R. Steven Rainwater <steve@ncc.com>
 
 	* diary.c (virgule_diary_[store|update]_feed_item): These functions

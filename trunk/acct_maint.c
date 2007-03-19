@@ -31,6 +31,7 @@
 #include "hashtable.h"
 #include "eigen.h"
 #include "diary.h"
+#include "site.h"
 #include "foaf.h"
 #include "acct_maint.h"
 
@@ -1341,27 +1342,6 @@ acct_person_graph_serve (VirguleReq *vr)
   return virgule_send_response (vr);
 }
 
-/*
-static int
-acct_person_diary_xml_serve (VirguleReq *vr, char *u)
-{
-  Buffer *b = vr->b;
-  xmlDocPtr doc;
-  xmlChar *mem;
-  int size;
-
-  doc = xmlNewDoc ((xmlChar *)"1.0");
-
-  doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"tdif", NULL);
-  virgule_diary_export (vr, doc->xmlRootNode, u);
-
-  xmlDocDumpFormatMemory (doc, &mem, &size, 1);
-  virgule_buffer_write (b, (char *)mem, size);
-  xmlFree (mem);
-  xmlFreeDoc (doc);
-  return virgule_send_response (vr);
-}
-*/
 
 /*
  * RSR notes - Some of this code should be moved to virgule_diary_rss_export
@@ -1435,9 +1415,12 @@ static int
 acct_person_diary_serve (VirguleReq *vr, char *u)
 {
   xmlDoc *profile;
+  xmlDoc *tdoc;
+  xmlNode *troot;
   apr_pool_t *p = vr->r->pool;
   Buffer *b = vr->b;
-  char *str;
+  Buffer *ibuf = NULL;
+  char *str, *istr;
   char *db_key;
   apr_table_t *args;
   int start;
@@ -1462,19 +1445,48 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   else
     start = atoi (apr_table_get (args, "start"));
 
+  /* create a new buffer */
+  ibuf = virgule_buffer_new (p);
+  if (ibuf == NULL)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+
+  /* initialize buffer translations */
+  virgule_buffer_set_translations (ibuf, vr->priv->trans);
+
+  /* set request buffer pointer to the new buffer */
+  vr->b = ibuf;
+
+  /* render the diary entries to the new buffer */
   str = apr_psprintf (p, "Blog for %s", u);
 
-  virgule_render_header (vr, str, NULL);
+//  virgule_render_header (vr, str, NULL);
   if (start == -1)
-    virgule_buffer_printf (b, "<p> Recent blog entries for <a href=\"%s/person/%s/\">%s</a>: </p>\n",
+    virgule_buffer_printf (vr->b, "<h1>Recent blog entries for <a href=\"%s/person/%s/\">%s</a></h1>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u);
   else
-    virgule_buffer_printf (b, "<p> Older blog entries for <a href=\"%s/person/%s/\">%s</a> (starting at number %d): </p>\n",
+    virgule_buffer_printf (vr->b, "<h1>Older blog entries for <a href=\"%s/person/%s/\">%s</a> (starting at number %d)</h1>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u, start);
 
   virgule_diary_render (vr, u, 10, start);
 
-  return virgule_render_footer_send (vr);
+  /* set request buffer pointer back to main buffer */
+  vr->b = b;
+
+  /* extract render article from the new buffer as a string */
+  istr = virgule_buffer_extract (ibuf);
+  if (istr == NULL)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "Buffer extraction failed");
+
+  /* read in the diary template */
+  tdoc = virgule_db_xml_get (p, vr->db, "/site/person/diary.xml");
+  if (tdoc == NULL)
+    return virgule_send_error_page (vr, "<x>Diary</x> template not found", "<xDiary</x> template not found");
+
+  troot = tdoc->xmlRootNode;
+
+  return virgule_site_render_page (vr, troot, "diary", istr, str);
+
+//  return virgule_render_footer_send (vr);
 }
 
 
@@ -1527,13 +1539,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
 
-  if (!strcmp (q + 1, "diary.xml"))
-    {
-/*    return acct_person_diary_xml_serve (vr, u); */
-      vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
-      return virgule_send_error_page (vr, "Function deprecated", "This function has been deprecated. Please use the XML-RPC interface instead.");
-    }
+//  if (!strcmp (q + 1, "diary.xml"))
+//    {
+//      vr->r->status = 404;
+//      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
+//      return virgule_send_error_page (vr, "Function deprecated", "This function has been deprecated. Please use the XML-RPC interface instead.");
+//    }
     
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);
