@@ -1434,9 +1434,7 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
     {
       vr->r->status = 404;
       vr->r->status_line = apr_pstrdup(p, "404 Not Found");
-      return virgule_send_error_page (vr,
-			    "<x>Person</x> not found",
-			    "Account <tt>%s</tt> was not found.", u);
+      return virgule_send_error_page (vr, "<x>Person</x> not found","Account <tt>%s</tt> was not found.", u);
     }
 
   args = virgule_get_args_table (vr);
@@ -1444,6 +1442,13 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
     start = -1;
   else
     start = atoi (apr_table_get (args, "start"));
+
+  if (virgule_diary_exists (vr, u) == 0)
+  {
+    vr->r->status = 404;
+    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
+    return virgule_send_error_page (vr, "Blog not found", "No blog entries exist for this user.");
+  }
 
   /* create a new buffer */
   ibuf = virgule_buffer_new (p);
@@ -1459,7 +1464,6 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   /* render the diary entries to the new buffer */
   str = apr_psprintf (p, "Blog for %s", u);
 
-//  virgule_render_header (vr, str, NULL);
   if (start == -1)
     virgule_buffer_printf (vr->b, "<h1>Recent blog entries for <a href=\"%s/person/%s/\">%s</a></h1>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u);
@@ -1485,8 +1489,6 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   troot = tdoc->xmlRootNode;
 
   return virgule_site_render_page (vr, troot, "diary", istr, str);
-
-//  return virgule_render_footer_send (vr);
 }
 
 
