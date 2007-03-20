@@ -374,13 +374,14 @@ article_generic_submit_serve (VirguleReq *vr,
   char *nice_lead;
   char *nice_body;
 
-  virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user (vr);
   if (vr->u == NULL)
     return virgule_send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
 
   if (!virgule_req_ok_to_reply (vr))
     return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
+
+  virgule_db_lock_upgrade(vr->lock);
 
   date = virgule_iso_now (p);
 
@@ -392,8 +393,8 @@ article_generic_submit_serve (VirguleReq *vr,
     return virgule_send_error_page (vr, "Need body", "Your reply needs a body. Go back and try again.");
 
   nice_title = virgule_nice_text (p, title);
-  nice_lead = lead == NULL ? NULL : virgule_nice_htext (vr, lead, &lead_error);
-  nice_body = body == NULL ? NULL : virgule_nice_htext (vr, body, &body_error);
+  nice_lead = lead == NULL ? "" : virgule_nice_htext (vr, lead, &lead_error);
+  nice_body = body == NULL ? "" : virgule_nice_htext (vr, body, &body_error);
 
   args = virgule_get_args_table (vr);
   if(olddate != NULL)
@@ -434,14 +435,12 @@ article_generic_submit_serve (VirguleReq *vr,
       else if (!strcmp (submit_type, "article"))
 	{
 	  virgule_render_header (vr, "<x>Article</x> preview", NULL);
-
 	  if(vr->priv->use_article_topics)
 	    {
 	      virgule_buffer_puts (b, "<table><tr><td>");
               article_render_topic (vr, (char *)topic);
               virgule_buffer_puts (b, "</td><td>");
 	    }
-
           virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_LARGE);
           virgule_buffer_printf (b, "<span class=\"article-title\">%s</span>",nice_title);
           virgule_render_cert_level_end (vr, CERT_STYLE_LARGE);
@@ -472,7 +471,6 @@ article_generic_submit_serve (VirguleReq *vr,
 	      virgule_buffer_puts (b, " </select></p>\n");
 	    }
 
-
 	  virgule_buffer_printf (b,
 			 "<p><b><x>Article</x> title</b>:<br>\n"
 			 "<input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"%i\"></p>\n"
@@ -501,7 +499,7 @@ article_generic_submit_serve (VirguleReq *vr,
 			 "<p><input type=\"submit\" name=post value=\"Post\">\n"
 			 "<input type=\"submit\" name=preview value=\"Preview\">\n"
 			 "</form>\n",
-			 ap_escape_html (p, body));
+			 ap_escape_html (p, (body ? body : "")));
 	  if (body_error != NULL)
 	    virgule_buffer_printf (b, "<p><b>Warning:</b> %s </p>\n", body_error);
 
@@ -656,7 +654,7 @@ article_edit_serve (VirguleReq *vr)
   xmlDocPtr doc;
   xmlNodePtr root;
 
-  /* user must be logged */
+  /* user must be logged in */
   virgule_auth_user (vr);
   if (vr->u == NULL)
     return virgule_send_error_page (vr, "Not logged in", "You must be logged in to edit an <x>article</x>.");
@@ -691,7 +689,7 @@ article_edit_serve (VirguleReq *vr)
   title = virgule_xml_find_child_string (root, "title", NULL);
   lead = virgule_xml_find_child_string (root, "lead", NULL);
   body = virgule_xml_find_child_string (root, "body", NULL);
- 
+
   /* load the editor in preview mode */
   return article_generic_submit_serve (vr, topic, title, lead, body, date, 
                                        art_num_str,
