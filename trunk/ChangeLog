@@ -1,3 +1,11 @@
+2007-03-21 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule.c (info_page): Added a lot of additional diagnostic
+	info from the Apache thread private record structure. Also moved all
+	the diagnostic info into a nicely formatted table that's a lot easier
+	to read.
+
+
 2007-03-19 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_diary_serve): Blog pages are now rendered

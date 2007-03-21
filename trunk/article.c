@@ -77,7 +77,7 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
 
       virgule_render_cert_level_begin (vr, author, CERT_STYLE_MEDIUM);
       virgule_buffer_printf (b, "<a name=\"%u\"><b>%s</b></a>, posted %s by <a href=\"%s/person/%s/\">%s</a> <a href=\"#%u\" style=\"text-decoration: none\">&raquo;</a>\n",
-		     reply_num, title, virgule_render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author, reply_num);		     
+		     reply_num, title, virgule_render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author, reply_num);
       virgule_render_cert_level_text (vr, author);
       virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
       virgule_buffer_printf (b, "<blockquote>\n%s\n</blockquote>\n", body);

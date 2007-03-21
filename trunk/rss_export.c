@@ -29,9 +29,6 @@
 
 #include "rss_export.h"
 
-//#define RSS_091	1
-//#define RSS_20	2
-
 /* Set the #ifs to 0 to turn off the HREF stipping actions */
 static void
 rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
@@ -118,15 +115,9 @@ rss_index_serve (VirguleReq *vr)
 
   doc = xmlNewDoc ("1.0");
   vr->r->content_type = "text/xml; charset=UTF-8";
-//  xmlCreateIntSubset (doc, "rss",
-//		      "-//Netscape Communications//DTD RSS 0.91//EN",
-//		      "http://my.netscape.com/publish/formats/rss-0.91.dtd");
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
 
-//  if(vers == RSS_091)
-//    xmlSetProp (doc->xmlRootNode, "version", "0.91");
-//  else
-    xmlSetProp (doc->xmlRootNode, "version", "2.0");
+  xmlSetProp (doc->xmlRootNode, "version", "2.0");
   
   tree = xmlNewChild (doc->xmlRootNode, NULL, "channel", NULL);
   subtree = xmlNewChild (tree, NULL, "title", vr->priv->site_name);
@@ -165,10 +156,6 @@ virgule_rss_serve (VirguleReq *vr)
 
    if (!strcmp (p, "articles.xml") || !strcmp (p, "articles-2.0.xml"))
      return rss_index_serve (vr);
-//     return rss_index_serve (vr, RSS_091);
-
-//   if (!strcmp (p, "articles-2.0.xml"))
-//     return rss_index_serve (vr, RSS_20);
 
    return DECLINED;
 }
