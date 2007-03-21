@@ -147,127 +147,137 @@ info_page (VirguleReq *vr)
   r->content_type = "text/html; charset=UTF-8";
 
   virgule_buffer_puts(b, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
-	      "<html>\n<head><title>\n"
-	      "mod_virgule diagnostics page\n"
-	      "</title></head>\n"
-	      "<body bgcolor=white>");
-  virgule_buffer_puts (b, "<h1>mod_virgule diagnostics</h1>\n");
+	      "<html>\n<head><title>mod_virgule diagnostics page</title>\n"
+	      "<style type=\"text/css\">\n"
+	      "  #diag td { border: 1px solid black; background: #ddeeff; }\n"
+	      "  #diag td+td { background: #ffffff; }\n"
+	      "</style>\n</head>\n<body bgcolor=white>");
+  virgule_buffer_puts (b, "<h1>mod_virgule diagnostics</h1>\n<table id=\"diag\">\n");
   apr_ctime(tm,vr->priv->mtime);
-  virgule_buffer_printf (b, "<p>mod_virgule version: <b>%s</b>", VIRGULE_VERSION);
-  virgule_buffer_printf (b, "<p>Timestamp of loaded configuration: <b>%s</b></p>\n", tm);
-  virgule_buffer_printf (b, "<p>Site name (vr->priv_site_name): <b>%s</b></p>\n", vr->priv->site_name);
-  virgule_buffer_printf (b, "<p>Admin email: <b>%s</b></p>\n", vr->priv->admin_email);
-  virgule_buffer_printf (b, "<p>FOAF SHA-1 Test. Input [mailto:%s] Output [%s]</p>\n",
+  virgule_buffer_printf (b, "<tr><td>mod_virgule version</td><td>%s</td></tr>", VIRGULE_VERSION);
+  virgule_buffer_printf (b, "<tr><td>Timestamp of loaded configuration</td><td>%s</td></tr>\n", tm);
+  virgule_buffer_printf (b, "<tr><td>Site name (vr->priv->site_name)</td><td>%s</td></tr>\n", vr->priv->site_name);
+  virgule_buffer_printf (b, "<tr><td>Admin email</td><td>%s</td></tr>\n", vr->priv->admin_email);
+  virgule_buffer_printf (b, "<tr><td>FOAF SHA-1 Test</td><td>Input [mailto:%s] Output [%s]</td></tr>\n",
          vr->priv->admin_email,
 	 virgule_sha1 (vr->r->pool, apr_psprintf (vr->r->pool, "mailto:%s", vr->priv->admin_email)));
-  virgule_buffer_printf (b, "<p>Unparsed uri (r->unparse_uri): <b>%s</b></p>\n", r->unparsed_uri);
-  virgule_buffer_printf (b, "<p>uri (r->uri): <b>%s</b></p>\n", r->uri);
-  virgule_buffer_printf (b, "<p>adjusted uri (vr->uri): <b>%s</b></p>\n",vr->uri);
-  virgule_buffer_printf (b, "<p>base_uri (vr->priv->base_uri) is: <b>%s</b></p>\n",vr->priv->base_uri);
-  virgule_buffer_printf (b, "<p>base_path (vr->priv->base_path) is: <b>%s</b></p>\n",vr->priv->base_path);
-  virgule_buffer_printf (b, "<p>filename (r->filename): <b>%s</b></p>\n", r->filename);
-  virgule_buffer_printf (b, "<p>path_info (r->path_info): <b>%s</b></p>\n", r->path_info);
-  virgule_buffer_printf (b, "<p>document root (ap_document_root()): <b>%s</b></p>\n", ap_document_root (r));
-  virgule_buffer_printf (b, "<p>Request protocol (r->protocol): <b>%s</b></p>\n", r->protocol);
-  virgule_buffer_printf (b, "<p>Request hostname (r->hostname): <b>%s</b></p>\n", r->hostname);
-  virgule_buffer_printf (b, "<p>Request handler (r->handler): <b>%s</b></p>\n", r->handler);
-  virgule_buffer_printf (b, "<p>Apache thread ID (apr_os_thread_current()): <b>%lu</b></p>\n", apr_os_thread_current());
+  virgule_buffer_printf (b, "<tr><td>Unparsed uri (r->unparse_uri)</td><td>%s</td></tr>\n", r->unparsed_uri);
+  virgule_buffer_printf (b, "<tr><td>uri (r->uri)</td><td>%s</td></tr>\n", r->uri);
+  virgule_buffer_printf (b, "<tr><td>adjusted uri (vr->uri)</td><td>%s</td></tr>\n",vr->uri);
+  virgule_buffer_printf (b, "<tr><td>base_uri (vr->priv->base_uri)</td><td>%s</td></tr>\n",vr->priv->base_uri);
+  virgule_buffer_printf (b, "<tr><td>base_path (vr->priv->base_path)</td><td>%s</td></tr>\n",vr->priv->base_path);
+  virgule_buffer_printf (b, "<tr><td>path prefix (vr->prefix)</td><td>%s</td></tr>", vr->prefix);
+  virgule_buffer_printf (b, "<tr><td>filename (r->filename)</td><td>%s</td></tr>\n", r->filename);
+  virgule_buffer_printf (b, "<tr><td>path_info (r->path_info)</td><td>%s</td></tr>\n", r->path_info);
+  virgule_buffer_printf (b, "<tr><td>document root (ap_document_root())</td><td>%s</td></tr>\n", ap_document_root (r));
+  virgule_buffer_printf (b, "<tr><td>Request protocol (r->protocol)</td><td>%s</td></tr>\n", r->protocol);
+  virgule_buffer_printf (b, "<tr><td>Request hostname (r->hostname)</td><td>%s</td></tr>\n", r->hostname);
+  virgule_buffer_printf (b, "<tr><td>Request handler (r->handler)</td><td>%s</td></tr>\n", r->handler);
+  virgule_buffer_printf (b, "<tr><td>Apache thread ID (apr_os_thread_current())</td><td>%lu</td></tr>\n", apr_os_thread_current());
   if (cfg)
-    virgule_buffer_printf (b, "<p>Configured virgule DB: <b>"
-                           "[cfg->db=\"%s\"] [cfg->dir=\"%s\"]</b></p>\n",
+    virgule_buffer_printf (b, "<tr><td>Configured virgule DB</td><td>"
+                           "[cfg->db=\"%s\"] [cfg->dir=\"%s\"]</td></tr>\n",
 			   cfg->db, cfg->dir);
 
   /* Dump pass-through directory names read from httpd.conf */
-  virgule_buffer_puts (b, "<p>Configured Pass-through Directories:\n<ul>\n");
+  virgule_buffer_puts (b, "<tr><td>Configured Pass-through Directories:</td><td><ul>");
   if (cfg->pass_dirs)
     {
       for ( i = 0; i < cfg->pass_dirs->nelts; i++ )
         virgule_buffer_printf (b, "<li><b>%s</b></li>", ((char **)cfg->pass_dirs->elts)[i]);
-      virgule_buffer_puts (b, "</ul></p>");
+      virgule_buffer_puts (b, "</ul></td></tr>\n");
     }
   else 
     {
-      virgule_buffer_puts (b, "<li><b>None</b></li></ul></p>");
+      virgule_buffer_puts (b, "<li><b>None</b></li></ul></td></tr>");
     }
 
   args = vr->args;
   if (args)
-    virgule_buffer_printf (b, "<p>URL args: <b>%s</b></p>\n", args);
+    virgule_buffer_printf (b, "<tr><td>URL args</td><td>%s</td></tr>\n", args);
 
   virgule_auth_user (vr);
   if (vr->u)
-    virgule_buffer_printf (b, "<p>Authenticated user: <b>[%s]</b></p>\n", vr->u);
+    virgule_buffer_printf (b, "<tr><td>Authenticated user</td><td>[%s]</td></tr>\n", vr->u);
   
-  virgule_buffer_puts (b, "<p>Headers in:</p>\n<blockquote>");
-  apr_table_do (header_trace, b, r->headers_in, NULL);
-  
-  virgule_buffer_puts (b, "</blockquote>\n<p>Headers out:</p>\n<blockquote>");
+  virgule_buffer_puts (b, "<tr><td>Headers in</td><td>");
+  apr_table_do (header_trace, b, r->headers_in, NULL);  
+  virgule_buffer_puts (b, "</td></tr>\n<tr><td>Headers out</td><td>");
   apr_table_do (header_trace, b, r->headers_out, NULL);
-  virgule_buffer_puts (b, "</blockquote>");
+  virgule_buffer_puts (b, "</td></tr>");
   
   if(virgule_db_lock_upgrade (vr->lock) != -1)
-    virgule_buffer_puts (b, "<p>Lock upgrade: Upgrade test succeeded</p>");
+    virgule_buffer_puts (b, "<tr><td>Lock upgrade test</td><td>Upgrade succeeded</td></tr>");
   else
-    virgule_buffer_puts (b, "<p>Lock upgrade: Upgrade test failed</p>");
+    virgule_buffer_puts (b, "<tr><td>Lock upgrade test</td><td>Upgrade failed</td></tr>");
 	   
   if (*vr->priv->cert_level_names)
     {
       const char **l;
 
-      virgule_buffer_puts (b, "<p>Certification levels:</p>\n<ol>");
+      virgule_buffer_puts (b, "<tr><td>Certification levels</td><td><ol>");
       for (l = vr->priv->cert_level_names; *l; l++)
-	virgule_buffer_printf (b, "<li><b>%s</b></li>\n", *l);
-      virgule_buffer_puts (b, "</ol>\n");
+	virgule_buffer_printf (b, "<li>%s</li>\n", *l);
+      virgule_buffer_puts (b, "</ol></td></tr>\n");
     }
 
   if (*vr->priv->seeds)
     {
       const char **s;
 
-      virgule_buffer_puts (b, "<p>Trust metric seeds:</p>\n<ul>");
+      virgule_buffer_puts (b, "<tr><td>Trust metric seeds</td><td><ul>");
       for (s = vr->priv->seeds; *s; s++)
-	virgule_buffer_printf (b, "<li><b>%s</b></li>\n", *s);
-      virgule_buffer_puts (b, "</ul>\n");
+	virgule_buffer_printf (b, "<li>%s</li>\n", *s);
+      virgule_buffer_puts (b, "</ul></td></tr>\n");
     }
 
   if (*vr->priv->caps)
     {
       const int *c;
 
-      virgule_buffer_puts (b, "<p>Trust flow capacities:</p>\n<ol>");
+      virgule_buffer_puts (b, "<tr><td>Trust flow capacities</td><td><ol>");
       for (c = vr->priv->caps; *c; c++)
-	virgule_buffer_printf (b, "<li><b>%d</b></li>\n", *c);
-      virgule_buffer_puts (b, "</ol>\n");
+	virgule_buffer_printf (b, "<li>%d</li>\n", *c);
+      virgule_buffer_puts (b, "</ol></td></tr>\n");
     }
 
   if (*vr->priv->special_users)
     {
       const char **u;
 
-      virgule_buffer_puts (b, "<p>Special (admin) users:</p>\n<ul>");
+      virgule_buffer_puts (b, "<tr><td>Special (admin) users</td><td><ul>");
       for (u = vr->priv->special_users; *u; u++)
-	virgule_buffer_printf (b, "<li><b>%s</b></li>\n", *u);
-      virgule_buffer_puts (b, "</ul>\n");
+	virgule_buffer_printf (b, "<li>%s</li>\n", *u);
+      virgule_buffer_puts (b, "</ul></td></tr>\n");
     }
 
   if (vr->priv->render_diaryratings)
-    virgule_buffer_puts (b, "<p>Diary rating: <b>On</b></p>\n");
+    virgule_buffer_puts (b, "<tr><td>Diary rating</td><td>On</td></tr>\n");
   else
-    virgule_buffer_puts (b, "<p>Diary rating: <b>Off</b></p>\n");
+    virgule_buffer_puts (b, "<tr><td>Diary rating</td><td>Off</td></tr>\n");
 
-  virgule_buffer_printf (b, "<p>Recentlog style: <b>%s</b></p>\n",
+  virgule_buffer_printf (b, "<tr><td>Recentlog style</td><td>%s</td></tr>\n",
 		 vr->priv->recentlog_as_posted ? "As Posted" : "Unique");
 
-  virgule_buffer_printf (b, "<p>Account creation: <b>%s</b></p>\n",
+  virgule_buffer_printf (b, "<tr><td>Account creation</td><td>%s</td></tr>\n",
 		 vr->priv->allow_account_creation ? "allowed" : "not allowed");
 
-  virgule_buffer_printf (b, "<p>Article Topics (categories): <b>%s</b></p>\n",
+  virgule_buffer_printf (b, "<tr><td>Account spam threshold</td><td>%i points</td></tr>\n", 
+                 vr->priv->acct_spam_threshold);
+
+  virgule_buffer_printf (b, "<tr><td>Article Topics (categories)</td><td>%s</td></tr>\n",
 		 vr->priv->use_article_topics ? "on" : "off");
 
-  virgule_buffer_printf (b, "<p>Maximum article title length: <b>%i</b></p>\n", 
+  virgule_buffer_printf (b, "<tr><td>Article title links</td><td>%s</td></tr>\n",
+		 vr->priv->use_article_title_links ? "on" : "off");
+
+  virgule_buffer_printf (b, "<tr><td>Article title maximum length</td><td>%i chars</td></tr>\n", 
                  vr->priv->article_title_maxsize);
 
-  virgule_buffer_puts (b, "</body></html>\n");
+  virgule_buffer_printf (b, "<tr><td>Article editable period</td><td>%i days</td></tr>\n", 
+                 vr->priv->article_days_to_edit);
+
+  virgule_buffer_puts (b, "</table></body></html>\n");
 
   return virgule_send_response (vr);
 }
