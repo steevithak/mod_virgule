@@ -135,6 +135,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   char *lead_tag;
   char *lead_a_open = "";
   char *lead_a_close = "";
+  char *bmbox = "";
   char *editstr = "";
   int n_replies;
   char *article_dir;
@@ -177,6 +178,23 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
       lead_a_open = apr_psprintf (vr->r->pool,"<a href=\"%s/article/%d.html\">",vr->prefix,art_num);
       lead_a_close = "</a>";
     }
+
+  if (style == ARTICLE_RENDER_FULL)
+    {
+      char *bmurl = apr_psprintf (vr->r->pool, "%s/article/%d.html", vr->priv->base_uri, art_num);
+      char *bmtitle = ap_escape_uri (vr->r->pool, title);
+      bmbox = apr_psprintf (vr->r->pool, "<span id=\"bm\">"
+                                         "<a href=\"http://digg.com/submit?phase=2&amp;url=%s&amp;title=%s&amp;bodytext=%s&amp;topic=tech_news\">"
+					 "<img src=\"/images/bm-digg.png\" alt=\"Digg This\" title=\"Digg This\" /></a>"
+                                         "<a href=\"http://del.icio.us/post?v=4&amp;noui&jump=close&amp;url=%s&amp;title=%s\">"
+					 "<img src=\"/images/bm-delicious.png\" alt=\"del.icio.us\" title=\"del.icio.us\" /></a>"
+                                         "<a href=\"http://reddit.com/submit?url=%s\">"
+					 "<img src=\"/images/bm-reddit.png\" alt=\"reddit\" title=\"reddit\" /></a>"
+					 "</span>",
+                                         bmurl, bmtitle, ap_escape_uri (vr->r->pool, lead),
+					 bmurl, bmtitle,
+					 bmurl);
+    }
   
   virgule_buffer_printf (b, "<span class=\"article-title\">%s%s%s</span>",
                  lead_a_open, title, lead_a_close);
@@ -185,9 +203,9 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
     updatestr = apr_psprintf (vr->r->pool, " (updated %s)", virgule_render_date (vr, update, 1));
 
   virgule_buffer_printf (b, "</td></tr><tr><td class=\"article-author\">Posted %s%s by "
-		 "<a href=\"%s/person/%s/\">%s</a>%s</td></tr></table>\n",
+		 "<a href=\"%s/person/%s/\">%s</a>%s %s</td></tr></table>\n",
 		 virgule_render_date (vr, date, 1), updatestr, vr->prefix, 
-		 ap_escape_uri(vr->r->pool, author), author, editstr);
+		 ap_escape_uri(vr->r->pool, author), author, editstr, bmbox);
 
   virgule_buffer_printf (b, "<%s>\n"
 		 "%s\n", lead_tag, lead);

@@ -1,3 +1,11 @@
+2007-03-30 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_render_from_xml): Added some initial social
+	bookmarking support for Digg, del.icio.us, and Reddit.
+	
+	* sample_db: Added PNG images for Digg, del.icio.us, and Reddit.
+
+
 2007-03-21 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule.c (info_page): Added a lot of additional diagnostic
