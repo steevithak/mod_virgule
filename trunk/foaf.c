@@ -55,6 +55,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   apr_pool_t *p = vr->r->pool;
   xmlDocPtr foaf, profile, staff;
   xmlNodePtr tree, ptree, tmpnode;
+  char *givenname, *surname;
   char *db_key, *name, *url, *label, *email, *emailsha1;
 
   db_key = virgule_acct_dbkey (vr, u);
@@ -68,16 +69,25 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   ptree = virgule_xml_find_child (profile->xmlRootNode, "info");
 
   foaf = xmlNewDoc ((xmlChar *)"1.0");
+  if (foaf == NULL)
+    return NULL;
+  
   vr->r->content_type = "application/rdf+xml; charset=UTF-8";
   foaf->xmlRootNode = xmlNewDocNode (foaf, NULL, (xmlChar *)"rdf:RDF", NULL);
   xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
   xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdfs", "http://www.w3.org/2000/01/rdf-schema#");
   xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:foaf", "http://xmlns.com/foaf/0.1/");
 
-  name = apr_pstrcat (p,
-	       virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname"), " ",
-	       virgule_xml_get_prop (p, ptree, (xmlChar *)"surname"), NULL);
-	       
+  givenname = virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname");
+  surname = virgule_xml_get_prop (p, ptree, (xmlChar *)"surname");
+  if (givenname || surname)
+    name = apr_pstrcat (p, 
+                        givenname ? givenname : "",
+		        givenname ? " " : "",
+		        surname ? surname : "",
+		        NULL);
+  else
+    name = " ";
 
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:PersonalProfileDocument", NULL);
   xmlSetProp (tree, (xmlChar *)"rdf:about", NULL);

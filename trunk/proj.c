@@ -367,7 +367,7 @@ proj_index_serve (VirguleReq *vr)
 	  else
 	    {
 	      /* No creator?  Skip it. */
-	      virgule_db_xml_free (p, vr->db, proj_doc);
+	      virgule_db_xml_free (p, proj_doc);
 	      continue;
 	    }
 
@@ -379,7 +379,7 @@ proj_index_serve (VirguleReq *vr)
 #endif
 	  virgule_render_cert_level_text (vr, creator);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
-	  virgule_db_xml_free (p, vr->db, proj_doc);
+	  virgule_db_xml_free (p, proj_doc);
         }
     }
     
@@ -624,7 +624,7 @@ proj_next_new_serve (VirguleReq *vr)
 	    if (testdoc == NULL)
 	      continue;
 	    else 
-	      virgule_db_xml_free (p, vr->db, testdoc);
+	      virgule_db_xml_free (p, testdoc);
 
 	    apr_table_add (vr->r->headers_out, "refresh", 
 			  apr_psprintf(p, "0;URL=%s",
@@ -635,7 +635,7 @@ proj_next_new_serve (VirguleReq *vr)
 				    name);
 	  }
     }
-  virgule_db_xml_free (p, vr->db, doc);
+  virgule_db_xml_free (p, doc);
   apr_table_add (vr->r->headers_out, "refresh", "0;URL=/");
   return virgule_send_error_page (vr, "Next room", "There are no more rooms with new messages.");
 }
@@ -830,7 +830,7 @@ proj_render_reply (VirguleReq *vr, const char *name, int reply_num)
     {
       virgule_buffer_printf (b, "<p> Error reading <x>project</x> %s.\n", name);
     }
-  virgule_db_xml_free (p, vr->db, doc);
+  virgule_db_xml_free (p, doc);
 }
 
 static void
@@ -1112,7 +1112,7 @@ virgule_proj_set_relation (VirguleReq *vr, const char *name, const char *u, cons
             }
 	}
       virgule_db_xml_put (vr->r->pool, vr->db, db_key, staff);
-      virgule_db_xml_free (vr->r->pool, vr->db, staff);
+      virgule_db_xml_free (vr->r->pool, staff);
     }
   else
     {

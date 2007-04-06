@@ -129,7 +129,7 @@ virgule_cert_verify_outbound (VirguleReq *vr, apr_pool_t *p, const char *issuer,
   /* upgrade XML lock to write and write the corrected profile */
   virgule_db_lock_upgrade (vr->lock);
   virgule_db_xml_put (p, vr->db, db_key, profile);
-  virgule_db_xml_free (p, vr->db, profile);
+  virgule_db_xml_free (p, profile);
   virgule_db_lock_downgrade(vr->lock);
 
   return rc;
@@ -205,7 +205,7 @@ virgule_cert_verify_inbound (VirguleReq *vr, apr_pool_t *p, const char *subject,
       /* upgrade XML lock to write and write the corrected profile */
       virgule_db_lock_upgrade (vr->lock);
       virgule_db_xml_put (p, vr->db, db_key, profile);
-      virgule_db_xml_free (p, vr->db, profile);
+      virgule_db_xml_free (p, profile);
       virgule_db_lock_downgrade(vr->lock);
       rc = 4;
     }
@@ -254,7 +254,7 @@ virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject)
 	    }
 	}
     }
-  virgule_db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, profile);
   return result;
 }
 
@@ -318,7 +318,7 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
     }
 
   status = virgule_db_xml_put (p, db, db_key, profile);
-  virgule_db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, profile);
 
   /* then, update issuer */
   db_key = virgule_acct_dbkey (vr, issuer);
@@ -364,7 +364,7 @@ virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertL
     }
     
   status = virgule_db_xml_put (p, db, db_key, profile);
-  virgule_db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, profile);
 
   return status;
 }

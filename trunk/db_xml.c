@@ -59,10 +59,11 @@ virgule_db_xml_doc_new (apr_pool_t *p)
   return result;
 }
 
-/* Deprecated. Free is done by apr pool cleanup */
+/* Optional: clean up now, don't wait for APR end of pool life cleanup */
 void
-virgule_db_xml_free (apr_pool_t *p, Db *db, xmlDoc *doc)
+virgule_db_xml_free (apr_pool_t *p, xmlDoc *doc)
 {
-//  xmlFreeDoc (doc);
-//  apr_pool_cleanup_kill (p, doc, db_xml_cleanup);
+  if (doc != NULL)
+    xmlFreeDoc (doc);
+  apr_pool_cleanup_kill (p, doc, db_xml_cleanup);
 }
