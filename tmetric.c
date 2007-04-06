@@ -169,10 +169,8 @@ tmetric_run (VirguleReq *vr,
 		    }
 		}
 	    }
-	}
-	
-      if (profile != NULL)
-        virgule_db_xml_free (p, db, profile);
+	}	
+      virgule_db_xml_free (p, profile);
     }
   virgule_db_close_dir (dbc);
 

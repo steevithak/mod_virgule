@@ -103,7 +103,7 @@ acct_kill(VirguleReq *vr, const char *u)
   if (alias != NULL) /* If this is the alias, get username and kill profile */
     {
       user = virgule_xml_get_prop (p, alias, (xmlChar *)"link");
-      virgule_db_xml_free (p, vr->db, profile);
+      virgule_db_xml_free (p, profile);
       virgule_db_del (vr->db, db_key);
       db_key = virgule_acct_dbkey (vr, user);
     }
@@ -163,7 +163,7 @@ acct_kill(VirguleReq *vr, const char *u)
 	  name = virgule_xml_get_prop (p, tree, (xmlChar *)"name");
 	  virgule_proj_set_relation(vr,name,user,"None");
 	}
-      virgule_db_xml_free (p, vr->db, staff);
+      virgule_db_xml_free (p, staff);
       virgule_db_del (vr->db, db_key2);
     }
 
@@ -176,7 +176,7 @@ acct_kill(VirguleReq *vr, const char *u)
       if (entry != NULL)
         {
 	  virgule_db_del (vr->db, db_key2);
-          virgule_db_xml_free (p, vr->db, entry);
+          virgule_db_xml_free (p, entry);
 	}
     }
 
@@ -195,7 +195,7 @@ acct_kill(VirguleReq *vr, const char *u)
 
   /* Remove the profile and account */
   virgule_db_del (vr->db, db_key);
-  virgule_db_xml_free(p, vr->db, profile);
+  virgule_db_xml_free(p, profile);
 
   /* Remove blog feed buffer, if any */
   db_key2 = apr_psprintf (p, "acct/%s/feed.xml", user);
@@ -290,7 +290,6 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
     xmlNodeSetContent (spamscore, scorestr);
   
   virgule_db_xml_put (vr->r->pool, vr->db, db_key, profile);
-  virgule_db_xml_free (vr->r->pool, vr->db, profile);
 
   if(score > vr->priv->acct_spam_threshold)
     {
@@ -353,7 +352,7 @@ virgule_acct_set_lastread(VirguleReq *vr, const char *section, const char *locat
   xmlSetProp (msgptr, (xmlChar *)"date", (xmlChar *)virgule_iso_now(p));
 
   status = virgule_db_xml_put (p, db, db_key, profile);
-  virgule_db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, profile);
 
   return status;
 }
@@ -464,14 +463,14 @@ virgule_acct_get_lastread_date(VirguleReq *vr, const char *section, const char *
 		  date = (char *)xmlGetProp (msgptr, (xmlChar *)"date");
 		  if (date == NULL)
 		    date = "1970-01-01 00:00:00";
-		  virgule_db_xml_free (p, db, profile);
+		  virgule_db_xml_free (p, profile);
 		  return date;
 		}
 	    }
 	}
     }
 
-  virgule_db_xml_free (p, db, profile);
+  virgule_db_xml_free (p, profile);
   return "1970-01-01 00:00:00"; 
 }
 
@@ -1256,7 +1255,7 @@ virgule_acct_person_index_serve (VirguleReq *vr, int max)
 	      givenname = virgule_xml_get_prop (vr->r->pool, tree, (xmlChar *)"givenname");
 	      surname = virgule_xml_get_prop (vr->r->pool, tree, (xmlChar *)"surname");
 	    }
-          virgule_db_xml_free (vr->r->pool, vr->db, profile);
+          virgule_db_xml_free (vr->r->pool, profile);
 
           virgule_render_cert_level_begin (vr, user, CERT_STYLE_SMALL);
           virgule_buffer_printf (vr->b, "<a href=\"%s/\">%s</a>, %s %s, %s\n",
@@ -1370,9 +1369,11 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"2.0.");
   virgule_diary_rss_export (vr, doc->xmlRootNode, u);
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
+  xmlFreeDoc (doc);
+  if (size <= 0)
+      return virgule_send_error_page (vr, "Internal mod_virgule error", "xmlDocDumpFormatMemory() failed");
   virgule_buffer_write (b, (char *)mem, size);
   xmlFree (mem);
-  xmlFreeDoc (doc);
   return virgule_send_response (vr);
 }
 
@@ -2049,7 +2050,7 @@ acct_maint (VirguleReq *vr)
 	if(alias != NULL)
 	  {
 	    u = virgule_xml_get_prop (sp, alias, (xmlChar *)"link");
-	    virgule_db_xml_free (sp, vr->db, profile);
+	    virgule_db_xml_free (sp, profile);
 	    dbkey = apr_pstrcat (sp, "acct/", u, "/profile.xml", NULL);
 	    profile = virgule_db_xml_get (sp, vr->db, dbkey);
 	    if (profile == NULL)

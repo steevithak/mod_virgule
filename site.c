@@ -331,7 +331,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
 			 virgule_render_proj_name (vr, name));
 	  virgule_render_cert_level_text (vr, creator);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
-	  virgule_db_xml_free (p, vr->db, proj_doc);
+	  virgule_db_xml_free (p, proj_doc);
 	}        
       else
         {

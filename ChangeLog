@@ -1,3 +1,26 @@
+2007-04-05 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_diary_rss_serve): Added memory allocation
+	check on XML document dump process to prevent segfaults.
+
+	* acct_maint.c (acct_flag_as_spam): Removed early free since the
+	normal pool cleanup occurs immediately afterwards anyway.
+
+	* rss_export.c (rss_index_serve): Added an additional error check
+	to the xml rendering process to prevent allocation error segfaults.
+	
+	* db_xml.c (db_xml_free): Additional sanity check before optional
+	xmlFreeDoc calls that occur outside of normal APR pool life cycle.
+	Also removed an unused parameter from the function call throughout
+	the mod_virgule code.
+
+	* foaf.c (virgule_foaf_person): Handles accounts with no givenname
+	or surname in a safer fashion.
+
+	* tmetric.c (tmetric_run): Removed unneeded check for NULL value
+	before call to db_xml_free().
+
+
 2007-03-30 R. Steven Rainwater <steve@ncc.com>
 
 	* article.c (article_render_from_xml): Added some initial social
