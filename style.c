@@ -194,6 +194,7 @@ virgule_send_error_page (VirguleReq *vr, const char *error_short,
   return virgule_render_footer_send (vr);
 }
 
+
 /**
  * render_date: Render date nicely.
  * @vr: The #VirguleReq context.
@@ -237,3 +238,80 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
   return apr_psprintf (vr->r->pool, "%d %s %d", day, months[month], year);
 }
 
+
+/**
+ * virgule_set_temp_buffer: Allocate a temp buffer, set the translations,
+ * and swap it out with the main request buffer. Once swapped all buffer
+ * printing function within mod_virgule will write to the temp buffer. This
+ * is normally done to pre-render a portion of content for insertion into a
+ * template. The main buffer must be made active again before mod_virgule
+ * can render the final page, by calling virgule_set_main_buffer().
+ *
+ * @vr: The #VirguleReq context.
+ *
+ * Return value: -1 on error, 0 on success
+ **/
+int 
+virgule_set_temp_buffer (VirguleReq *vr)
+{
+  Buffer *tmp = NULL;
+  
+  tmp = virgule_buffer_new (vr->r->pool);
+  if (tmp == NULL)
+    return -1;
+
+  virgule_buffer_set_translations (tmp, vr->priv->trans);
+
+  vr->tb = vr->b;
+  vr->b = tmp;
+
+  return 0;
+}
+
+
+/**
+ * virgule_set_main_buffer: Swap the main buffer and temp buffer pointers.
+ * @vr: The #VirguleReq context.
+ *
+ **/
+void
+virgule_set_main_buffer (VirguleReq *vr)
+{
+  Buffer *tmp = vr->b;
+  vr->b = vr->tb;
+  vr->tb = tmp;
+}
+
+
+/**
+ * virgule_render_in_template: Load the specified template and replaced the
+ * specified XML tag with the contents of the VirguleReq temp buffer. If an
+ * optional page title has been provided, it will be used on the rendered
+ * page.
+ * @vr: The #VirguleReq context.
+ *
+ **/
+int
+virgule_render_in_template (VirguleReq *vr, char *tpath, char *tagname, char *title)
+{
+  char *istr = NULL;
+  xmlDocPtr tdoc;
+  xmlNodePtr troot;
+
+  if (tpath == NULL || tagname == NULL)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_render_in_template() failed: tpath or tagname were invalid");
+  
+  /* extract the contents of the temp buffer as a string */
+  istr = virgule_buffer_extract (vr->tb);
+  if (istr == NULL)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_buffer_extract() failed");
+
+  /* load the template */
+  tdoc = virgule_db_xml_get (vr->r->pool, vr->db, tpath);
+  if (tdoc == NULL)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_db_xml_get() failed, unable to load template");
+
+  troot = xmlDocGetRootElement (tdoc);
+  
+  return virgule_site_render_page (vr, troot, tagname, istr, title);        
+}

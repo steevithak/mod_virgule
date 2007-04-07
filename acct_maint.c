@@ -1095,7 +1095,7 @@ acct_logout_serve (VirguleReq *vr)
 
 /**
  * acct_update_serve: Update the users account info. Blog syndication info
- * comes is piggy-backed on the same profile array but is processed 
+ * comes in piggy-backed on the same profile array but is processed 
  * separately. This isn't very elegant but will do for now.
  **/
 static int
@@ -1416,13 +1416,7 @@ static int
 acct_person_diary_serve (VirguleReq *vr, char *u)
 {
   xmlDoc *profile;
-  xmlDoc *tdoc;
-  xmlNode *troot;
-  apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
-  Buffer *ibuf = NULL;
-  char *str, *istr;
-  char *db_key;
+  char *title, *db_key;
   apr_table_t *args;
   int start;
 
@@ -1430,11 +1424,11 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   if (db_key == NULL)
     return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
     
-  profile = virgule_db_xml_get (p, vr->db, db_key);
+  profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
   if (profile == NULL)
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup(p, "404 Not Found");
+      vr->r->status_line = apr_pstrdup(vr->r->pool, "404 Not Found");
       return virgule_send_error_page (vr, "<x>Person</x> not found","Account <tt>%s</tt> was not found.", u);
     }
 
@@ -1451,20 +1445,13 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
     return virgule_send_error_page (vr, "Blog not found", "No blog entries exist for this user.");
   }
 
-  /* create a new buffer */
-  ibuf = virgule_buffer_new (p);
-  if (ibuf == NULL)
+  title = apr_psprintf (vr->r->pool, "Blog for %s", u);
+
+  /* initialize the temporary buffer */
+  if (virgule_set_temp_buffer (vr) != 0)
     return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
 
-  /* initialize buffer translations */
-  virgule_buffer_set_translations (ibuf, vr->priv->trans);
-
-  /* set request buffer pointer to the new buffer */
-  vr->b = ibuf;
-
-  /* render the diary entries to the new buffer */
-  str = apr_psprintf (p, "Blog for %s", u);
-
+  /* render the diary entries to the temp buffer */
   if (start == -1)
     virgule_buffer_printf (vr->b, "<h1>Recent blog entries for <a href=\"%s/person/%s/\">%s</a></h1>\n",
 		   vr->prefix, ap_escape_uri(vr->r->pool, u), u);
@@ -1474,22 +1461,10 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
 
   virgule_diary_render (vr, u, 10, start);
 
-  /* set request buffer pointer back to main buffer */
-  vr->b = b;
-
-  /* extract render article from the new buffer as a string */
-  istr = virgule_buffer_extract (ibuf);
-  if (istr == NULL)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Buffer extraction failed");
-
-  /* read in the diary template */
-  tdoc = virgule_db_xml_get (p, vr->db, "/site/person/diary.xml");
-  if (tdoc == NULL)
-    return virgule_send_error_page (vr, "<x>Diary</x> template not found", "<xDiary</x> template not found");
-
-  troot = tdoc->xmlRootNode;
-
-  return virgule_site_render_page (vr, troot, "diary", istr, str);
+  /* switch back to the main buffer */  
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/site/person/diary.xml", "diary", title);
 }
 
 
@@ -1542,13 +1517,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
 
-//  if (!strcmp (q + 1, "diary.xml"))
-//    {
-//      vr->r->status = 404;
-//      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
-//      return virgule_send_error_page (vr, "Function deprecated", "This function has been deprecated. Please use the XML-RPC interface instead.");
-//    }
-    
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);
 
@@ -1618,6 +1586,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	"}\n"
 	"// -->\n"
 	"</script>\n%s%s", foafhdr, rsshdr);
+
+  
+
   
   virgule_render_header (vr, str, header);
 

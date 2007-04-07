@@ -4,7 +4,8 @@ typedef struct _VirguleReq VirguleReq;
 struct _VirguleReq {
   virgule_private_t *priv;
   request_rec *r;
-  Buffer *b;
+  Buffer *b;   /* main buffer */
+  Buffer *tb;  /* template buffer */
   Db *db;
   char *uri;
   const char *u; /* authenticated username */

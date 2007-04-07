@@ -798,6 +798,7 @@ static int virgule_handler(request_rec *r)
 
   vr->r = r;
   vr->b = b;
+  vr->tb = NULL;
   vr->db = db;
 
   if (cfg->dir && !strncmp (r->uri, cfg->dir, strlen (cfg->dir)))

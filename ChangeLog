@@ -1,3 +1,28 @@
+2007-04-07 R. Steven Rainwater <steve@ncc.com>
+
+	* req.h: Added a temporary buffer for pre-rendering template data.
+
+	* mod_virgule (virgule_handler): Set the new template buffer pointer
+	to NULL when initializing a request structure.
+	
+	* style.c (virgule_set_temp_buffer, virgule_set_main_buffer): Added
+	functions to switch between the request buffer and the temp buffer
+	more easily. A temporary buffer is used when building pages that 
+	will be rendered within a preloaded template. The main buffer is
+	used to render pages directly. 
+	
+	* style.c (virgule_render_in_template): Added a new function to handle
+	rendering an arbitrary page from a template. This collects some
+	duplicate code that was being used in several places and should
+	make things a little easier to maintain going forward.
+
+	* acct_maint.c (acct_person_diary_serve): Replaced existing code
+	with the new template rendering functions.
+
+	* article.c (article_num_serve): Replaced existing code with the 
+	new template rendering functions.
+
+
 2007-04-05 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_diary_rss_serve): Added memory allocation

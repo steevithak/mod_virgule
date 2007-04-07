@@ -12,9 +12,6 @@ virgule_render_userstats (VirguleReq *vr);
 void
 virgule_render_sitemap (VirguleReq *vr, int enclose);
 
-//void
-//virgule_render_footer (VirguleReq *vr);
-
 int
 virgule_render_footer_send (VirguleReq *vr);
 
@@ -25,5 +22,11 @@ virgule_send_error_page (VirguleReq *vr, const char *error_short,
 char *
 virgule_render_date (VirguleReq *vr, const char *iso, int dateonly);
 
-//int
-//virgule_dayofweek(int d, int m, int y);
+int 
+virgule_set_temp_buffer (VirguleReq *vr);
+
+void
+virgule_set_main_buffer (VirguleReq *vr);
+
+int
+virgule_render_in_template (VirguleReq *vr, char *tpath, char *tagname, char *title);
