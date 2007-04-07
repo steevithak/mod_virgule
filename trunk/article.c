@@ -871,67 +871,43 @@ virgule_article_recent_render (VirguleReq *vr, int n_arts_max, int start)
   return 0;
 }
 
+
+/**
+ * article_num_serve: Renders one article within the article template
+ **/
 static int
 article_num_serve (VirguleReq *vr, const char *t)
 {
-  apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
-  Buffer *ibuf = NULL;
-  char *tail;
+  char *tail, *key, *title;
   int n;
-  char *key;
-  char *istr;
   xmlDoc *doc;
   xmlNode *root;
-  xmlDoc *tdoc;
-  xmlNode *troot;
-  char *title;
 
   virgule_auth_user (vr);
 
   n = strtol (t, &tail, 10);
   if (strcmp (tail, ".html"))
-    return virgule_send_error_page (vr, "Extra junk", "Extra junk %s not understood. If you're not playing around manually with urls, that means something's wrong with the site.", tail);
-  key = apr_psprintf (p, "articles/_%d/article.xml", n);
-  doc = virgule_db_xml_get (p, vr->db, key);
+    return virgule_send_error_page (vr, "Extra junk", "Extra junk after URL not allowed: %s", tail);
+  key = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", n);
+  doc = virgule_db_xml_get (vr->r->pool, vr->db, key);
   if (doc == NULL)
     return virgule_send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", n);
-  root = doc->xmlRootNode;
+  root = xmlDocGetRootElement (doc);
   title = virgule_xml_find_child_string (root, "title", "(no title)");
 
-  /* create a new buffer */
-  ibuf = virgule_buffer_new (vr->r->pool);
-  if (ibuf == NULL)
+  /* initialize the temp buffer */
+  if (virgule_set_temp_buffer (vr) != 0)
     return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
 
-  /* initialize buffer translations */
-  virgule_buffer_set_translations (ibuf, vr->priv->trans);
-
-  /* set request buffer pointer to our new buffer */
-  vr->b = ibuf;
-
-  /* render the article to our new buffer */
+  /* render the article to the temp buffer */
   article_render_from_xml (vr, n, doc, ARTICLE_RENDER_FULL);
 
-  /* set request buffer pointer back to main buffer */
-  vr->b = b;
+  /* switch back to the main buffer */
+  virgule_set_main_buffer (vr);
 
-  /* extract rendered article from new buffer as a string */
-  istr = virgule_buffer_extract(ibuf);
-  if (istr == NULL)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Buffer extraction failed");
-
-  /* read in the article template */
-  tdoc = virgule_db_xml_get (p, vr->db, "/site/article/article.xml");
-  if (tdoc == NULL)
-    return virgule_send_error_page (vr, "<x>Article</x> template not found", "<x>Article</x> template not found.", n);
-
-  troot = tdoc->xmlRootNode;
-
-  /* render the page by populating the template with the article string */
-  return virgule_site_render_page (vr, troot, "article", istr, title);
-
+  return virgule_render_in_template (vr, "/site/article/article.xml", "article", title);
 }
+
 
 int
 virgule_article_serve (VirguleReq *vr)
