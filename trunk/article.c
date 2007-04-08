@@ -306,7 +306,7 @@ article_form_serve (VirguleReq *vr)
   if (!virgule_req_ok_to_post (vr))
     return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
-  virgule_render_header (vr, "Post a new <x>article</x>", NULL);
+  virgule_render_header (vr, "Post a new <x>article</x>");
 
   virgule_buffer_puts (b, "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
 
@@ -427,7 +427,7 @@ article_generic_submit_serve (VirguleReq *vr,
       /* render a preview */
       if (!strcmp (submit_type, "reply"))
 	{
-	  virgule_render_header (vr, "Reply preview", NULL);
+	  virgule_render_header (vr, "Reply preview");
 	  virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
 	  virgule_buffer_printf (b, "<font size=+2><b>%s</b></font><br>\n", nice_title);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
@@ -452,7 +452,7 @@ article_generic_submit_serve (VirguleReq *vr,
 	}
       else if (!strcmp (submit_type, "article"))
 	{
-	  virgule_render_header (vr, "<x>Article</x> preview", NULL);
+	  virgule_render_header (vr, "<x>Article</x> preview");
 	  if(vr->priv->use_article_topics)
 	    {
 	      virgule_buffer_puts (b, "<table><tr><td>");
@@ -756,7 +756,7 @@ article_reply_form_serve (VirguleReq *vr)
   else
     title = "(no title)";
 
-  virgule_render_header (vr, "Post a reply", NULL);
+  virgule_render_header (vr, "Post a reply");
 
   virgule_buffer_printf (b, "<p>Post a reply to <x>article</x>: %s.</p>\n"
 		 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"

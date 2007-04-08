@@ -6,6 +6,7 @@ struct _VirguleReq {
   request_rec *r;
   Buffer *b;   /* main buffer */
   Buffer *tb;  /* template buffer */
+  Buffer *hb;  /* header buffer */
   Db *db;
   char *uri;
   const char *u; /* authenticated username */

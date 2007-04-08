@@ -271,7 +271,7 @@ diary_preview_serve (VirguleReq *vr)
   diary_put_backup (vr, entry);
   entry_nice = virgule_nice_htext (vr, entry, &error);
 
-  virgule_render_header (vr, "blog preview", NULL);
+  virgule_render_header (vr, "blog preview");
 
   virgule_buffer_printf (b, "<p>%s</p>\n", entry_nice);
 
@@ -567,7 +567,7 @@ diary_index_serve (VirguleReq *vr)
     return virgule_send_error_page (vr, "Not logged in", "You can't access your blog page because you're not logged in.");
 
   str = apr_psprintf (p, "Blog: %s\n", vr->u);
-  virgule_render_header (vr, str, NULL);
+  virgule_render_header (vr, str);
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = apr_psprintf (p, "%d", virgule_db_dir_max (vr->db, diary) + 1);
 
@@ -633,7 +633,7 @@ diary_edit_serve (VirguleReq *vr)
 			     virgule_render_date (vr,
 					  virgule_xml_get_string_contents (date_el),
 					  1));
-	  virgule_render_header (vr, str, NULL);
+	  virgule_render_header (vr, str);
 	}
 
       feedposttime = virgule_xml_find_child_string (entry->xmlRootNode, "feedposttime", NULL);

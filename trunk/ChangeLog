@@ -1,8 +1,11 @@
 2007-04-07 R. Steven Rainwater <steve@ncc.com>
 
 	* req.h: Added a temporary buffer for pre-rendering template data.
+	Also added a header buffer which allows additional page header
+	contents to be inserted easily. The old header buffer kluge that
+	passed strings through virgule_render_header() has been removed.
 
-	* mod_virgule (virgule_handler): Set the new template buffer pointer
+	* mod_virgule (virgule_handler): Set the new buffer pointers
 	to NULL when initializing a request structure.
 	
 	* style.c (virgule_set_temp_buffer, virgule_set_main_buffer): Added
@@ -16,12 +19,18 @@
 	duplicate code that was being used in several places and should
 	make things a little easier to maintain going forward.
 
+	* style.c (virgule_render_header_raw): If the header buffer is not
+	empty, its contents are inserted into the page header at this time.
+
 	* acct_maint.c (acct_person_diary_serve): Replaced existing code
 	with the new template rendering functions.
 
 	* article.c (article_num_serve): Replaced existing code with the 
 	new template rendering functions.
 
+	* buffer.c (virgule_buffer_size): Added function to return the 
+	current size of a buffer.
+	
 
 2007-04-05 R. Steven Rainwater <steve@ncc.com>
 

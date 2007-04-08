@@ -483,7 +483,7 @@ aggregator_getfeeds_serve(VirguleReq *vr)
   char *feedbuffer, *feedurl;
   int feed_status = 0;
   
-  virgule_render_header (vr, "mod_virgule Aggregator", NULL);
+  virgule_render_header (vr, "mod_virgule Aggregator");
 
   agglist = virgule_db_xml_get (vr->r->pool, vr->db, "feedlist");
   if (agglist == NULL)

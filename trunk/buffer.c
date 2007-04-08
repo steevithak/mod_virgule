@@ -242,3 +242,9 @@ virgule_buffer_extract (Buffer *b)
   result[idx] = 0;
   return result;
 }
+
+
+int virgule_buffer_size (Buffer *b)
+{
+  return b->total_size;
+}

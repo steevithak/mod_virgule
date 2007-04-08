@@ -92,7 +92,7 @@ rating_crank (VirguleReq *vr, const char *u)
   if (reason)
     return virgule_send_error_page (vr, "Username error", reason);
 
-  virgule_render_header (vr, "Crank", NULL);
+  virgule_render_header (vr, "Crank");
   virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", u);
   status = virgule_eigen_crank (vr->r->pool, vr, u);
   if (status)
@@ -119,7 +119,7 @@ rating_crank_all (VirguleReq *vr)
   int j, k;
   apr_pool_t *sp;
 
-  virgule_render_header (vr, "Cranking all nodes", NULL);
+  virgule_render_header (vr, "Cranking all nodes");
 
   
   while(tmetric[i])
@@ -162,7 +162,7 @@ rating_report (VirguleReq *vr, const char *u)
   if (reason)
     return virgule_send_error_page (vr, "Username error", reason);
 
-  virgule_render_header (vr, "Report", NULL);
+  virgule_render_header (vr, "Report");
   virgule_buffer_printf (vr->b, "<p>Reporting node %s.</p>\n", u);
   virgule_eigen_report (vr, u);
   return virgule_render_footer_send (vr);
