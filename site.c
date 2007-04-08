@@ -584,7 +584,6 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
   xmlNode *title_node;
   xmlNode *head_node;
   char *title = NULL;
-  char *head = NULL;
   char *raw;
 
   ctx.vr = vr;
@@ -604,7 +603,7 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
   
   head_node = virgule_xml_find_child (node, "head_content");
   if (head_node != NULL)
-    head = virgule_xml_get_string_contents (head_node);
+    virgule_buffer_puts(vr->hb, virgule_xml_get_string_contents (head_node));
 
 //
 //ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, vr->r, "title: [%s]", title);
@@ -615,9 +614,9 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
   ctx.istr = istr;
   raw = virgule_xml_get_prop (vr->r->pool, node, "raw");
   if (raw)
-    virgule_render_header_raw (vr, title, head);
+    virgule_render_header_raw (vr, title);
   else
-    virgule_render_header (vr, title, head);
+    virgule_render_header (vr, title);
   site_render (&ctx, node);
 
   return virgule_render_footer_send (vr);

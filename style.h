@@ -1,10 +1,10 @@
 #define STYLE
 
 void
-virgule_render_header_raw (VirguleReq *vr, const char *title, const char *head_content);
+virgule_render_header_raw (VirguleReq *vr, const char *title);
 
 void
-virgule_render_header (VirguleReq *vr, const char *title, const char *head_content);
+virgule_render_header (VirguleReq *vr, const char *title);
 
 void
 virgule_render_userstats (VirguleReq *vr);

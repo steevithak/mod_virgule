@@ -245,7 +245,7 @@ tmetric_index_serve (VirguleReq *vr)
     if (!vr->priv->caps[n_caps])
       break;
 
-  virgule_render_header (vr, "Trust Metric", NULL);
+  virgule_render_header (vr, "Trust Metric");
   nodeinfo = tmetric_run (vr, vr->priv->seeds, n_seeds, vr->priv->caps, n_caps);
 
   qsort (nodeinfo->elts, nodeinfo->nelts, sizeof(NodeInfo),

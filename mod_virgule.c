@@ -774,7 +774,7 @@ ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"Debug: read config.xml
 static int virgule_handler(request_rec *r)
 {
   virgule_dir_conf *cfg;
-  Buffer *b;
+//  Buffer *b;
   Db *db;
   int status;
   apr_finfo_t finfo;
@@ -786,7 +786,8 @@ static int virgule_handler(request_rec *r)
   }
 
   cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
-  b = virgule_buffer_new (r->pool);
+
+//  b = virgule_buffer_new (r->pool);
   
   /* Set libxml2 to old-style, incorrect handling of whitespace. This can
      be removed once all existing xml code is updated to handle blank nodes */
@@ -797,7 +798,8 @@ static int virgule_handler(request_rec *r)
   vr = (VirguleReq *)apr_pcalloc (r->pool, sizeof (VirguleReq));
 
   vr->r = r;
-  vr->b = b;
+  vr->b = virgule_buffer_new (r->pool);
+  vr->hb = virgule_buffer_new (r->pool);
   vr->tb = NULL;
   vr->db = db;
 

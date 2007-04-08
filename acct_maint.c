@@ -571,7 +571,7 @@ acct_index_serve (VirguleReq *vr)
       aggregate = virgule_xml_find_child (profile->xmlRootNode, "aggregate");
       level = virgule_req_get_tmetric_level (vr, vr->u);
 
-      virgule_render_header (vr, "User Account Info", NULL);
+      virgule_render_header (vr, "User Account Info");
       virgule_buffer_printf (b, "<p>Welcome, <tt>%s</tt>. The range of functions you "
 		     "can access depends on your <a href=\"%s/certs.html\">certification</a> "
 		     "level. Remember to certify any other users of this site that you "
@@ -655,7 +655,7 @@ acct_index_serve (VirguleReq *vr)
     }
   else
     {
-      virgule_render_header (vr, "Login", NULL);
+      virgule_render_header (vr, "Login");
       virgule_buffer_puts (b, "<p>Please login if you have an account.\n"
 		   "Otherwise, feel free to <a href=\"new.html\">create a new account</a>. </p>\n"
 		   "<p>If you have forgotten your password, fill in your user name, check the "
@@ -1483,7 +1483,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   xmlDoc *profile, *staff;
   xmlNode *tree, *lastlogin;
   Buffer *b = vr->b;
-  char *str, *header;
+  char *str;
   char *surname, *givenname;
   char *url;
   char *date = NULL;
@@ -1576,7 +1576,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
     }
 
   str = apr_psprintf (p, "Personal info for %s", u);
-  header = apr_psprintf (p, 
+
+  virgule_buffer_printf (vr->hb,
 	"<script language=\"JavaScript\" type=\"text/javascript\">\n"
 	"<!-- \n"
 	"function confirmdel(name)\n"
@@ -1587,10 +1588,10 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	"// -->\n"
 	"</script>\n%s%s", foafhdr, rsshdr);
 
-  
-
-  
-  virgule_render_header (vr, str, header);
+  /* initialize the temporary buffer */
+  if (virgule_set_temp_buffer (vr) != 0)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+  b = vr->b;
 
   if (virgule_user_is_special(vr,vr->u))
     {
@@ -1807,7 +1808,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	virgule_rating_diary_form (vr, u);
     }
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+
+  return virgule_render_in_template (vr, "/site/person/profile.xml", "profile", str);
 }
 
 
@@ -1984,7 +1987,7 @@ acct_maint (VirguleReq *vr)
        "Issuer profile missing."
      };
 
-    virgule_render_header (vr, "Account maintenance", NULL);
+    virgule_render_header (vr, "Account maintenance");
     virgule_buffer_puts (b, "<h2>Analyzing account profiles...</h2>\n");
 
     /* initialize the statistics hash */

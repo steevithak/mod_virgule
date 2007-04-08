@@ -188,7 +188,7 @@ proj_new_serve (VirguleReq *vr)
   if (!virgule_req_ok_to_create_project (vr))
     return virgule_send_error_page (vr, "Certification too low", "You need a higher certification level to create a <x>project</x>.");
 
-  virgule_render_header (vr, "Create new <x>project</x>", NULL);
+  virgule_render_header (vr, "Create new <x>project</x>");
 
   virgule_buffer_puts (b, "<p> Create a new <x>project</x>: </p>\n"
 	       "<form method=\"POST\" action=\"newsub.html\" accept-charset=\"UTF-8\">\n");
@@ -326,7 +326,7 @@ proj_index_serve (VirguleReq *vr)
 
   virgule_auth_user (vr);
 
-  virgule_render_header (vr, "<x>Project</x> index", NULL);
+  virgule_render_header (vr, "<x>Project</x> index");
   if (vr->priv->projstyle == PROJSTYLE_RAPH)
     virgule_buffer_puts (b, "<ul>\n");
   dbc = virgule_db_open_dir (db, "proj");
@@ -446,12 +446,12 @@ proj_proj_serve (VirguleReq *vr, const char *path)
   if (vr->priv->projstyle != PROJSTYLE_NICK)
     {
       title = apr_psprintf (p, "<x>Project</x> info for %s", virgule_nice_text (p, name));
-      virgule_render_header (vr, title, NULL);
+      virgule_render_header (vr, title);
     }
   else /* vr->priv->projstyle == PROJSTYLE_NICK */
     {
       title = apr_psprintf(p, "%s", virgule_nice_text (p, name));
-      virgule_render_header_raw (vr, title, NULL);
+      virgule_render_header_raw (vr, title);
     }
 
   cdate = virgule_xml_find_child_string (doc->xmlRootNode, "cdate", "--no date--");
@@ -675,7 +675,7 @@ proj_edit_serve (VirguleReq *vr)
     return virgule_send_error_page (vr, "Not authorized",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, virgule_cert_level_to_name (vr, 1));
 
-  virgule_render_header (vr, "Edit <x>project</x>", NULL);
+  virgule_render_header (vr, "Edit <x>project</x>");
 
   virgule_buffer_printf (b, "<p> Edit <x>project</x> for %s: </p>\n"
 	       "<form method=\"POST\" action=\"editsub.html\">\n"
@@ -948,7 +948,7 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   if (apr_table_get (virgule_get_args_table (vr), "preview"))
     {
-      virgule_render_header (vr, "Reply preview", NULL);
+      virgule_render_header (vr, "Reply preview");
       virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
       virgule_buffer_puts (b, nice_title);
       virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
@@ -1051,7 +1051,7 @@ proj_reply_form_serve (VirguleReq *vr)
   if (doc == NULL)
     return virgule_send_error_page (vr, "<x>project</x> not found", "<x>project</x> %s not found.", name);
 
-  virgule_render_header (vr, "Post a reply", NULL);
+  virgule_render_header (vr, "Post a reply");
 
   virgule_buffer_printf (b, "<p> Post a reply to <x>project</x>: %s. </p>\n"
 		 "<form method=\"POST\" action=\"/proj/replysubmit.html\" accept-charset=\"UTF-8\">\n"

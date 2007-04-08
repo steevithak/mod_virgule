@@ -39,7 +39,7 @@ dayofweek(int d, int m, int y)
 
 
 void
-virgule_render_header_raw (VirguleReq *vr, const char *title, const char *head_content)
+virgule_render_header_raw (VirguleReq *vr, const char *title)
 {
   Buffer *b = vr->b;
 
@@ -59,8 +59,9 @@ virgule_render_header_raw (VirguleReq *vr, const char *title, const char *head_c
 		 "//-->\n"
 		 "</script>\n");
 
-  if (head_content)
-    virgule_buffer_puts (b, head_content);
+  /* check for additional page header contents */
+  if (virgule_buffer_size (vr->hb) > 0)
+    virgule_buffer_puts (b, virgule_buffer_extract (vr->hb));
 
   virgule_buffer_puts (b, "</head>\n\n<body>\n");
 
@@ -68,11 +69,11 @@ virgule_render_header_raw (VirguleReq *vr, const char *title, const char *head_c
 }
 
 void
-virgule_render_header (VirguleReq *vr, const char *title, const char *head_content)
+virgule_render_header (VirguleReq *vr, const char *title)
 {
   Buffer *b = vr->b;
   
-  virgule_render_header_raw (vr, title, head_content);
+  virgule_render_header_raw (vr, title);
 
 // begin nasty robots.net kluge - this will have no effect unless the site's
 // domain name contains robots.net.
@@ -185,7 +186,7 @@ virgule_send_error_page (VirguleReq *vr, const char *error_short,
   Buffer *b = vr->b;
   va_list ap;
 
-  virgule_render_header (vr, error_short, NULL);
+  virgule_render_header (vr, error_short);
   virgule_buffer_puts (b, "<p> ");
   va_start (ap, fmt);
   virgule_buffer_puts (b, apr_pvsprintf (vr->r->pool, fmt, ap));

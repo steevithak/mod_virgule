@@ -16,3 +16,5 @@ void virgule_buffer_append (Buffer *b, const char *str1, ...);
 int virgule_buffer_send_response (request_rec *r, Buffer *b);
 
 char *virgule_buffer_extract (Buffer *b);
+
+int virgule_buffer_size (Buffer *b);
