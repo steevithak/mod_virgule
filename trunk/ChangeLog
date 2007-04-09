@@ -1,3 +1,8 @@
+2007-04-09 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (virgule_acct_touch): Added missing db lock calls.
+
+
 2007-04-07 R. Steven Rainwater <steve@ncc.com>
 
 	* req.h: Added a temporary buffer for pre-rendering template data.
@@ -22,6 +27,10 @@
 	* style.c (virgule_render_header_raw): If the header buffer is not
 	empty, its contents are inserted into the page header at this time.
 
+	* style.c (virgule_send_error_page): A page not found error string
+	is automatically added if the error code has been set to 404. This
+	eliminates the need for lots of duplicated static strings.
+	
 	* acct_maint.c (acct_person_diary_serve): Replaced existing code
 	with the new template rendering functions.
 

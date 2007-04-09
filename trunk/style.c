@@ -186,6 +186,9 @@ virgule_send_error_page (VirguleReq *vr, const char *error_short,
   Buffer *b = vr->b;
   va_list ap;
 
+  if (vr->r->status == 404)
+    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
+
   virgule_render_header (vr, error_short);
   virgule_buffer_puts (b, "<p> ");
   va_start (ap, fmt);
@@ -313,6 +316,6 @@ virgule_render_in_template (VirguleReq *vr, char *tpath, char *tagname, char *ti
     return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_db_xml_get() failed, unable to load template");
 
   troot = xmlDocGetRootElement (tdoc);
-  
+
   return virgule_site_render_page (vr, troot, tagname, istr, title);        
 }

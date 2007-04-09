@@ -23,9 +23,8 @@ OBJS = mod_virgule.o buffer.o site.o apache_util.o \
 	hashtable.o aggregator.o foaf.o req.o \
 	acct_maint.o util.o auth.o style.o xml_util.o certs.o \
 	db.o db_ops.o db_xml.o schema.o \
-	net_flow.o tmetric.o \
+	net_flow.o tmetric.o wiki.o \
 	diary.o article.o rss_export.o proj.o \
-	wiki.o \
 	xmlrpc.o xmlrpc-methods.o \
 	rating.o eigen.o
 
