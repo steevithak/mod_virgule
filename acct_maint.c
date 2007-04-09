@@ -1359,7 +1359,6 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
       virgule_diary_exists (vr, u) == 0)
   {
     vr->r->status = 404;
-    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
     return virgule_send_error_page (vr, "User RSS feed not found", "No RSS feed is available for this user at this time.");
   }
 
@@ -1392,7 +1391,6 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
       virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
   {
     vr->r->status = 404;
-    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
     return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user at this time.");
   }
       
@@ -1400,7 +1398,6 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
   if (foaf == NULL)
   {
     vr->r->status = 404;
-    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
     return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user at this time.");
   }
 
@@ -1428,7 +1425,6 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   if (profile == NULL)
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup(vr->r->pool, "404 Not Found");
       return virgule_send_error_page (vr, "<x>Person</x> not found","Account <tt>%s</tt> was not found.", u);
     }
 
@@ -1441,7 +1437,6 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   if (virgule_diary_exists (vr, u) == 0)
   {
     vr->r->status = 404;
-    vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
     return virgule_send_error_page (vr, "Blog not found", "No blog entries exist for this user.");
   }
 
@@ -1483,12 +1478,10 @@ acct_person_serve (VirguleReq *vr, const char *path)
   xmlDoc *profile, *staff;
   xmlNode *tree, *lastlogin;
   Buffer *b = vr->b;
-  char *str;
+  char *title;
   char *surname, *givenname;
   char *url;
   char *date = NULL;
-  char *foafhdr = "";
-  char *rsshdr = "";
   char *notes;
   int diaryused = 0;
   int any;
@@ -1529,7 +1522,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (q[1] != '\0')
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
       return virgule_send_error_page (vr, "Page not found", "The request page does not exist.");
     }
 
@@ -1537,7 +1529,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (db_key == NULL)
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
       return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
     }
     
@@ -1545,7 +1536,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (profile == NULL)
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup (p, "404 Not Found");
       return virgule_send_error_page (vr,
 			    "<x>Person</x> not found",
 			    "Account <tt>%s</tt> was not found.", u);
@@ -1562,7 +1552,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
     }
 
   diaryused = virgule_diary_exists (vr, u);
-  
+
+  /* add a few things to the page header */
   if (!strcmp (virgule_req_get_tmetric_level (vr, u), 
       virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
     {
@@ -1570,14 +1561,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
     }
   else
     {
-      foafhdr  = "<link rel=\"meta\" type=\"application/rdf+xml\" title=\"FOAF\" href=\"foaf.rdf\" />\n";
+      virgule_buffer_puts (vr->hb, "<link rel=\"meta\" type=\"application/rdf+xml\" title=\"FOAF\" href=\"foaf.rdf\" />\n");
       if (diaryused > 0)
-        rsshdr = "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"rss.xml\" />\n";
+        virgule_buffer_puts (vr->hb, "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"rss.xml\" />\n");
     }
 
-  str = apr_psprintf (p, "Personal info for %s", u);
-
-  virgule_buffer_printf (vr->hb,
+  virgule_buffer_puts (vr->hb,
 	"<script language=\"JavaScript\" type=\"text/javascript\">\n"
 	"<!-- \n"
 	"function confirmdel(name)\n"
@@ -1586,7 +1575,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	"  return rc;\n"
 	"}\n"
 	"// -->\n"
-	"</script>\n%s%s", foafhdr, rsshdr);
+	"</script>\n");
+
+  title = apr_psprintf (p, "Personal info for %s", u);
 
   /* initialize the temporary buffer */
   if (virgule_set_temp_buffer (vr) != 0)
@@ -1810,7 +1801,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/site/person/profile.xml", "profile", str);
+  return virgule_render_in_template (vr, "/site/person/profile.xml", "profile", title);
 }
 
 
@@ -1940,7 +1931,9 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
     xmlSetProp (lastlogin, (xmlChar *)"date", (xmlChar *)newdate);
   }
   
+  virgule_db_lock_upgrade(vr->lock);
   virgule_db_xml_put (p, vr->db, db_key, profile);  
+  virgule_db_lock_downgrade(vr->lock);
 }
 
 

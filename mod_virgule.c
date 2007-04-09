@@ -293,8 +293,8 @@ static void private_destroy(void *data)
 
 
 /**
- * virgule_child_init: Called immediately have child initialization is
- * started during the process start up. 
+ * virgule_child_init: Called for each child process immediately after 
+ * start up.
  **/
 static void virgule_child_init(apr_pool_t *p, server_rec *s)
 {
@@ -305,6 +305,8 @@ static void virgule_child_init(apr_pool_t *p, server_rec *s)
   if((status = apr_threadkey_private_create(&tkey, private_destroy, ppool))
      != APR_SUCCESS)
     ap_log_error(APLOG_MARK,APLOG_CRIT,status,s,"mod_virgule: Unable to create thread private key");
+
+  xmlInitParser();
 }
 
 

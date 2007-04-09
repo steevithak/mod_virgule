@@ -316,7 +316,7 @@ proj_index_sort (const void *n1, const void *n2)
 static int
 proj_index_serve (VirguleReq *vr)
 {
-  Buffer *b = vr->b;
+  Buffer *b;
   Db *db = vr->db;
   DbCursor *dbc;
   char *proj;
@@ -326,7 +326,10 @@ proj_index_serve (VirguleReq *vr)
 
   virgule_auth_user (vr);
 
-  virgule_render_header (vr, "<x>Project</x> index");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+  b = vr->b;
+
   if (vr->priv->projstyle == PROJSTYLE_RAPH)
     virgule_buffer_puts (b, "<ul>\n");
   dbc = virgule_db_open_dir (db, "proj");
@@ -389,14 +392,16 @@ proj_index_serve (VirguleReq *vr)
   if (vr->u != NULL)
     virgule_buffer_puts (b, "<p> <a href=\"new.html\">Create</a> a new <x>project</x>...</p>\n");
   virgule_db_close_dir (dbc);
+
+  virgule_set_main_buffer (vr);
   
-  return virgule_render_footer_send (vr);
+  return virgule_render_in_template (vr, "/site/proj/list.xml", "projects", "<x>Project</x> index");
 }
 
 static int
 proj_proj_serve (VirguleReq *vr, const char *path)
 {
-  Buffer *b = vr->b;
+  Buffer *b;
   request_rec *r = vr->r;
   apr_pool_t *p = r->pool;
   char *q;
@@ -436,7 +441,6 @@ proj_proj_serve (VirguleReq *vr, const char *path)
   if (doc == NULL)
     {
       vr->r->status = 404;
-      vr->r->status_line = apr_pstrdup(p, "404 Not Found");
       return virgule_send_error_page (vr,
 		    "<x>Project</x> not found",
 		    "<x>Project</x> <tt>%s</tt> was not found.",
@@ -444,15 +448,13 @@ proj_proj_serve (VirguleReq *vr, const char *path)
     }
     
   if (vr->priv->projstyle != PROJSTYLE_NICK)
-    {
-      title = apr_psprintf (p, "<x>Project</x> info for %s", virgule_nice_text (p, name));
-      virgule_render_header (vr, title);
-    }
+    title = apr_psprintf (p, "<x>Project</x> info for %s", virgule_nice_text (p, name));
   else /* vr->priv->projstyle == PROJSTYLE_NICK */
-    {
-      title = apr_psprintf(p, "%s", virgule_nice_text (p, name));
-      virgule_render_header_raw (vr, title);
-    }
+    title = apr_psprintf(p, "%s", virgule_nice_text (p, name));
+
+  if (virgule_set_temp_buffer (vr) != 0)
+    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+  b = vr->b;
 
   cdate = virgule_xml_find_child_string (doc->xmlRootNode, "cdate", "--no date--");
 
@@ -594,7 +596,9 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	}
     }
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/site/proj/project.xml", "project", title);
 }
 
 static int
