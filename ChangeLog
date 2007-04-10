@@ -1,11 +1,22 @@
 2007-04-09 R. Steven Rainwater <steve@ncc.com>
 
+	* MAKEFILE: Changed -fPIC to -fpic. This may have been the cause of
+	a couple of segfaults, due to a conflict with the flag used to compile
+	Apache and/or libxml2 on some distros. The -fpic flag should be
+	correct on 99% of the platforms likely to be running mod_virgule.
+
 	* acct_maint.c (virgule_acct_touch): Added missing db lock calls.
 	
-	* mod_virgule (virgule_handler): Fixed minor aliasing bug.
-
 	* rss_export.c (rss_index_serve, rss_render_from_xml): Changed a few
 	xmlNewChild calls to xmlNewTextChild to assure proper entity escapes.
+
+	* site.c (virgule_site_send_banner_ad, virgule_site_render_banner_ad):
+	Removed these functions. They have been rendered unnecessary by the
+	newer general purpose include tag which allows external banner ad
+	management tools to be used.
+
+	* mod_virgule (virgule_handler): Fixed minor aliasing bug. Removed
+	call to virgule_site_send_banner_ad.
 
 
 2007-04-07 R. Steven Rainwater <steve@ncc.com>

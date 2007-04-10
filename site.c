@@ -80,73 +80,6 @@ virgule_site_render_person_link (VirguleReq *vr, const char *name)
 		 vr->prefix, ap_escape_uri(vr->r->pool, name), name);
 }
 
-/**
- * Reads banner ad information from the XML database. A random banner ad is
- # selected and displayed. Banner ads with 0 remaining impressions are 
- # removed from database. 
- **/
-void
-virgule_site_render_banner_ad (VirguleReq *vr)
-{
-  apr_pool_t *p = vr->r->pool;
-  const char *imp, *img, *url;
-  xmlDoc *adlist;
-  xmlNode *ad;
-  char new_imp[12];
-  char *ad_key = "ads/adlist.xml";
-  int impressions, i, sel;
-
-  /* Read and parse the adlist.xml document */
-  adlist = virgule_db_xml_get (p, vr->db, ad_key);
-  if (adlist == NULL) 
-    return;
-
-  /* Find available ads */
-  for (i = 0, ad = adlist->xmlRootNode->children; ad != NULL; ad = ad->next)
-    if(!xmlIsBlankNode(ad))
-      i++;
-
-  if (i <= 0)
-    return;
-    
-  /* Randomly select ad to be displayed */
-  sel = (int) (rand() / (RAND_MAX / i + 1));
-
-  /* Find the selected ad */
-  for (i = 0, ad = adlist->xmlRootNode->children; i != sel && ad != NULL; ad = ad->next)
-    if(!xmlIsBlankNode(ad))
-      i++;
-
-  // adjust impresion value
-  imp = virgule_xml_get_prop (p, ad, "imp");
-  impressions = atoi (imp);
-  if (impressions <= 0)
-  {
-    xmlUnlinkNode (ad);
-    xmlFreeNode (ad);
-  }
-  else
-  {
-    impressions--;
-    snprintf (new_imp, sizeof new_imp, "%d", impressions);
-    xmlSetProp (ad, "imp", new_imp);
-  }
-  virgule_db_xml_put (p, vr->db, ad_key, adlist);
-    
-  img = virgule_xml_get_prop (p, ad, "img");
-  url = virgule_xml_get_prop (p, ad, "url");
-  
-  virgule_buffer_printf(vr->b, "<a href=\"%s\"><img src=\"%s?%ld\" width=\"468\" height=\"60\" vspace=\"4\" border=\"0\"></a>", url, img, (long)time(NULL) );
-}
-
-
-int
-virgule_site_send_banner_ad (VirguleReq *vr)
-{
-  virgule_site_render_banner_ad (vr);
-  return virgule_send_response (vr);
-}
-
 
 static void
 site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
@@ -539,10 +472,6 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  virgule_buffer_puts (b, virgule_wiki_link (vr, virgule_xml_get_string_contents (node)));
 	}
 #endif
-      else if (!strcmp (node->name, "bannerad"))
-        {
-	  virgule_site_render_banner_ad (vr);
-	}
       else if (!strcmp (node->name, "include"))
         {
 	  char *inc_path;
