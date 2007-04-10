@@ -81,8 +81,7 @@ virgule_render_header (VirguleReq *vr, const char *title)
 if (!strncmp (vr->priv->site_name, "robots.net",10)) {
   virgule_buffer_puts (b, "<table bgcolor=\"#406690\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">\n");
   virgule_buffer_puts (b, "<tr><td><a href=\"http://robots.net/\"><img src=\"/images/logo160.png\" width=\"160\" height=\"49\" border=\"0\">");
-  virgule_buffer_puts (b, "</a></td><td width=\"100%\" align=\"center\">");
-  virgule_site_render_banner_ad(vr);
+  virgule_buffer_puts (b, "</a></td><td width=\"100%\" align=\"center\">&nbsp;");
   virgule_buffer_puts (b, "</td></tr><tr><td colspan=\"2\" align=\"right\" class=\"sitemap\">");
   virgule_render_sitemap(vr,0);
   virgule_buffer_puts (b, "</td></tr></table>");

@@ -920,9 +920,6 @@ static int virgule_handler(request_rec *r)
   if (!strcmp (virgule_match_prefix(r->uri, vr->prefix), "/admin/info.html"))
     return info_page (vr);
 
-  if (!strcmp (virgule_match_prefix(r->uri, vr->prefix), "/cgi-bin/ad"))
-    return virgule_site_send_banner_ad (vr);
-
   return HTTP_NOT_FOUND;
 }
 
