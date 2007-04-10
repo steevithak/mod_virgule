@@ -776,8 +776,6 @@ ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"Debug: read config.xml
 static int virgule_handler(request_rec *r)
 {
   virgule_dir_conf *cfg;
-//  Buffer *b;
-  Db *db;
   int status;
   apr_finfo_t finfo;
   apr_status_t ap_status;
@@ -789,13 +787,9 @@ static int virgule_handler(request_rec *r)
 
   cfg = (virgule_dir_conf *)ap_get_module_config (r->per_dir_config, &virgule_module);
 
-//  b = virgule_buffer_new (r->pool);
-  
   /* Set libxml2 to old-style, incorrect handling of whitespace. This can
      be removed once all existing xml code is updated to handle blank nodes */
   xmlKeepBlanksDefault(0);
-
-  db = virgule_db_new_filesystem (r->pool, cfg->db); /* hack */
 
   vr = (VirguleReq *)apr_pcalloc (r->pool, sizeof (VirguleReq));
 
@@ -803,7 +797,7 @@ static int virgule_handler(request_rec *r)
   vr->b = virgule_buffer_new (r->pool);
   vr->hb = virgule_buffer_new (r->pool);
   vr->tb = NULL;
-  vr->db = db;
+  vr->db = virgule_db_new_filesystem (r->pool, cfg->db); /* hack */
 
   if (cfg->dir && !strncmp (r->uri, cfg->dir, strlen (cfg->dir)))
     {
@@ -874,7 +868,7 @@ static int virgule_handler(request_rec *r)
   /* set buffer translations */
   virgule_buffer_set_translations (vr->b, vr->priv->trans);
 
-  vr->lock = virgule_db_lock (db);
+  vr->lock = virgule_db_lock (vr->db);
   if (vr->lock == NULL)
     return virgule_send_error_page (vr, "Lock error",
 			    "There was an error acquiring the lock, %s.",
@@ -932,10 +926,16 @@ static int virgule_handler(request_rec *r)
   return HTTP_NOT_FOUND;
 }
 
+
 /**
  * xlat_handler: URI to Filename translator. This function is called by
  * Apache for each request to translate the URI to an appropriate request
  * and determine if the request is to be accepted for handling or declined.
+ *
+ * RSR Notes: I'm not certain that this is needed with Apache 2.x. The
+ * cfg->db and cfg->pass_dirs checks should probably be moved to 
+ * virgule_handler. The test would be whether or not the APR_REG work 
+ * around for mod_dir works from virgule_handler.
  **/
 static int
 xlat_handler (request_rec *r)
@@ -967,7 +967,7 @@ xlat_handler (request_rec *r)
 /* Dispatch table of functions to handle Virgule httpd.conf directives */
 static const command_rec virgule_cmds[] =
 {
-  AP_INIT_TAKE1("VirguleDb", (const char *(*)())set_virgule_db, NULL, OR_ALL, "the virgule database"),
+  AP_INIT_TAKE1("VirguleDb", set_virgule_db, NULL, OR_ALL, "the virgule database"),
   AP_INIT_ITERATE("VirgulePass", set_virgule_pass, NULL, OR_ALL, "virgule passthrough directories"),
   {NULL}
 };

@@ -75,11 +75,10 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
 #endif
 
   subtree = xmlNewTextChild (tree, NULL, "title", title);
-  subtree = xmlNewChild (tree, NULL, "link", link);
-  subtree = xmlNewChild (tree, NULL, "guid", link);
-  subtree = xmlNewChild (tree,NULL,"pubDate", pubdate);
-  subtree = xmlNewTextChild (tree, NULL, "description", clean_description);
-  
+  subtree = xmlNewTextChild (tree, NULL, "link", link);
+  subtree = xmlNewTextChild (tree, NULL, "guid", link);
+  subtree = xmlNewTextChild (tree, NULL,"pubDate", pubdate);
+  subtree = xmlNewTextChild (tree, NULL, "description", clean_description);  
 }
 
 static void
@@ -122,16 +121,16 @@ rss_index_serve (VirguleReq *vr)
   xmlSetProp (doc->xmlRootNode, "version", "2.0");
   
   tree = xmlNewChild (doc->xmlRootNode, NULL, "channel", NULL);
-  subtree = xmlNewChild (tree, NULL, "title", vr->priv->site_name);
-  subtree = xmlNewChild (tree, NULL, "link", 
+  subtree = xmlNewTextChild (tree, NULL, "title", vr->priv->site_name);
+  subtree = xmlNewTextChild (tree, NULL, "link", 
 			apr_psprintf (p, "%s/", vr->priv->base_uri));
-  subtree = xmlNewChild (tree, NULL, "description", 
+  subtree = xmlNewTextChild (tree, NULL, "description", 
 			apr_psprintf (p, "Recent %s articles", vr->priv->site_name));
   subtree = xmlNewChild (tree, NULL, "language", "en-us");
   subtree = xmlNewChild (tree, NULL, "generator", "mod_virgule");
 
   pubdate = virgule_render_date (vr, virgule_iso_now(vr->r->pool), 2);
-  subtree = xmlNewChild (tree, NULL, "pubDate", pubdate);
+  subtree = xmlNewTextChild (tree, NULL, "pubDate", pubdate);
 
   art_num = virgule_db_dir_max (vr->db, "articles");
 

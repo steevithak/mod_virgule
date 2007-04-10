@@ -1,6 +1,11 @@
 2007-04-09 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (virgule_acct_touch): Added missing db lock calls.
+	
+	* mod_virgule (virgule_handler): Fixed minor aliasing bug.
+
+	* rss_export.c (rss_index_serve, rss_render_from_xml): Changed a few
+	xmlNewChild calls to xmlNewTextChild to assure proper entity escapes.
 
 
 2007-04-07 R. Steven Rainwater <steve@ncc.com>

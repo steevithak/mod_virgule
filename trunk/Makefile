@@ -12,12 +12,15 @@ APACHECTL=sudo /etc/rc.d/init.d/httpd
 #DEF=-Dmy_define=my_value
 
 
-CFLAGS=-ggdb -Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags` `apr-config --cflags --cppflags` `apr-config --includes` -fPIC -fno-strict-aliasing
+#CFLAGS=-ggdb3 -Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags` `apr-config --cflags --cppflags` `apr-config --includes` -fPIC -fno-strict-aliasing
+CFLAGS=-Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `glib-config --cflags` `xml2-config --cflags` `apr-config --cflags --cppflags` `apr-config --includes` -fPIC -fno-strict-aliasing
 # Original Makefile used LD_SHLIB here but it doesn't work for me
 #LD=`$(APXS) -q LD_SHLIB`
 LD=ld
 LDLIBS=`$(APXS) -q LIBS_SHLIB` `glib-config --libs` `xml2-config --libs` `apr-config --link-ld` `apr-config --libs`
 LDFLAGS=`$(APXS) -q LDFLAGS_SHLIB` `apr-config --ldflags` -shared --strip-debug
+# debug
+#LDFLAGS=`$(APXS) -q LDFLAGS_SHLIB` `apr-config --ldflags` -shared
 
 OBJS = mod_virgule.o buffer.o site.o apache_util.o \
 	hashtable.o aggregator.o foaf.o req.o \
