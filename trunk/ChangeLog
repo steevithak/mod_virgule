@@ -1,3 +1,11 @@
+2007-04-17 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_index_atom_10): Fixed handling of ATOM
+	feed in which the entry containers have a <summary> tag but no 
+	<content> tag. Also supported now are ATOM feeds which include 
+	only an <updated> tag and not a <published> tag.
+
+
 2007-04-09 R. Steven Rainwater <steve@ncc.com>
 
 	* MAKEFILE: Changed -fPIC to -fpic. This may have been the cause of
