@@ -183,7 +183,7 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
 	  {
 	    char *r = virgule_xml_get_prop (vr->r->pool, tmp, (xmlChar *)"rel");
 	    char *t = virgule_xml_get_prop (vr->r->pool, tmp, (xmlChar *)"type");
-	    if(strcasecmp(r,"alternate") == 0 && strcasecmp(t,"text/html") == 0)
+	    if( strcasecmp(r,"alternate") == 0 && ( t == NULL || strcasecmp(t,"text/html") == 0) )
 	      {
 	        link = virgule_xml_get_prop (vr->r->pool, tmp, (xmlChar *)"href");
 	        break;
@@ -209,10 +209,14 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
 	
       item->title = virgule_xml_find_child (entry, "title");
       item->content = virgule_xml_find_child (entry, "content");
+      if (item->content == NULL)
+        item->content = virgule_xml_find_child (entry, "summary");
       
       item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "published", NULL));
       if(item->post_time == -1)
 	item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "issued", NULL));
+      if(item->post_time == -1)
+	item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "updated", NULL));
       
       item->update_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "updated", NULL));
       if(item->update_time == -1)
