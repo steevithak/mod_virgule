@@ -241,19 +241,19 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
   virgule_auth_user (vr);
 
   if(vr->u == NULL)
-    return virgule_send_error_page (vr, "Not Logged In", "You must be logged in to use the spam reporting system.\n");
+    return virgule_send_error_page (vr, vERROR, "account", "You must be logged in to use the spam reporting system.\n");
 
   if(u == NULL)
-    return virgule_send_error_page (vr, "Invalid Account", "The specified user account was not found.\n");
+    return virgule_send_error_page (vr, vERROR, "account", "The specified user account was not found.\n");
 
   if (strcmp (virgule_req_get_tmetric_level (vr, u),
 	      virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) != 0)
-    return virgule_send_error_page (vr, "Trusted Account", "Only untrusted observer accounts may be reported as spam.\n");
+    return virgule_send_error_page (vr, vERROR, "account", "Only untrusted observer accounts may be reported as spam.\n");
 
   db_key = virgule_acct_dbkey (vr, u);
   profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
   if (profile == NULL)
-    return virgule_send_error_page (vr, "Account Not Found", "The specified user account was not found.\n");
+    return virgule_send_error_page (vr, vERROR, "account", "The specified user account was not found.\n");
 
   spamtree = virgule_xml_ensure_child (profile->xmlRootNode, "spamflags");
 
@@ -275,7 +275,7 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
     }
 
   if (flagged)
-    return virgule_send_error_page (vr, "Account Already Flagged", "You have already flagged this account as spam.\n");
+    return virgule_send_error_page (vr, vERROR, "spam flag", "You have already flagged this account as spam.\n");
 
   /* add a new spam flag and increment score */
   flag = xmlNewChild (spamtree, NULL, (xmlChar *)"flag", NULL);
@@ -294,10 +294,10 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
   if(score > vr->priv->acct_spam_threshold)
     {
       acct_kill(vr, u);
-      return virgule_send_error_page (vr, "Account Deleted", "<blockquote><p>User account [%s] has been deleted.</p><p>Your spam report pushed the total spam score for this account to [%i].</p><p>Accounts are automatically deleted if their spam score exceeds the currently configured score threshold of [%i].</p><p>Thanks for taking the time to help keep %s free of spam!</p><blockquote>\n", u, score, vr->priv->acct_spam_threshold, vr->priv->site_name);
+      return virgule_send_error_page (vr, vINFO, "account deleted", "<blockquote><p>User account [%s] has been deleted.</p><p>Your spam report pushed the total spam score for this account to [%i].</p><p>Accounts are automatically deleted if their spam score exceeds the currently configured score threshold of [%i].</p><p>Thanks for taking the time to help keep %s free of spam!</p><blockquote>\n", u, score, vr->priv->acct_spam_threshold, vr->priv->site_name);
     }
   else 
-    return virgule_send_error_page (vr, "Account Flagged", "<blockquote><p>User account [%s] has been flagged as spam.</p><p>Total spam score for this account is [%i].</p><p>Accounts are automatically deleted if their spam score exceeds the currently configured score threshold of [%i].</p><p>Thanks for taking the time to help keep %s free of spam!</p><blockquote>\n", u, score, vr->priv->acct_spam_threshold, vr->priv->site_name);
+    return virgule_send_error_page (vr, vINFO, "account flagged", "<blockquote><p>User account [%s] has been flagged as spam.</p><p>Total spam score for this account is [%i].</p><p>Accounts are automatically deleted if their spam score exceeds the currently configured score threshold of [%i].</p><p>Thanks for taking the time to help keep %s free of spam!</p><blockquote>\n", u, score, vr->priv->acct_spam_threshold, vr->priv->site_name);
 }
 
 
@@ -572,7 +572,7 @@ acct_index_serve (VirguleReq *vr)
       level = virgule_req_get_tmetric_level (vr, vr->u);
 
       virgule_render_header (vr, "User Account Info");
-      virgule_buffer_printf (b, "<p>Welcome, <tt>%s</tt>. The range of functions you "
+      virgule_buffer_printf (b, "<p>Welcome, <em>%s</em>. The range of functions you "
 		     "can access depends on your <a href=\"%s/certs.html\">certification</a> "
 		     "level. Remember to certify any other users of this site that you "
 		     "know. The trust metric system relies on user participation!</p>\n<p>", 
@@ -705,13 +705,13 @@ acct_newsub_serve (VirguleReq *vr)
   char *u_lc;
 
   if (!vr->priv->allow_account_creation)
-    return virgule_send_error_page (vr, "Account creation forbidden", "No new accounts may be created at this time.\n");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "No new accounts may be created at this time.\n");
 
   virgule_db_lock_upgrade(vr->lock);
   args = virgule_get_args_table (vr);
 
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.\n");
 
   u = apr_table_get (args, "u");
   pass = apr_table_get (args, "pass");
@@ -720,24 +720,24 @@ acct_newsub_serve (VirguleReq *vr)
   subcode = apr_table_get (args, "subcode");
 
   if (subcode != NULL && subcode[0]) 
-    return virgule_send_error_page (vr, "Error",
+    return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "Submission from a banned user agent or IP address.");
 
   if (u == NULL || !u[0])
-    return virgule_send_error_page (vr, "Specify a username",
+    return virgule_send_error_page (vr, vERROR, "username",
 			    "You must specify a username.");
 
   if (strlen (u) > 20)
-    return virgule_send_error_page (vr, "Username too long",
+    return virgule_send_error_page (vr, vERROR, "username",
 			    "The username must be 20 characters or less.");
 
   /* sanity check user name */
   db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL && vr->priv->allow_account_extendedcharset)
-    return virgule_send_error_page (vr, "Invalid username",
+    return virgule_send_error_page (vr, vERROR, "username",
 			    "Username must begin with an alphanumeric character and contain only alphanumerics, spaces, dashes, underscores, or periods.");
   else if (db_key == NULL)
-    return virgule_send_error_page (vr, "Invalid username",
+    return virgule_send_error_page (vr, vERROR, "username",
 			    "Username must contain only alphanumeric characters.");
 
   u_lc = apr_pstrdup (p, u);
@@ -745,32 +745,32 @@ acct_newsub_serve (VirguleReq *vr)
   db_key_lc = virgule_acct_dbkey (vr, u_lc);
   profile = virgule_db_xml_get (p, db, db_key_lc);
   if (profile != NULL)
-    return virgule_send_error_page (vr,
-			    "Account already exists",
-			    "The account name <tt>%s</tt> already exists.",
+    return virgule_send_error_page (vr, vERROR,
+			    "username",
+			    "The user name <em>%s</em> is already in use.",
 			    u);
 
   if (pass == NULL || !pass[0])
-    return virgule_send_error_page (vr, "Specify a password",
+    return virgule_send_error_page (vr, vERROR, "password",
 			    "You must specify a password.");
 
   if (pass == NULL || pass2 == NULL)
-    return virgule_send_error_page (vr,
-			    "Specify a password",
+    return virgule_send_error_page (vr, vERROR, 
+			    "password",
 			    "You must specify a password and enter it twice.");
 
   if (!strcmp (pass, u))
-    return virgule_send_error_page (vr,
-			    "Password must be differnet than username",
+    return virgule_send_error_page (vr, vERROR,
+			    "password",
 			    "The username may not be used as the password.");
 
   if (strcmp (pass, pass2))
-    return virgule_send_error_page (vr,
-			    "Passwords must match",
+    return virgule_send_error_page (vr, vERROR,
+			    "password",
 			    "The passwords must match. Have a cup of coffee and try again.");
 
   if (email == NULL || !email[0])
-    return virgule_send_error_page (vr, "You must specify a valid email address",
+    return virgule_send_error_page (vr, vERROR, "email address",
 			    "You must specify a valid email address. The email address is needed for account authentication, and password recovery purposes.");
 
   profile = virgule_db_xml_doc_new (p);
@@ -798,16 +798,16 @@ acct_newsub_serve (VirguleReq *vr)
       if (virgule_is_input_valid(val))
         xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
       else
-        return virgule_send_error_page (vr,
-                                "Invalid Characters Submitted",
+        return virgule_send_error_page (vr, vERROR,
+                                "invalid UTF-8",
                                 "Only valid characters that use valid UTF-8 sequences may be submitted.");
     }
 
   status = virgule_db_xml_put (p, db, db_key, profile);
   if (status)
-    return virgule_send_error_page (vr,
-			    "Error storing account profile",
-			    "There was an error storing the account profile. This means there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR,
+			    "internal",
+			    "There was an error storing the account profile.");
 
   acct_set_cookie (vr, u, cookie, 86400 * 365);
 
@@ -828,7 +828,7 @@ acct_newsub_serve (VirguleReq *vr)
       status = virgule_db_xml_put (p, db, db_key_lc, profile);
     }
 
-  return virgule_send_error_page (vr,
+  return virgule_send_error_page (vr, vINFO,
 			  "Account created",
 			  "Account <a href=\"%s/person/%s/\">%s</a> created.\n",
 			  vr->prefix, ap_escape_uri (vr->r->pool,u), u);
@@ -882,7 +882,7 @@ virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
       if (profile == NULL)
         {
 	  *ret1 = "Account does not exist";
-	  *ret2 = apr_psprintf (p, "Account <tt>%s</tt> does not exist. Try the <a href=\"new.html\">new account creation</a> page.", u);
+	  *ret2 = apr_psprintf (p, "Account <em>%s</em> does not exist. Try the <a href=\"new.html\">new account creation</a> page.", u);
 	  return 0;
         }
       
@@ -915,7 +915,7 @@ virgule_acct_login (VirguleReq *vr, const char *u, const char *pass,
   if (tree == NULL)
     {
       *ret1 = "Account is missing auth field";
-      *ret2 = apr_psprintf (p, "Account <tt>%s</tt> is missing its auth field. This is a problem with the server.", u);
+      *ret2 = apr_psprintf (p, "Account <em>%s</em> is missing its auth field. This is a problem with the server.", u);
       return 0;
     }
 
@@ -951,7 +951,7 @@ send_email(VirguleReq *vr, const char *mail, const char *u, const char *pass)
   snprintf( cmd, sizeof(cmd)-1, "/usr/lib/sendmail -t -f %s", vr->priv->admin_email);
 
   if ((fp = popen( cmd, "w")) == NULL) 
-     return virgule_send_error_page (vr, "Error", "There was an error sending mail to <tt>%s</tt>.\n", mail);
+     return virgule_send_error_page (vr, vERROR, "SMTP", "There was an error sending mail to <em>%s</em>.\n", mail);
 
   fprintf(fp,"To: %s\n", mail);
 #if 1
@@ -985,7 +985,7 @@ acct_loginsub_serve (VirguleReq *vr)
   args = virgule_get_args_table (vr);
 
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need form data", " This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.\n");
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.\n");
 
   u = apr_table_get (args, "u");
   pass = apr_table_get (args, "pass");
@@ -1008,14 +1008,14 @@ acct_loginsub_serve (VirguleReq *vr)
       db_key = virgule_acct_dbkey(vr, u);
       if (db_key == NULL)
         {
-          return virgule_send_error_page (vr, "Invalid username", "Username contain invalid characters.");
+          return virgule_send_error_page (vr, vERROR, "username", "Username contains invalid characters.");
 	}
 
       /* verify that user name is in DB */
       profile = virgule_db_xml_get (p, vr->db, db_key);
       if (profile == NULL)
         {
-          return virgule_send_error_page (vr, "Account does not exist", "The specified account could not be found.");
+          return virgule_send_error_page (vr, vERROR, "username", "The specified account could not be found.");
 	}
 
       /* check for an account alias */
@@ -1031,9 +1031,9 @@ acct_loginsub_serve (VirguleReq *vr)
       mail = virgule_xml_get_prop (p, tree, (xmlChar *)"email");
       if (mail == NULL)
 	{
-	  return virgule_send_error_page(vr,
-				 "Email not found",
-				 "The account name <tt>%s</tt> doesn't have an email address associated with it.",
+	  return virgule_send_error_page(vr, vERROR,
+				 "email",
+				 "The profile for <em>%s</em> doesn't have an email address associated with it.",
 				 u);
 	}
 
@@ -1041,9 +1041,9 @@ acct_loginsub_serve (VirguleReq *vr)
       pass = virgule_xml_get_prop (p, tree, (xmlChar *)"pass");
       if (pass == NULL)
 	{
-	  return virgule_send_error_page(vr,
-				 "Password not found",
-				 "The account name <tt>%s</tt> doesn't have an email password associated with it.",
+	  return virgule_send_error_page(vr, vERROR,
+				 "password",
+				 "The profile for <em>%s</em> doesn't have a password associated with it.",
 				 u);
 	}
 
@@ -1051,13 +1051,13 @@ acct_loginsub_serve (VirguleReq *vr)
       send_email( vr, mail, u, pass );
 
       /* Tell the user */
-      return virgule_send_error_page( vr, "Password mailed.",
-			      "The password for <tt>%s</tt> has been mailed to <tt>%s</tt>", 
+      return virgule_send_error_page( vr, vINFO, "Password mailed.",
+			      "The password for <em>%s</em> has been mailed to <em>%s</em>", 
 			      u, mail );
   }
 
   if (!virgule_acct_login (vr, u, pass, &ret1, &ret2))
-      return virgule_send_error_page (vr, ret1, ret2);
+      return virgule_send_error_page (vr, vERROR, ret1, ret2);
 
   u = ret1;
   cookie = ret2;
@@ -1066,9 +1066,9 @@ acct_loginsub_serve (VirguleReq *vr)
   
   vr->u = u;
 
-  return virgule_send_error_page (vr,
+  return virgule_send_error_page (vr, vINFO,
 			  "Login ok",
-			  "Login to account <tt>%s</tt> ok.\n", u);
+			  "Login to account <em>%s</em> ok.\n", u);
 
 }
 
@@ -1081,13 +1081,13 @@ acct_logout_serve (VirguleReq *vr)
   if (vr->u)
     {
       acct_set_cookie (vr, vr->u, "", -86400);
-      return virgule_send_error_page (vr,
+      return virgule_send_error_page (vr, vINFO,
 			      "Logged out",
-			      "Logout of account <tt>%s</tt> ok.\n", vr->u);
+			      "Logout of account <em>%s</em> ok.\n", vr->u);
     }
   else
-    return virgule_send_error_page (vr,
-			    "Already logged out",
+    return virgule_send_error_page (vr, vERROR,
+			    "forbidden",
 			    "You were already logged out.\n");
 
 }
@@ -1143,31 +1143,31 @@ acct_update_serve (VirguleReq *vr)
               xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
 	    }
           else
-            return virgule_send_error_page (vr,
-                                    "Invalid Characters Submitted",
+            return virgule_send_error_page (vr, vERROR,
+                                    "UTF-8",
                                     "Only valid characters that use valid UTF-8 sequences may be submitted.");
 	}
 
       status = virgule_db_xml_put (p, vr->db, db_key, profile);
 
       if (status)
-	return virgule_send_error_page (vr,
-				"Error storing account profile",
-				"There was an error storing the account profile. This means there's something wrong with the site.");
+	return virgule_send_error_page (vr, vERROR,
+				"database",
+				"There was an error storing the account profile.");
 
       virgule_update_aggregator_list (vr);
 
       apr_table_add (vr->r->headers_out, "refresh",
 		    apr_psprintf(p, "0;URL=/person/%s/", vr->u));
 
-      return virgule_send_error_page (vr,
+      return virgule_send_error_page (vr, vINFO,
 			      "Updated",
 			      "Updates to account <a href=\"../person/%s/\">%s</a> ok",
 			      ap_escape_uri(vr->r->pool,vr->u), vr->u);
     }
   else
-    return virgule_send_error_page (vr,
-			    "Not logged in",
+    return virgule_send_error_page (vr, vERROR,
+			    "forbidden",
 			    "You need to be logged in to update your info.");
 }
 
@@ -1359,7 +1359,7 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
       virgule_diary_exists (vr, u) == 0)
   {
     vr->r->status = 404;
-    return virgule_send_error_page (vr, "User RSS feed not found", "No RSS feed is available for this user at this time.");
+    return virgule_send_error_page (vr, vERROR, "User RSS feed not found", "No RSS feed is available for this user at this time.");
   }
 
   doc = xmlNewDoc ((xmlChar *)"1.0");
@@ -1370,7 +1370,7 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
   xmlFreeDoc (doc);
   if (size <= 0)
-      return virgule_send_error_page (vr, "Internal mod_virgule error", "xmlDocDumpFormatMemory() failed");
+      return virgule_send_error_page (vr, vERROR, "internal", "xmlDocDumpFormatMemory() failed");
   virgule_buffer_write (b, (char *)mem, size);
   xmlFree (mem);
   return virgule_send_response (vr);
@@ -1391,14 +1391,14 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
       virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)))
   {
     vr->r->status = 404;
-    return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user at this time.");
+    return virgule_send_error_page (vr, vERROR, "not found", "No FOAF RDF record exists for this user at this time.");
   }
       
   foaf = virgule_foaf_person (vr, u);
   if (foaf == NULL)
   {
     vr->r->status = 404;
-    return virgule_send_error_page (vr, "User FOAF record not found", "No FOAF RDF record exists for this user at this time.");
+    return virgule_send_error_page (vr, vERROR, "not found", "No FOAF RDF record exists for this user at this time.");
   }
 
   xmlDocDumpFormatMemory (foaf, &mem, &size, 1);
@@ -1419,13 +1419,13 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
 
   db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
-    return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
+    return virgule_send_error_page (vr, vERROR, "username", "The user name doesn't even look valid, much less exist in the database.");
     
   profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
   if (profile == NULL)
     {
       vr->r->status = 404;
-      return virgule_send_error_page (vr, "<x>Person</x> not found","Account <tt>%s</tt> was not found.", u);
+      return virgule_send_error_page (vr, vERROR, "not found","Account <em>%s</em> was not found.", u);
     }
 
   args = virgule_get_args_table (vr);
@@ -1437,14 +1437,14 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   if (virgule_diary_exists (vr, u) == 0)
   {
     vr->r->status = 404;
-    return virgule_send_error_page (vr, "Blog not found", "No blog entries exist for this user.");
+    return virgule_send_error_page (vr, vERROR, "not found", "No blog entries exist for this user.");
   }
 
   title = apr_psprintf (vr->r->pool, "Blog for %s", u);
 
   /* initialize the temporary buffer */
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
 
   /* render the diary entries to the temp buffer */
   if (start == -1)
@@ -1522,23 +1522,23 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (q[1] != '\0')
     {
       vr->r->status = 404;
-      return virgule_send_error_page (vr, "Page not found", "The request page does not exist.");
+      return virgule_send_error_page (vr, vERROR, "not found", "The request page does not exist.");
     }
 
   db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
     {
       vr->r->status = 404;
-      return virgule_send_error_page (vr, "User name not valid", "The user name doesn't even look valid, much less exist in the database.");
+      return virgule_send_error_page (vr, vERROR, "username", "The user name doesn't even look valid, much less exist in the database.");
     }
     
   profile = virgule_db_xml_get (p, vr->db, db_key);
   if (profile == NULL)
     {
       vr->r->status = 404;
-      return virgule_send_error_page (vr,
-			    "<x>Person</x> not found",
-			    "Account <tt>%s</tt> was not found.", u);
+      return virgule_send_error_page (vr, vERROR,
+			    "not found",
+			    "Account <em>%s</em> was not found.", u);
     }
     
   tree = virgule_xml_find_child (profile->xmlRootNode, "alias");
@@ -1581,7 +1581,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   /* initialize the temporary buffer */
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
   b = vr->b;
 
   if (virgule_user_is_special(vr,vr->u))
@@ -1827,28 +1827,28 @@ acct_certify_serve (VirguleReq *vr)
       level = apr_table_get (args, "level");
 
       if (!strcmp(subject,vr->u))
-        return virgule_send_error_page(vr,
-	                       "Error in certification",
+        return virgule_send_error_page(vr, vERROR,
+	                       "forbidden",
 			       "Sorry, you can't certify yourself.");
 
       status = virgule_cert_set (vr, vr->u, subject,
 			 virgule_cert_level_from_name (vr, level));
 
       if (status)
-	return virgule_send_error_page (vr,
-				"Error storing certificate",
+	return virgule_send_error_page (vr, vERROR,
+				"database",
 				"There was an error storing the certificate. This means there's something wrong with the site.");
       apr_table_add (vr->r->headers_out, "refresh",
 		    apr_psprintf(vr->r->pool, "0;URL=/person/%s/#certs",
 				subject));
-      return virgule_send_error_page (vr,
+      return virgule_send_error_page (vr, vINFO,
 			      "Updated",
 			      "Certification of <a href=\"../person/%s/\">%s</a> to %s level ok.",
 			      ap_escape_uri(vr->r->pool,subject), subject, level);
     }
   else
-    return virgule_send_error_page (vr,
-			    "Not logged in",
+    return virgule_send_error_page (vr, vERROR,
+			    "forbidden",
 			    "You need to be logged in to certify another <x>person</x>.");
 }
 
@@ -1868,24 +1868,24 @@ acct_killsub_serve(VirguleReq *vr)
 
   /* do a few sanity checks before going any further */
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission.\n");
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.\n");
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You must log in to access admin fucntions!");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You must log in to access admin fucntions!");
 
   if (!virgule_user_is_special(vr,vr->u))
-    return virgule_send_error_page (vr, "Unauthorized Access", "You are not authorized to use admin functions!\n");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You are not authorized to use admin functions!\n");
   
   u = apr_table_get (args, "u");
   
   if (u == NULL)
-    return virgule_send_error_page (vr, "Bad Username", "The user name was bad!\n");
+    return virgule_send_error_page (vr, vERROR, "username", "The user name was bad!\n");
 
   if (acct_kill (vr, u))
-    return virgule_send_error_page (vr, "Account Deleted", "User account: [%s] has been deleted!\n", u);
+    return virgule_send_error_page (vr, vINFO, "Account Deleted", "User account: [%s] has been deleted!\n", u);
   else     
-    return virgule_send_error_page (vr, "Error", "User account: [%s] was not deleted. acct_kill() failed!\n", u);
+    return virgule_send_error_page (vr, vERROR, "internal", "User account: [%s] was not deleted. acct_kill() failed!\n", u);
 }
 
 /**
@@ -1931,9 +1931,9 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
     xmlSetProp (lastlogin, (xmlChar *)"date", (xmlChar *)newdate);
   }
   
-  virgule_db_lock_upgrade(vr->lock);
+//  virgule_db_lock_upgrade(vr->lock);
   virgule_db_xml_put (p, vr->db, db_key, profile);  
-  virgule_db_lock_downgrade(vr->lock);
+//  virgule_db_lock_downgrade(vr->lock);
 }
 
 

@@ -183,10 +183,10 @@ proj_new_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't create a new <x>project</x> because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't create a new <x>project</x> because you're not logged in.");
 
   if (!virgule_req_ok_to_create_project (vr))
-    return virgule_send_error_page (vr, "Certification too low", "You need a higher certification level to create a <x>project</x>.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You need a higher certification level to create a <x>project</x>.");
 
   virgule_render_header (vr, "Create new <x>project</x>");
 
@@ -222,10 +222,10 @@ proj_newsub_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't create a new <x>project</x> because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't create a new <x>project</x> because you're not logged in.");
 
   if (!virgule_req_ok_to_create_project (vr))
-    return virgule_send_error_page (vr, "Certification too low", "You need a higher certification level to create a <x>project</x>.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You need a higher certification level to create a <x>project</x>.");
 
   args = virgule_get_args_table (vr);
 
@@ -238,27 +238,27 @@ proj_newsub_serve (VirguleReq *vr)
   date = virgule_iso_now (p);
 
   if (!name[0])
-    return virgule_send_error_page (vr, "Specify <x>a project</x> name",
+    return virgule_send_error_page (vr, vERROR, "form data",
 			    "You must specify <x>a project</x> name.");
 
   if (strlen (name) > 25)
-    return virgule_send_error_page (vr, "<x>Project</x> name too long",
+    return virgule_send_error_page (vr, vERROR, "form data",
 			    "The <x>project</x> name must be 25 characters or less.");
 
   if (name[0] == '.')
-    return virgule_send_error_page (vr, "<x>Project</x> name can't begin with dot",
+    return virgule_send_error_page (vr, vERROR, "form data",
 			    "The <x>project</x> can't begin with a dot, sorry.");
 
   if (strchr (name, '/'))
-    return virgule_send_error_page (vr, "<x>Project</x> name can't have slash",
+    return virgule_send_error_page (vr, vERROR, "form data",
 			    "The <x>project</x> can't have a slash, sorry.");
 
   db_key = apr_psprintf (p, "proj/%s/info.xml", name);
   doc = virgule_db_xml_get (p, db, db_key);
   if (doc != NULL)
-    return virgule_send_error_page (vr,
-			    "<x>Project</x> already exists",
-			    "The <x>project</x> name <tt>%s</tt> already exists.",
+    return virgule_send_error_page (vr, vERROR,
+			    "database",
+			    "The <x>project</x> name <em>%s</em> already exists.",
 			    name);
 
   doc = virgule_db_xml_doc_new (p);
@@ -279,15 +279,15 @@ proj_newsub_serve (VirguleReq *vr)
 
   status = virgule_db_xml_put (p, db, db_key, doc);
   if (status)
-    return virgule_send_error_page (vr,
-			    "Error storing <x>project</x>",
+    return virgule_send_error_page (vr, vERROR,
+			    "database",
 			    "There was an error storing the <x>project</x>. This means there's something wrong with the site.");
 
   virgule_add_recent (p, db, "recent/proj-c.xml", name, 50, 0);
   virgule_add_recent (p, db, "recent/proj-m.xml", name,
               vr->priv->projstyle == PROJSTYLE_RAPH ? 50 : -1, 0);
 
-  return virgule_send_error_page (vr,
+  return virgule_send_error_page (vr, vINFO,
 			  "<x>Project</x> created",
 			  "<x>Project</x> %s created.\n",
 			  virgule_render_proj_name (vr, name));
@@ -327,7 +327,7 @@ proj_index_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
   b = vr->b;
 
   if (vr->priv->projstyle == PROJSTYLE_RAPH)
@@ -335,8 +335,7 @@ proj_index_serve (VirguleReq *vr)
   dbc = virgule_db_open_dir (db, "proj");
   
   if (dbc == NULL)
-    return virgule_send_error_page (vr,
-			    "Error reading <x>projects</x>",
+    return virgule_send_error_page (vr, vERROR, "database",
 			    "There was a problem reading the <x>project</x> list due to an internal server error.");
 
   list = apr_array_make (p, 16, sizeof(char *));
@@ -429,9 +428,9 @@ proj_proj_serve (VirguleReq *vr, const char *path)
     }
 
   if (q[1] != '\0')
-    return virgule_send_error_page (vr,
-			    "Extra junk",
-			    "Extra junk after <x>project</x> name not allowed.");
+    return virgule_send_error_page (vr, vERROR,
+			    "form data",
+			    "Invalid <x>project</x> URL.");
 
   name = apr_pstrndup (p, path, q - path);
 
@@ -441,9 +440,8 @@ proj_proj_serve (VirguleReq *vr, const char *path)
   if (doc == NULL)
     {
       vr->r->status = 404;
-      return virgule_send_error_page (vr,
-		    "<x>Project</x> not found",
-		    "<x>Project</x> <tt>%s</tt> was not found.",
+      return virgule_send_error_page (vr, vERROR, "database",
+		    "<x>Project</x> <em>%s</em> was not found.",
 		    virgule_nice_text (p, name));
     }
     
@@ -453,7 +451,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
     title = apr_psprintf(p, "%s", virgule_nice_text (p, name));
 
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
   b = vr->b;
 
   cdate = virgule_xml_find_child_string (doc->xmlRootNode, "cdate", "--no date--");
@@ -610,8 +608,7 @@ proj_next_new_serve (VirguleReq *vr)
 
   doc = virgule_db_xml_get (p, vr->db, "recent/proj-m.xml");
   if (doc == NULL)
-    return virgule_send_error_page (vr,
-			    "Modification log not found",
+    return virgule_send_error_page (vr, vERROR, "database",
 			    "The modification log was not found.");
   root = doc->xmlRootNode;
   for (tree = root->children; tree != NULL; tree = tree->next)
@@ -633,7 +630,7 @@ proj_next_new_serve (VirguleReq *vr)
 	    apr_table_add (vr->r->headers_out, "refresh", 
 			  apr_psprintf(p, "0;URL=%s",
 				      proj_url(vr, name))); 
-	    return virgule_send_error_page (vr, "Next room", 
+	    return virgule_send_error_page (vr, vINFO, "next room",
 				    "The next room is %s.",
 				    virgule_render_proj_name(vr, name), 
 				    name);
@@ -641,7 +638,7 @@ proj_next_new_serve (VirguleReq *vr)
     }
   virgule_db_xml_free (p, doc);
   apr_table_add (vr->r->headers_out, "refresh", "0;URL=/");
-  return virgule_send_error_page (vr, "Next room", "There are no more rooms with new messages.");
+  return virgule_send_error_page (vr, vINFO, "Next room", "There are no more rooms with new messages.");
 }
 
 static int
@@ -671,12 +668,11 @@ proj_edit_serve (VirguleReq *vr)
 
   doc = virgule_db_xml_get (p, vr->db, db_key);
   if (doc == NULL)
-    return virgule_send_error_page (vr,
-			    "<x>Project</x> not found",
-			    "<x>Project</x> <tt>%s</tt> was not found.", name);
+    return virgule_send_error_page (vr, vERROR, "database",
+			    "<x>Project</x> <em>%s</em> was not found.", name);
 
   if (!proj_ok_to_edit (vr, doc))
-    return virgule_send_error_page (vr, "Not authorized",
+    return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, virgule_cert_level_to_name (vr, 1));
 
   virgule_render_header (vr, "Edit <x>project</x>");
@@ -727,12 +723,12 @@ proj_editsub_serve (VirguleReq *vr)
 
   doc = virgule_db_xml_get (p, vr->db, db_key);
   if (doc == NULL)
-    return virgule_send_error_page (vr,
-			    "<x>Project</x> not found",
-			    "<x>Project</x> <tt>%s</tt> was not found.", name);
+    return virgule_send_error_page (vr, vERROR,
+			    "database",
+			    "<x>Project</x> <em>%s</em> was not found.", name);
 
   if (!proj_ok_to_edit (vr, doc))
-    return virgule_send_error_page (vr, "Not authorized",
+    return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, virgule_cert_level_to_name (vr, 1));
  
   tree = virgule_xml_find_child (doc->xmlRootNode, "info");
@@ -748,15 +744,13 @@ proj_editsub_serve (VirguleReq *vr)
 
   status = virgule_db_xml_put (p, db, db_key, doc);
   if (status)
-    return virgule_send_error_page (vr,
-			    "Error storing <x>project</x>",
+    return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "There was an error storing the <x>project</x>. This means there's something wrong with the site.");
 
   virgule_add_recent (p, db, "recent/proj-m.xml", name, 
 	      vr->priv->projstyle != PROJSTYLE_NICK ? 50 : -1, 0);
 
-  return virgule_send_error_page (vr,
-			  "<x>Project</x> updated",
+  return virgule_send_error_page (vr, vINFO, "<x>Project</x> Updated",
 			  "<x>Project</x> %s updated.\n",
 			  virgule_render_proj_name (vr, name));
 }
@@ -779,19 +773,18 @@ proj_relsub_serve (VirguleReq *vr)
 
   doc = virgule_db_xml_get (p, db, db_key);
   if (doc == NULL)
-    return virgule_send_error_page (vr,
-			    "<x>Project</x> not found",
-			    "<x>Project</x> <tt>%s</tt> was not found.", name);
+    return virgule_send_error_page (vr, vERROR, "database",
+			    "<x>Project</x> <em>%s</em> was not found.", name);
 
   if (!proj_ok_to_edit (vr, doc))
-    return virgule_send_error_page (vr, "Not authorized",
+    return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, virgule_cert_level_to_name (vr, 1));
  
   type = apr_table_get (args, "type");
 
   virgule_proj_set_relation (vr, name, vr->u, type);
 
-  return virgule_send_error_page (vr, "Relationship updated",
+  return virgule_send_error_page (vr, vINFO, "Relationship updated",
 			  "The update of the relationship between <x>person</x> %s and <x>project</x> %s (type %s) is completed. Have a great day!",
 			  vr->u, virgule_render_proj_name (vr, name), type);
 }
@@ -892,7 +885,7 @@ proj_update_all_pointers_serve (VirguleReq *vr)
 	virgule_acct_set_lastread(vr, "proj", proj, n_reply -1);
     }
   apr_table_add (vr->r->headers_out, "refresh", "0;URL=/");
-  return virgule_send_error_page (vr, "Updated", "Your pointers have all been updated.");
+  return virgule_send_error_page (vr, vINFO, "Updated", "Your pointers have all been updated.");
 }
 
 
@@ -919,7 +912,7 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   args = virgule_get_args_table (vr);
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.");
 
   /* XXX */
   name = apr_table_get (args, "name");
@@ -927,24 +920,24 @@ proj_reply_submit_serve (VirguleReq *vr)
   body = apr_table_get (args, "body");
 
   if (name == NULL)
-    return virgule_send_error_page (vr, "Need <x>project</x> name", "This page requires an <x>project</x> name. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR, "form data", "A valid <x>project</x> name is required.");
 
   key_base = apr_psprintf (p, "proj/%s", name);
 
   virgule_db_lock_upgrade (vr->lock);
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not logged in.");
 
   if (!virgule_req_ok_to_post (vr))
-    return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   date = virgule_iso_now (p);
 
   if (title == NULL || title[0] == 0)
-    return virgule_send_error_page (vr, "Need title", "Your reply needs a title. Go back and try again.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Your reply needs a title. Go back and try again.");
   if (body == NULL || body[0] == 0)
-    return virgule_send_error_page (vr, "Need body", "Your reply needs a body. Go back and try again.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Your reply needs a body. Go back and try again.");
 
 
   nice_title = virgule_nice_text (p, title);
@@ -1002,16 +995,14 @@ proj_reply_submit_serve (VirguleReq *vr)
   status = virgule_db_xml_put (p, vr->db, key, doc);
 
   if (status)
-    return virgule_send_error_page (vr,
-			    "Error storing reply",
+    return virgule_send_error_page (vr, vERROR, "database",
 			    "There was an error storing the reply. This means there's something wrong with the site.");
 
   /* update the info page */
   virgule_add_recent (p, vr->db, "recent/proj-m.xml", name, -1, 0);
 
   if (status)
-    virgule_send_error_page (vr,
-		     "Error storing reply",
+    virgule_send_error_page (vr, vERROR, "database",
 		     "There was an error storing the modification time. This means there's something wrong with the site.");
 
 
@@ -1022,7 +1013,7 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   apr_table_add (vr->r->headers_out, "refresh", apr_psprintf(p, "0;URL=%s", proj_url(vr, name)));
   str = apr_psprintf (p, "Ok, your <a href=\"%s\">reply was posted</a>. Thanks!", proj_url(vr, name));
-  return virgule_send_error_page (vr, "Posted", str);
+  return virgule_send_error_page (vr, vINFO, "Posted", str);
 
 }
 
@@ -1039,21 +1030,21 @@ proj_reply_form_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post a reply because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post a reply because you're not logged in.");
 
   if (!virgule_req_ok_to_post (vr))
-    return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   args = virgule_get_args_table (vr);
   name = apr_table_get (args, "name");
   if (name == NULL)
-    return virgule_send_error_page (vr, "Need <x>project</x> name", "Need name of <x>project</x> to reply to.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Need name of <x>project</x> to reply to.");
 
 
   key = apr_psprintf (p, "proj/%s/info.xml", name);
   doc = virgule_db_xml_get (p, vr->db, key);
   if (doc == NULL)
-    return virgule_send_error_page (vr, "<x>project</x> not found", "<x>project</x> %s not found.", name);
+    return virgule_send_error_page (vr, vERROR, "database", "<x>project</x> %s not found.", name);
 
   virgule_render_header (vr, "Post a reply");
 

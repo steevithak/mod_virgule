@@ -1,3 +1,6 @@
+#define vERROR 0
+#define vINFO  1
+
 #define STYLE
 
 void
@@ -16,7 +19,7 @@ int
 virgule_render_footer_send (VirguleReq *vr);
 
 int
-virgule_send_error_page (VirguleReq *vr, const char *error_short,
+virgule_send_error_page (VirguleReq *vr, int type, const char *error_short,
 		 const char *fmt, ...);
 
 char *

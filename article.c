@@ -301,10 +301,10 @@ article_form_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post <x>an article</x> because you're not logged in.");
 
   if (!virgule_req_ok_to_post (vr))
-    return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   virgule_render_header (vr, "Post a new <x>article</x>");
 
@@ -394,21 +394,21 @@ article_generic_submit_serve (VirguleReq *vr,
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post <x>an article</x> because you're not logged in.");
 
   if (!virgule_req_ok_to_reply (vr))
-    return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   virgule_db_lock_upgrade(vr->lock);
 
   date = virgule_iso_now (p);
 
   if (title == NULL || title[0] == 0)
-    return virgule_send_error_page (vr, "Need title", "Your <x>%s</x> needs a title. Go back and try again.", submit_type);
+    return virgule_send_error_page (vr, vERROR, "Need title", "Your <x>%s</x> needs a title. Go back and try again.", submit_type);
   if (!strcmp (submit_type, "article") && (lead == NULL || lead[0] == 0))
-    return virgule_send_error_page (vr, "Need lead", "Your <x>article</x> needs a lead. Go back and try again.");
+    return virgule_send_error_page (vr, vERROR, "Need lead", "Your <x>article</x> needs a lead. Go back and try again.");
   if (!strcmp (submit_type, "reply") && (body == NULL || body[0] == 0))
-    return virgule_send_error_page (vr, "Need body", "Your reply needs a body. Go back and try again.");
+    return virgule_send_error_page (vr, vERROR, "Need body", "Your reply needs a body. Go back and try again.");
 
   nice_title = virgule_nice_text (p, title);
   nice_lead = lead == NULL ? "" : virgule_nice_htext (vr, lead, &lead_error);
@@ -578,26 +578,26 @@ article_generic_submit_serve (VirguleReq *vr,
       char *k = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
       xmlDocPtr old = virgule_db_xml_get (vr->r->pool, vr->db, k);
       if (old == NULL)
-        return virgule_send_error_page (vr, "Read error", "The specified <x>article</x> does not exist.");
+        return virgule_send_error_page (vr, vERROR, "not found", "The specified <x>article</x> does not exist.");
       r = xmlDocGetRootElement (old);
 
       /* verify the article is not too old to edit */
       d = virgule_xml_find_child_string (r, "date", NULL);
       t = virgule_virgule_to_time_t (vr, d);
       if (t + (vr->priv->article_days_to_edit * 86400) < time (NULL))
-        return virgule_send_error_page (vr, "Not editable", "This <x>article</x> is too old to be edited.");
+        return virgule_send_error_page (vr, vERROR, "forbidden", "This <x>article</x> is too old to be edited.");
 
       /* verify this user can edit this article */
       a = virgule_xml_find_child_string (r, "author", NULL);
       if (strcmp (vr->u, a))
-        return virgule_send_error_page (vr, "Authorization problem", "Only <x>articles</x> posted by you may be edited.");
+        return virgule_send_error_page (vr, vERROR, "forbidden", "Only <x>articles</x> posted by you may be edited.");
     }
 
   status = virgule_db_xml_put (p, vr->db, key, doc);
 
   if (status)
-    return virgule_send_error_page (vr,
-			    "Error storing <x>article</x>",
+    return virgule_send_error_page (vr, vERROR,
+			    "database",
 			    "There was an error storing the <x>%s</x>. This means there's something wrong with the site.", submit_type);
 
   if (!strcmp (submit_type, "reply"))
@@ -609,7 +609,7 @@ article_generic_submit_serve (VirguleReq *vr,
 		              oldkey ? atoi (oldkey) : virgule_db_dir_max (vr->db, key_base)));
 
   str = apr_psprintf (p, "Ok, your <x>%s</x> was posted. Thanks!", submit_type);
-  return virgule_send_error_page (vr, "Posted", str);
+  return virgule_send_error_page (vr, vINFO, "Posted", str);
 }
 
 static int
@@ -626,7 +626,7 @@ article_submit_serve (VirguleReq *vr)
 
   args = virgule_get_args_table (vr);
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.");
 
   if(vr->priv->use_article_topics)
     topic = apr_table_get (args, "topic");
@@ -639,7 +639,7 @@ article_submit_serve (VirguleReq *vr)
   /* Auth user and check for duplicate post */
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post <x>an article</x> because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post <x>an article</x> because you're not logged in.");
 
   art_num = virgule_db_dir_max (vr->db, "articles");
   if (art_num >= 0 && oldkey == NULL)
@@ -649,7 +649,7 @@ article_submit_serve (VirguleReq *vr)
       old_title = virgule_xml_find_child_string (doc->xmlRootNode, "title", "(no title)");
       old_author = virgule_xml_find_child_string (doc->xmlRootNode, "author", "(no author)");
       if(strcmp (old_author, vr->u) == 0 && strcmp (old_title, title) == 0)
-	  return virgule_send_error_page (vr, "Duplicate <x>Article</x>", "Please post your <x>article</x> only once.");
+	  return virgule_send_error_page (vr, vERROR, "duplicate", "Duplicate. Please post your <x>article</x> only once.");
     }
 
   return article_generic_submit_serve (vr, topic, title, lead, body, NULL, NULL,
@@ -675,12 +675,12 @@ article_edit_serve (VirguleReq *vr)
   /* user must be logged in */
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You must be logged in to edit an <x>article</x>.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You must be logged in to edit an <x>article</x>.");
 
   /* verify that we got an article key */
   args = virgule_get_args_table (vr);
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need key", "No <x>article</x> key was specified.");
+    return virgule_send_error_page (vr, vERROR, "form data", "No <x>article</x> key was specified.");
 
   /* try to read the article */
   art_num_str = apr_table_get (args, "key");
@@ -688,7 +688,7 @@ article_edit_serve (VirguleReq *vr)
   key = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art_num);
   doc = virgule_db_xml_get (vr->r->pool, vr->db, key);
   if (doc == NULL)
-    return virgule_send_error_page (vr, "Read error", "The specified <x>article</x> could not be loaded.");
+    return virgule_send_error_page (vr, vERROR, "database", "The specified <x>article</x> could not be loaded.");
 
   root = xmlDocGetRootElement (doc);
 
@@ -696,12 +696,12 @@ article_edit_serve (VirguleReq *vr)
   date = virgule_xml_find_child_string (root, "date", NULL);
   t = virgule_virgule_to_time_t (vr, date);
   if (t + (vr->priv->article_days_to_edit * 86400) < time (NULL))
-    return virgule_send_error_page (vr, "Not editable", "This <x>article</x> is too old to be edited.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "This <x>article</x> is too old to be edited.");
 
   /* verify this user can edit this article */
   author = virgule_xml_find_child_string (root, "author", NULL);
   if (strcmp (vr->u, author))
-    return virgule_send_error_page (vr, "Authorization problem", "Only <x>articles</x> posted by you may be edited.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "Only <x>articles</x> posted by you may be edited.");
 
   topic = virgule_xml_find_child_string (root, "topic", NULL);
   title = virgule_xml_find_child_string (root, "title", NULL);
@@ -733,22 +733,22 @@ article_reply_form_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post a reply because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post a reply because you're not logged in.");
 
   if (!virgule_req_ok_to_reply (vr))
-    return virgule_send_error_page (vr, "Not certified", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
   args = virgule_get_args_table (vr);
   art_num_str = apr_table_get (args, "art_num");
   if (art_num_str == NULL)
-    return virgule_send_error_page (vr, "Need <x>article</x> number", "Need <x>article</x> number to reply to.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Need <x>article</x> number to reply to.");
 
   art_num = atoi (art_num_str);
 
   key = apr_psprintf (p, "articles/_%d/article.xml", art_num);
   doc = virgule_db_xml_get (p, vr->db, key);
   if (doc == NULL)
-    return virgule_send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", art_num);
+    return virgule_send_error_page (vr, vERROR, "database", "<x>Article</x> %d not found.", art_num);
   root = doc->xmlRootNode;
   tree = virgule_xml_find_child (root, "title");
   if (tree)
@@ -789,18 +789,18 @@ article_reply_submit_serve (VirguleReq *vr)
   virgule_auth_user (vr);
   
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post a reply because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post a reply because you're not logged in.");
 
   args = virgule_get_args_table (vr);
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need form data", "This page requires a form submission. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.");
 
   title = apr_table_get (args, "title");
   art_num_str = apr_table_get (args, "art_num");
   body = apr_table_get (args, "body");
 
   if (art_num_str == NULL)
-    return virgule_send_error_page (vr, "Need <x>article</x> number", "This page requires <x>an article</x> number. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR, "form data", "This page requires <x>an article</x> number. If you're not playing around manually with URLs, it suggests there's something wrong with the site.");
 
   key_base = apr_psprintf (p, "articles/_%d", atoi (art_num_str));
 
@@ -815,7 +815,7 @@ article_reply_submit_serve (VirguleReq *vr)
       old_author = virgule_xml_find_child_string (doc->xmlRootNode, "author", "(no author)");
       old_title = virgule_xml_find_child_string (doc->xmlRootNode, "title", "(no author)");
       if(strcmp (old_author, vr->u) == 0 && strcmp (old_title, title) == 0)
-	  return virgule_send_error_page (vr, "Duplicate Reply", "Please post your reply only once.");
+	  return virgule_send_error_page (vr, vERROR, "duplicate", "Duplicate. Please post your reply only once.");
     }
 
   return article_generic_submit_serve (vr, NULL, title, NULL, body, NULL, NULL,
@@ -887,17 +887,17 @@ article_num_serve (VirguleReq *vr, const char *t)
 
   n = strtol (t, &tail, 10);
   if (strcmp (tail, ".html"))
-    return virgule_send_error_page (vr, "Extra junk", "Extra junk after URL not allowed: %s", tail);
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid <x>Article</x> URL: %s", tail);
   key = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", n);
   doc = virgule_db_xml_get (vr->r->pool, vr->db, key);
   if (doc == NULL)
-    return virgule_send_error_page (vr, "<x>Article</x> not found", "<x>Article</x> %d not found.", n);
+    return virgule_send_error_page (vr, vERROR, "database", "<x>Article</x> %d not found.", n);
   root = xmlDocGetRootElement (doc);
   title = virgule_xml_find_child_string (root, "title", "(no title)");
 
   /* initialize the temp buffer */
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "Unable to allocate temporary rendering buffer");
+    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
 
   /* render the article to the temp buffer */
   article_render_from_xml (vr, n, doc, ARTICLE_RENDER_FULL);

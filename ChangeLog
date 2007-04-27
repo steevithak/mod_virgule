@@ -1,3 +1,23 @@
+2007-04-25 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_post_feed): Items with no content are
+	skipped rather than creating empty diary posts.
+	
+	* style.c (virgule_send_error_page): Error pages are now rendered 
+	using a default template page. All hard coded markup has been removed.
+	An additional argument was added to allow reuse of this function for
+	informational messages as well as error messages. Replaced old-style
+	<tt> tags with <em> tags. The old-style look can be duplicated in CSS
+	if desired.
+
+	* style.c (virgule_render_header_raw): Now produces legal HTML even
+	if title is NULL.
+
+	* site.c (virgule_site_render_page): Improved handling of the page
+	title to allow for static title text in the template, title text
+	provided by mod_virgule, and combinations of the two if desired.
+
+
 2007-04-17 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_index_atom_10): Fixed handling of ATOM

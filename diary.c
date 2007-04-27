@@ -258,14 +258,14 @@ diary_preview_serve (VirguleReq *vr)
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post a blog entry because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post a blog entry because you're not logged in.");
 
   args = virgule_get_args_table (vr);
   date = virgule_iso_now (p);
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
-    return virgule_send_error_page (vr, "Invalid Key", "An invalid blog key was submitted.");
+    return virgule_send_error_page (vr, vERROR, "form data", "An invalid blog key was submitted.");
 
   entry = apr_table_get (args, "entry");
   diary_put_backup (vr, entry);
@@ -523,7 +523,7 @@ diary_post_serve (VirguleReq *vr)
   virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't post a blog entry because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post a blog entry because you're not logged in.");
 
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
 
@@ -534,7 +534,7 @@ diary_post_serve (VirguleReq *vr)
 
   key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
-    return virgule_send_error_page (vr, "Invalid Key", "An invalid blog key was submitted.");
+    return virgule_send_error_page (vr, vERROR, "form data", "An invalid blog key was submitted.");
 
   entry = apr_table_get (args, "entry");
   entry = virgule_nice_htext (vr, entry, &error);
@@ -542,14 +542,13 @@ diary_post_serve (VirguleReq *vr)
   status = virgule_diary_store_entry (vr, key, entry);
   
   if (status)
-    return virgule_send_error_page (vr,
-			    "Error storing blog entry",
-			    "There was an error storing the blog entry. This means there's something wrong with the site.");
+    return virgule_send_error_page (vr, vERROR, "database",
+			    "There was an error storing the blog entry.");
 
   diary_put_backup (vr, "");
 
   apr_table_add (vr->r->headers_out, "refresh", "0;URL=/recentlog.html");
-  return virgule_send_error_page (vr, "Blog", "Ok, your <a href=\"/recentlog.html\">blog</a> entry was posted. Thanks!");
+  return virgule_send_error_page (vr, vINFO, "blog", "Ok, your <a href=\"/recentlog.html\">blog</a> entry was posted. Thanks!");
 }
 
 
@@ -564,7 +563,7 @@ diary_index_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't access your blog page because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't access your blog page because you're not logged in.");
 
   str = apr_psprintf (p, "Blog: %s\n", vr->u);
   virgule_render_header (vr, str);
@@ -602,17 +601,17 @@ diary_edit_serve (VirguleReq *vr)
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
-    return virgule_send_error_page (vr, "Not logged in", "You can't access your blog page because you're not logged in.");
+    return virgule_send_error_page (vr, vERROR, "forbidden", "You can't access your blog page because you're not logged in.");
 
   args = virgule_get_args_table (vr);
 
   if (args == NULL)
-    return virgule_send_error_page (vr, "Need key", "Need to specify key to edit.");
+    return virgule_send_error_page (vr, vERROR, "form data", "Need to specify key to edit.");
 
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = validate_key(vr, diary, apr_table_get (args, "key"));
   if (key == NULL)
-    return virgule_send_error_page (vr, "Invalid Key", "An invalid blog key was submitted.");
+    return virgule_send_error_page (vr, vERROR, "form data", "An invalid blog key was submitted.");
 
   entry = virgule_db_xml_get (p, vr->db, key);
 
@@ -678,7 +677,7 @@ diary_edit_serve (VirguleReq *vr)
     }
   else
     {
-      return virgule_send_error_page (vr, "Invalid Blog Entry", "The request blog entry was not found.");
+      return virgule_send_error_page (vr, vERROR, "database", "The request blog entry was not found.");
     }
 
   return virgule_render_footer_send (vr);
@@ -718,7 +717,7 @@ virgule_diary_serve (VirguleReq *vr)
 
   return DECLINED;
 #if 0
-  return virgule_send_error_page (vr, "Blog", "Welcome to your blog.");
+  return virgule_send_error_page (vr, vINFO, "blog", "Welcome to your blog.");
 #endif
 }
 
