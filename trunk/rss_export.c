@@ -113,7 +113,7 @@ rss_index_serve (VirguleReq *vr)
 
   doc = xmlNewDoc ("1.0");
   if (doc == NULL)
-    return virgule_send_error_page (vr, "Internal mod_virgule error", "xmlNewDoc() failed");
+    return virgule_send_error_page (vr, vERROR, "internal", "xmlNewDoc() failed");
 
   vr->r->content_type = "text/xml; charset=UTF-8";
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
@@ -142,7 +142,7 @@ rss_index_serve (VirguleReq *vr)
 
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
   if (size <= 0)
-    return virgule_send_error_page (vr, "Internal mod_virgule error", "xmlDocDumpFormatMemory() failed");
+    return virgule_send_error_page (vr, vERROR, "internal", "xmlDocDumpFormatMemory() failed");
 
   virgule_buffer_write (b, mem, size);
   xmlFree (mem);

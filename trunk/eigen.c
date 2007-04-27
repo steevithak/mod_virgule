@@ -182,6 +182,11 @@ virgule_eigen_vec_load (apr_pool_t *p, VirguleReq *vr, const char *dbkey)
   return result;
 }
 
+
+/**
+ * rsr notes: Couldn't we use an APR sprintf string allocation function
+ * instead of all the overhead of creating a temporary virgule buffer here?
+ **/
 static void
 eigen_vec_store (apr_pool_t *p, VirguleReq *vr, HashTable *ht, const char *dbkey)
 {

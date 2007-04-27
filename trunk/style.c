@@ -46,7 +46,7 @@ virgule_render_header_raw (VirguleReq *vr, const char *title)
   vr->r->content_type = "text/html; charset=UTF-8";
 
   virgule_buffer_printf (b, "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n"
-                 "<html>\n<head><title>%s</title>\n", title);
+                 "<html>\n<head><title>%s</title>\n", title ? title : "");
                  
   virgule_buffer_printf (b, "<link rel=\"stylesheet\" type=\"text/css\" "
                  "href=\"%s/css/global.css\" />\n"
@@ -130,7 +130,8 @@ virgule_render_userstats (VirguleReq *vr)
 
 
 /*
- * The enclose option is for backward compatibility with advogato.org only
+ * The enclose option is for backward compatibility with advogato.org only.
+ * It can be removed once all pages are template-based.
  */
 void
 virgule_render_sitemap (VirguleReq *vr, int enclose)
@@ -178,23 +179,35 @@ virgule_render_footer_send (VirguleReq *vr)
   return virgule_send_response (vr);
 }
 
+
+/**
+ * virgule_send_error_page: Render an error page using the default template.
+ * If buffer allocation problems occur, declare an internal error and abort.
+ * Error types:
+ * 0 Error
+ * 1 Info
+ * ToDo: We could generate an Apache error log entry before aborting.
+ */
 int
-virgule_send_error_page (VirguleReq *vr, const char *error_short,
-		 const char *fmt, ...)
+virgule_send_error_page (VirguleReq *vr, int type, const char *error_short, const char *fmt, ...)
 {
-  Buffer *b = vr->b;
   va_list ap;
+  char *emsg[] = { "Error", "Info" };
+  char *title = apr_psprintf (vr->r->pool, "%s: %s", emsg[type], error_short);
 
   if (vr->r->status == 404)
     vr->r->status_line = apr_pstrdup (vr->r->pool, "404 Not Found");
 
-  virgule_render_header (vr, error_short);
-  virgule_buffer_puts (b, "<p> ");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
+
   va_start (ap, fmt);
-  virgule_buffer_puts (b, apr_pvsprintf (vr->r->pool, fmt, ap));
+  virgule_buffer_puts (vr->b, apr_pvsprintf (vr->r->pool, fmt, ap));
   va_end (ap);
-  virgule_buffer_puts (b, "</p>\n");
-  return virgule_render_footer_send (vr);
+
+  virgule_set_main_buffer (vr);
+
+  return virgule_render_in_template (vr, "/site/default.xml", "content", title);
 }
 
 
@@ -244,7 +257,7 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
 
 /**
  * virgule_set_temp_buffer: Allocate a temp buffer, set the translations,
- * and swap it out with the main request buffer. Once swapped all buffer
+ * and swap it out with the main request buffer. Once swapped, all buffer
  * printing function within mod_virgule will write to the temp buffer. This
  * is normally done to pre-render a portion of content for insertion into a
  * template. The main buffer must be made active again before mod_virgule
@@ -302,17 +315,17 @@ virgule_render_in_template (VirguleReq *vr, char *tpath, char *tagname, char *ti
   xmlNodePtr troot;
 
   if (tpath == NULL || tagname == NULL)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_render_in_template() failed: tpath or tagname were invalid");
+    return virgule_send_error_page (vr, vERROR, "internal", "virgule_render_in_template() failed: tpath or tagname were invalid");
   
   /* extract the contents of the temp buffer as a string */
   istr = virgule_buffer_extract (vr->tb);
   if (istr == NULL)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_buffer_extract() failed");
+    return virgule_send_error_page (vr, vERROR, "internal", "virgule_buffer_extract() failed");
 
   /* load the template */
   tdoc = virgule_db_xml_get (vr->r->pool, vr->db, tpath);
   if (tdoc == NULL)
-    return virgule_send_error_page (vr, "internal mod_virgule error", "virgule_db_xml_get() failed, unable to load template");
+    return virgule_send_error_page (vr, vERROR, "internal", "virgule_db_xml_get() failed, unable to load template");
 
   troot = xmlDocGetRootElement (tdoc);
 

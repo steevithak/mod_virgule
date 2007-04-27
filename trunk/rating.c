@@ -70,16 +70,16 @@ rating_rate_diary (VirguleReq *vr)
       rating_s = apr_table_get (args, "rating");
       rating = atoi (rating_s);
       if (rating < 1 || rating > 10)
-	return virgule_send_error_page (vr, "Rating out of range",
+	return virgule_send_error_page (vr, vERROR, "out of range",
 				"Ratings must be from 1 to 10.");
       subj = apr_pstrcat (vr->r->pool, "d/", subject, NULL);
       virgule_eigen_set_local (vr, subj, (double)rating);
-      return virgule_send_error_page (vr, "Submitted",
+      return virgule_send_error_page (vr, vINFO, "Submitted",
 			     "Your rating of %s's blog as %d is noted. Thanks.",
 			     subject, rating);
     }
   else
-    return virgule_send_error_page (vr, "Not logged in",
+    return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "You need to be logged in to rate diaries.");
 }
 
@@ -90,7 +90,7 @@ rating_crank (VirguleReq *vr, const char *u)
   const char *reason = virgule_validate_username (vr, u);
 
   if (reason)
-    return virgule_send_error_page (vr, "Username error", reason);
+    return virgule_send_error_page (vr, vERROR, "username", reason);
 
   virgule_render_header (vr, "Crank");
   virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", u);
@@ -109,6 +109,7 @@ rating_crank (VirguleReq *vr, const char *u)
  * There is room for further improvement. The memory pool allocation in
  * each iteration of the loop is a work around for a memory leak somewhere 
  * in the eigen code.
+ * Also, the locking scheme isn't thread-safe. 
  **/
 static int
 rating_crank_all (VirguleReq *vr)
@@ -160,7 +161,7 @@ rating_report (VirguleReq *vr, const char *u)
   const char *reason = virgule_validate_username (vr, u);
 
   if (reason)
-    return virgule_send_error_page (vr, "Username error", reason);
+    return virgule_send_error_page (vr, vERROR, "username", reason);
 
   virgule_render_header (vr, "Report");
   virgule_buffer_printf (vr->b, "<p>Reporting node %s.</p>\n", u);

@@ -441,6 +441,8 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
   for (i = 0; i < item_list->nelts; i++)
     {
       FeedItem *item = &((FeedItem *)(item_list->elts))[i];
+      if (item->content == NULL)
+        continue;
       if (item->post_time > latest)
 	{
           int e;

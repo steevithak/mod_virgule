@@ -352,10 +352,10 @@ read_site_config (VirguleReq *vr)
 
   /* Allocate thread private data struct and memory pool */
   if (apr_pool_create(&privpool,ppool) != APR_SUCCESS)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
                             "Unable to create thread private memory pool");
   if (!(vr->priv = apr_pcalloc(privpool,sizeof(virgule_private_t))))
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "Unable to allocate virgule_private_t");
   vr->priv->pool = privpool;
   
@@ -372,19 +372,19 @@ read_site_config (VirguleReq *vr)
   /* Load and parse the site configuration */
   doc = virgule_db_xml_get (vr->r->pool, vr->db, "config.xml");
   if (doc == NULL)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "Unable to read the site config.");
 
   /* read the site name */
   vr->priv->site_name = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "name", ""));
   if (!strlen (vr->priv->site_name))
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "No name found in site config.");
 
   /* read the admin email */
   vr->priv->admin_email = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "adminemail", ""));
   if (!strlen (vr->priv->admin_email))
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "No admin email found in site config.");
 
   /* read the site's base uri, and trim any trailing slashes */
@@ -393,7 +393,7 @@ read_site_config (VirguleReq *vr)
     {
       int len = strlen (uri);
       if (!len)
-	return virgule_send_error_page (vr, "Config error",
+	return virgule_send_error_page (vr, vERROR, "config",
 				"No base URI found in site config.");
       if (uri[len - 1] != '/')
 	break;
@@ -411,7 +411,7 @@ read_site_config (VirguleReq *vr)
   else if (!strcasecmp (text, "Steve"))
     vr->priv->projstyle = PROJSTYLE_STEVE;
   else
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "Unknown project style found in site config.");
 
   /* read the recentlog style */
@@ -421,7 +421,7 @@ read_site_config (VirguleReq *vr)
   else if (!strcasecmp (text, "As posted"))
     vr->priv->recentlog_as_posted = 1;
   else
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "Unknown recentlog style found in site config.");
 
   /* read the cert levels */
@@ -429,7 +429,7 @@ read_site_config (VirguleReq *vr)
   stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = virgule_xml_find_child (doc->xmlRootNode, "levels");
   if (node == NULL)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "No cert levels found in site config.");
 
   for (child = node->children; child; child = child->next)
@@ -438,13 +438,13 @@ read_site_config (VirguleReq *vr)
         continue;
       }
       if (xmlStrcmp (child->name, (xmlChar *)"level"))
-	return virgule_send_error_page (vr, "Config error",
-				"Unknown element <tt>%s</tt> in cert levels.",
+	return virgule_send_error_page (vr, vERROR, "config",
+				"Unknown element <em>%s</em> in cert levels.",
 				child->name);
 
       text = virgule_xml_get_string_contents (child);
       if (!text)
-	return virgule_send_error_page (vr, "Config error",
+	return virgule_send_error_page (vr, vERROR, "config",
 				"Empty element in cert levels.");
 
       c_item = (const char **)apr_array_push (stack);
@@ -452,7 +452,7 @@ read_site_config (VirguleReq *vr)
     }
 
   if (stack->nelts < 2)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "There must be at least two cert levels.");
 
   c_item = (const char **)apr_array_push (stack);
@@ -491,7 +491,7 @@ read_site_config (VirguleReq *vr)
   stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = virgule_xml_find_child (doc->xmlRootNode, "seeds");
   if (node == NULL)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "No seeds found in site config.");
 
   for (child = node->children; child; child = child->next)
@@ -500,13 +500,13 @@ read_site_config (VirguleReq *vr)
         continue;
       } 
       if (xmlStrcmp (child->name, (xmlChar *)"seed"))
-	return virgule_send_error_page (vr, "Config error",
-				"Unknown element <tt>%s</tt> in seeds.",
+	return virgule_send_error_page (vr, vERROR, "config",
+				"Unknown element <em>%s</em> in seeds.",
 				child->name);
 
       text = virgule_xml_get_string_contents (child);
       if (!text)
-	return virgule_send_error_page (vr, "Config error",
+	return virgule_send_error_page (vr, vERROR, "config",
 				"Empty element in seeds.");
 
       c_item = (const char **)apr_array_push (stack);
@@ -514,7 +514,7 @@ read_site_config (VirguleReq *vr)
     }
 
   if (stack->nelts < 1)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "There must be at least one seed.");
 
   c_item = (const char **)apr_array_push (stack);
@@ -525,7 +525,7 @@ read_site_config (VirguleReq *vr)
   stack = apr_array_make (vr->priv->pool, 10, sizeof (int));
   node = virgule_xml_find_child (doc->xmlRootNode, "caps");
   if (node == NULL)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "No capacities found in site config.");
 
   for (child = node->children; child; child = child->next)
@@ -534,13 +534,13 @@ read_site_config (VirguleReq *vr)
         continue;
       }
       if (xmlStrcmp (child->name, (xmlChar *)"cap"))
-	return virgule_send_error_page (vr, "Config error",
-				"Unknown element <tt>%s</tt> in capacities.",
+	return virgule_send_error_page (vr, vERROR, "config",
+				"Unknown element <em>%s</em> in capacities.",
 				child->name);
 
       text = virgule_xml_get_string_contents (child);
       if (!text)
-	return virgule_send_error_page (vr, "Config error",
+	return virgule_send_error_page (vr, vERROR, "config",
 				"Empty element in capacities.");
 
       i_item = (int *)apr_array_push (stack);
@@ -548,7 +548,7 @@ read_site_config (VirguleReq *vr)
     }
 
   if (stack->nelts < 1)
-    return virgule_send_error_page (vr, "Config error",
+    return virgule_send_error_page (vr, vERROR, "config",
 			    "There must be at least one capacity.");
 
   i_item = (int *)apr_array_push (stack);
@@ -566,13 +566,13 @@ read_site_config (VirguleReq *vr)
             continue;
           }
 	  if (xmlStrcmp (child->name, (xmlChar *)"specialuser"))
-	    return virgule_send_error_page (vr, "Config error",
-				    "Unknown element <tt>%s</tt> in special users.",
+	    return virgule_send_error_page (vr, vERROR, "config",
+				    "Unknown element <em>%s</em> in special users.",
 				    child->name);
 
 	  text = virgule_xml_get_string_contents (child);
 	  if (!text)
-	    return virgule_send_error_page (vr, "Config error",
+	    return virgule_send_error_page (vr, vERROR, "config",
 				    "Empty element in special users.");
 
 	  c_item = (const char **)apr_array_push (stack);
@@ -594,8 +594,8 @@ read_site_config (VirguleReq *vr)
             continue;
           }
 	  if (xmlStrcmp (child->name, (xmlChar *)"translate"))
-	    return virgule_send_error_page (vr, "Config error",
-				    "Unknown element <tt>%s</tt> in translations.",
+	    return virgule_send_error_page (vr, vERROR, "config",
+				    "Unknown element <em>%s</em> in translations.",
 				    child->name);
 
 	  text = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"from");
@@ -676,14 +676,14 @@ read_site_config (VirguleReq *vr)
 	  continue;
 	}	
 	if (xmlStrcmp (child->name, (xmlChar *)"topic"))
-	  return virgule_send_error_page (vr, "Config error",
-				  "Unknown element <tt>%s</tt> in article topic.",
+	  return virgule_send_error_page (vr, vERROR, "config",
+				  "Unknown element <em>%s</em> in article topic.",
 				  child->name);
 	
 	url = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"url");
 	text = virgule_xml_get_string_contents (child);
         if (!text)
-          return virgule_send_error_page (vr, "Config error",
+          return virgule_send_error_page (vr, vERROR, "config",
                                       "Empty element in article topic.");
 
         at_item = (const Topic **)apr_array_push (stack);
@@ -711,14 +711,14 @@ read_site_config (VirguleReq *vr)
 	  continue;
 	}	
 	if (xmlStrcmp (child->name, (xmlChar *)"option"))
-	  return virgule_send_error_page (vr, "Config error",
-				  "Unknown element <tt>%s</tt> in sitemap options.",
+	  return virgule_send_error_page (vr, vERROR, "config",
+				  "Unknown element <em>%s</em> in sitemap options.",
 				  child->name);
 	
 	url = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"url");
 	text = virgule_xml_get_string_contents (child);
         if (!text)
-          return virgule_send_error_page (vr, "Config error",
+          return virgule_send_error_page (vr, vERROR, "config",
                                       "Empty element in allowed sitemap options.");
 
         n_item = (const NavOption **)apr_array_push (stack);
@@ -742,8 +742,8 @@ read_site_config (VirguleReq *vr)
             continue;
           }
 	  if (xmlStrcmp (child->name, (xmlChar *)"tag"))
-	    return virgule_send_error_page (vr, "Config error",
-				    "Unknown element <tt>%s</tt> in allowed tags.",
+	    return virgule_send_error_page (vr, vERROR, "config",
+				    "Unknown element <em>%s</em> in allowed tags.",
 				    child->name);
 
 	  text = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"canbeempty");
@@ -751,7 +751,7 @@ read_site_config (VirguleReq *vr)
 
 	  text = virgule_xml_get_string_contents (child);
 	  if (!text)
-	    return virgule_send_error_page (vr, "Config error",
+	    return virgule_send_error_page (vr, vERROR, "config",
 				    "Empty element in allowed tags.");
 
 	  t_item = (const AllowedTag **)apr_array_push (stack);
@@ -870,7 +870,7 @@ static int virgule_handler(request_rec *r)
 
   vr->lock = virgule_db_lock (vr->db);
   if (vr->lock == NULL)
-    return virgule_send_error_page (vr, "Lock error",
+    return virgule_send_error_page (vr, vERROR, "db lock",
 			    "There was an error acquiring the lock, %s.",
 			    strerror (errno));
 

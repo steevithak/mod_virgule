@@ -236,7 +236,7 @@ tmetric_index_serve (VirguleReq *vr)
 
   lock = virgule_db_lock_key (db, "tmetric/.lock", F_SETLK);
   if (lock == NULL)
-    return virgule_send_error_page (vr, "Lock taken", "The tmetric lock is taken by another process.");
+    return virgule_send_error_page (vr, vERROR, "tmetric", "The tmetric lock is taken by another process.");
 
   for (n_seeds = 0;; n_seeds++)
     if (!vr->priv->seeds[n_seeds])

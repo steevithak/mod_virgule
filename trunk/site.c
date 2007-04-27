@@ -505,6 +505,9 @@ site_render (RenderCtx *ctx, xmlNode *node)
 
 /**
  * Read XML template, parse title and header, and pass to site_render()
+ * Some juggling is done to merge any title text from the template with
+ * title text provided internally in ititle. An attempt is made to insert
+ * ititle text in the appropriate node order to force text node merging.
  **/
 int
 virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr, char *ititle)
@@ -512,11 +515,40 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
   RenderCtx ctx;
   xmlNode *title_node;
   xmlNode *head_node;
+  xmlNode *thetitle;
+  xmlNode *tmp;
   char *title = NULL;
   char *raw;
 
   ctx.vr = vr;
-  
+  ctx.title = ititle ? ititle : "";
+
+  /* Populate thetitle tag and combined with template title content, if any */
+  title_node = virgule_xml_find_child (node, "title");
+  if (title_node != NULL)
+    {
+      thetitle = virgule_xml_find_child (title_node, "thetitle");
+      if (thetitle != NULL)
+        {
+	  if (ititle)
+	    {
+	      tmp = xmlNewText ((xmlChar *)ititle);
+	      if ((thetitle->prev != NULL) && (thetitle->prev->type == XML_TEXT_NODE))
+	        xmlAddNextSibling (thetitle->prev, tmp);
+              else if ((thetitle->next != NULL) && (thetitle->next->type == XML_TEXT_NODE))
+	        xmlAddPrevSibling (thetitle->next, tmp);
+              else
+	        xmlAddSibling (thetitle, tmp);
+	    }
+          xmlUnlinkNode (thetitle);
+          xmlFreeNode (thetitle);
+        }
+      title = virgule_xml_get_string_contents (title_node);
+    }
+  else if (ititle)
+    title = ititle;
+
+/*  
   if(ititle)
   {
     title = ititle;
@@ -529,7 +561,8 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
     else
       title = virgule_xml_get_string_contents (title_node);
   }
-  
+*/
+
   head_node = virgule_xml_find_child (node, "head_content");
   if (head_node != NULL)
     virgule_buffer_puts(vr->hb, virgule_xml_get_string_contents (head_node));
@@ -538,7 +571,6 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
 //ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, vr->r, "title: [%s]", title);
 //
 
-  ctx.title = title;
   ctx.itag = itag;
   ctx.istr = istr;
   raw = virgule_xml_get_prop (vr->r->pool, node, "raw");
