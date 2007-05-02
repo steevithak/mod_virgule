@@ -314,13 +314,14 @@ virgule_render_in_template (VirguleReq *vr, char *tpath, char *tagname, char *ti
   xmlDocPtr tdoc;
   xmlNodePtr troot;
 
-  if (tpath == NULL || tagname == NULL)
+  if (tpath == NULL)
     return virgule_send_error_page (vr, vERROR, "internal", "virgule_render_in_template() failed: tpath or tagname were invalid");
   
   /* extract the contents of the temp buffer as a string */
-  istr = virgule_buffer_extract (vr->tb);
-  if (istr == NULL)
-    return virgule_send_error_page (vr, vERROR, "internal", "virgule_buffer_extract() failed");
+  if (vr->tb != NULL)
+    istr = virgule_buffer_extract (vr->tb);
+//  if (istr == NULL)
+//    return virgule_send_error_page (vr, vERROR, "internal", "virgule_buffer_extract() failed");
 
   /* load the template */
   tdoc = virgule_db_xml_get (vr->r->pool, vr->db, tpath);

@@ -479,7 +479,7 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  inc_path = virgule_xml_get_prop (p, node, "path");
 	  site_render_include (ctx, vr, inc_path);
 	}
-      else if ((ctx->itag != NULL) && (!strcmp (node->name, ctx->itag)))
+      else if ((ctx->itag != NULL && ctx->istr != NULL) && (!strcmp (node->name, ctx->itag)))
         {
 	  virgule_buffer_puts (b, ctx->istr);
 	}
@@ -547,21 +547,6 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
     }
   else if (ititle)
     title = ititle;
-
-/*  
-  if(ititle)
-  {
-    title = ititle;
-  }
-  else
-  {
-    title_node = virgule_xml_find_child (node, "title");
-    if (title_node == NULL)
-      title = "(no title)";
-    else
-      title = virgule_xml_get_string_contents (title_node);
-  }
-*/
 
   head_node = virgule_xml_find_child (node, "head_content");
   if (head_node != NULL)
