@@ -327,7 +327,7 @@ proj_index_serve (VirguleReq *vr)
   virgule_auth_user (vr);
 
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
+    return HTTP_INTERNAL_SERVER_ERROR;
   b = vr->b;
 
   if (vr->priv->projstyle == PROJSTYLE_RAPH)
@@ -451,7 +451,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
     title = apr_psprintf(p, "%s", virgule_nice_text (p, name));
 
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
+    return HTTP_INTERNAL_SERVER_ERROR;
   b = vr->b;
 
   cdate = virgule_xml_find_child_string (doc->xmlRootNode, "cdate", "--no date--");

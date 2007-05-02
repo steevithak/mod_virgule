@@ -552,13 +552,13 @@ static int
 acct_index_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
   int i;
 
   virgule_auth_user (vr);
 
   if (vr->u)
     {
+      Buffer *b;
       const char *level;
       char *db_key;
       xmlDoc *profile;
@@ -571,7 +571,11 @@ acct_index_serve (VirguleReq *vr)
       aggregate = virgule_xml_find_child (profile->xmlRootNode, "aggregate");
       level = virgule_req_get_tmetric_level (vr, vr->u);
 
-      virgule_render_header (vr, "User Account Info");
+      if (virgule_set_temp_buffer (vr) != 0)
+        return HTTP_INTERNAL_SERVER_ERROR;
+
+      b = vr->b;
+
       virgule_buffer_printf (b, "<p>Welcome, <em>%s</em>. The range of functions you "
 		     "can access depends on your <a href=\"%s/certs.html\">certification</a> "
 		     "level. Remember to certify any other users of this site that you "
@@ -649,40 +653,15 @@ acct_index_serve (VirguleReq *vr)
 	  if (value != NULL)
 	    xmlFree (value);
 	}
-      virgule_buffer_puts (b, " <input type=\"submit\" value=\"Update\">\n"
-		   "</form>\n");
-      return virgule_render_footer_send (vr);
+      virgule_buffer_puts (b, " <input type=\"submit\" value=\"Update\">\n</form>\n");
+
+      virgule_set_main_buffer (vr);
+      
+      return virgule_render_in_template (vr, "/site/acct/account.xml", "content", "User Account Info");
     }
   else
     {
-      virgule_render_header (vr, "Login");
-      virgule_buffer_puts (b, "<p>Please login if you have an account.\n"
-		   "Otherwise, feel free to <a href=\"new.html\">create a new account</a>. </p>\n"
-		   "<p>If you have forgotten your password, fill in your user name, check the "
-		   "\"forgot password\" box, and then click the login button. Your password "
-		   "will be mailed to the email address found in your account profile.</p>\n"
-		   "<p>Note: This site uses cookies to store authentication\n"
-		   "information. </p>\n"
-		   "<div class=\"login\">Login"
-		   "<form method=\"POST\" action=\"loginsub.html\" accept-charset=\"UTF-8\">\n"
-		   "<p>User name: <br/>\n"
-		   "<input name=\"u\" size=\"20\"/ type=\"text\"> \n"
-		   "</p>\n"
-		   "<p> Password: <br/>\n"
-		   "<input name=\"pass\" size=\"20\" type=\"password\"/> \n"
-		   "</p>\n"
-		   "<input type=\"submit\" value=\"Login\"/>\n"
-		   "</form></div>\n"
-		   "<div class=\"login\">Password Reminder"
-		   "<form method=\"POST\" action=\"loginsub.html\" accept-charset=\"UTF-8\">\n"
-		   "<p> User name: <br/>\n"
-		   "<input name=\"u\" size=\"20\"/> \n"
-		   "</p>\n"
-		   "<input type=\"hidden\" name=\"forgot\" value=\"checked\"/>"
-		   "<input type=\"submit\" value=\"Forgot Password\"/>\n"
-		   "</form></div><div style=\"clear: both;\"></div>\n");
-
-      return virgule_render_footer_send (vr);
+      return virgule_render_in_template (vr, "/site/acct/login.xml", NULL, NULL);
     }
 }
 
@@ -1444,7 +1423,7 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
 
   /* initialize the temporary buffer */
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
+    return HTTP_INTERNAL_SERVER_ERROR;
 
   /* render the diary entries to the temp buffer */
   if (start == -1)
@@ -1581,7 +1560,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   /* initialize the temporary buffer */
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
+    return HTTP_INTERNAL_SERVER_ERROR;
   b = vr->b;
 
   if (virgule_user_is_special(vr,vr->u))

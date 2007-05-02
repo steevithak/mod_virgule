@@ -223,7 +223,6 @@ static int
 tmetric_index_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
   Db *db = vr->db;
   apr_array_header_t *nodeinfo;
   int n_seeds, n_caps;
@@ -245,7 +244,6 @@ tmetric_index_serve (VirguleReq *vr)
     if (!vr->priv->caps[n_caps])
       break;
 
-  virgule_render_header (vr, "Trust Metric");
   nodeinfo = tmetric_run (vr, vr->priv->seeds, n_seeds, vr->priv->caps, n_caps);
 
   qsort (nodeinfo->elts, nodeinfo->nelts, sizeof(NodeInfo),
@@ -266,13 +264,13 @@ tmetric_index_serve (VirguleReq *vr)
   vr->lock = virgule_db_lock (db);
   virgule_db_lock_upgrade (vr->lock);
   status = virgule_db_put (db, "tmetric/default", cache_str, strlen (cache_str));
-  if (status)
-    virgule_buffer_puts (b, "<p> Error writing tmetric cache. </p>\n");
-  else
-    virgule_buffer_puts (b, "<p> Wrote tmetric cache. </p>\n");
 
   virgule_db_unlock (lock);
-  return virgule_render_footer_send (vr);
+
+  if (status)
+    return virgule_send_error_page (vr, vERROR, "tmetric", "Error writing tmetric cache.");
+  else
+    return virgule_send_error_page (vr, vINFO, "tmetric", "Wrote tmetric cache.");
 }
 
 

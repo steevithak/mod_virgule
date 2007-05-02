@@ -489,13 +489,12 @@ aggregator_getfeeds_serve(VirguleReq *vr)
   char *feedbuffer, *feedurl;
   int feed_status = 0;
   
-  virgule_render_header (vr, "mod_virgule Aggregator");
-
   agglist = virgule_db_xml_get (vr->r->pool, vr->db, "feedlist");
   if (agglist == NULL)
     return FALSE;
 
-  virgule_buffer_puts (vr->b, "<h3>Processing feed list</h3>");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
   xmlNanoHTTPInit();
     
@@ -517,8 +516,8 @@ aggregator_getfeeds_serve(VirguleReq *vr)
 
   xmlNanoHTTPCleanup();
 
-  virgule_buffer_puts (vr->b, "<p>Processed feeds!</p>\n");
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Feedlist Aggregation Results");
 }
 
 

@@ -83,6 +83,12 @@ rating_rate_diary (VirguleReq *vr)
 			    "You need to be logged in to rate diaries.");
 }
 
+
+/**
+ * rating_crank: Updates ratings for the specified user. Called by hitting
+ * the URL /rating/crank/username
+ * ToDo: Should this be an admin function? (e.g. /admin/rating/crank/user)
+ */
 static int
 rating_crank (VirguleReq *vr, const char *u)
 {
@@ -92,12 +98,12 @@ rating_crank (VirguleReq *vr, const char *u)
   if (reason)
     return virgule_send_error_page (vr, vERROR, "username", reason);
 
-  virgule_render_header (vr, "Crank");
-  virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", u);
   status = virgule_eigen_crank (vr->r->pool, vr, u);
+
   if (status)
-    virgule_buffer_printf (vr->b, "<p>Error.</p>\n");
-  return virgule_render_footer_send (vr);
+    return virgule_send_error_page (vr, vERROR, "rating", "Unable to crank rating for node <em>%s</em>.", u);
+  else
+    return virgule_send_error_page (vr, vINFO, "rating", "Rating cranked for node <em>%s</em>.", u);
 }
 
 
@@ -120,9 +126,6 @@ rating_crank_all (VirguleReq *vr)
   int j, k;
   apr_pool_t *sp;
 
-  virgule_render_header (vr, "Cranking all nodes");
-
-  
   while(tmetric[i])
     {
 
@@ -138,9 +141,7 @@ rating_crank_all (VirguleReq *vr)
       i += j;
       if (tmetric[i] == '\n')
         i++;
-#if 0
-virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", user);
-#endif
+
       apr_pool_create(&sp,vr->r->pool);
    
       /* re-establish XML file system lock */
@@ -150,11 +151,14 @@ virgule_buffer_printf (vr->b, "<p>Cranking node %s.</p>\n", user);
       apr_pool_destroy (sp);
     }
 
-
-  return virgule_render_footer_send (vr);
+  return virgule_send_error_page (vr, vINFO, "rating", "Ratings cranked for all nodes.");
 }
 
 
+/**
+ * rating_report: Render a rating report for the specified user node. Called
+ * by hitting /rating/report/username
+ */
 static int
 rating_report (VirguleReq *vr, const char *u)
 {
@@ -163,10 +167,14 @@ rating_report (VirguleReq *vr, const char *u)
   if (reason)
     return virgule_send_error_page (vr, vERROR, "username", reason);
 
-  virgule_render_header (vr, "Report");
-  virgule_buffer_printf (vr->b, "<p>Reporting node %s.</p>\n", u);
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
+
+  virgule_buffer_printf (vr->b, "<p>Reporting node <em>%s</em>.</p>\n", u);
   virgule_eigen_report (vr, u);
-  return virgule_render_footer_send (vr);
+
+  virgule_set_main_buffer (vr);
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Rating Report");
 }
 
 int

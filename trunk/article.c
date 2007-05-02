@@ -897,7 +897,7 @@ article_num_serve (VirguleReq *vr, const char *t)
 
   /* initialize the temp buffer */
   if (virgule_set_temp_buffer (vr) != 0)
-    return virgule_send_error_page (vr, vERROR, "internal", "Unable to allocate temporary rendering buffer");
+    return HTTP_INTERNAL_SERVER_ERROR;
 
   /* render the article to the temp buffer */
   article_render_from_xml (vr, n, doc, ARTICLE_RENDER_FULL);
