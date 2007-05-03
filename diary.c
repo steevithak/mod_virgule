@@ -249,7 +249,6 @@ static int
 diary_preview_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
   apr_table_t *args;
   const char *key, *entry, *entry_nice;
   const char *date;
@@ -271,11 +270,12 @@ diary_preview_serve (VirguleReq *vr)
   diary_put_backup (vr, entry);
   entry_nice = virgule_nice_htext (vr, entry, &error);
 
-  virgule_render_header (vr, "blog preview");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_printf (b, "<p>%s</p>\n", entry_nice);
+  virgule_buffer_printf (vr->b, "<p>%s</p>\n", entry_nice);
 
-  virgule_buffer_printf (b, "<p>Edit your entry:</p>\n"
+  virgule_buffer_printf (vr->b, "<p>Edit your entry:</p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
 		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
 		 "</textarea>\n"
@@ -286,11 +286,13 @@ diary_preview_serve (VirguleReq *vr)
 		 ap_escape_html (p, entry), apr_table_get(args, "key"));
 
   if (error != NULL)
-    virgule_buffer_printf (b, "<p><b>Warning:</b> %s</p>\n", error);
+    virgule_buffer_printf (vr->b, "<p><b>Warning:</b> %s</p>\n", error);
 
   virgule_render_acceptable_html (vr);
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Blog Preview");
 }
 
 
@@ -556,8 +558,7 @@ static int
 diary_index_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
-  char *str;
+  char *title;
   const char *key, *diary;
 
   virgule_auth_user (vr);
@@ -565,12 +566,14 @@ diary_index_serve (VirguleReq *vr)
   if (vr->u == NULL)
     return virgule_send_error_page (vr, vERROR, "forbidden", "You can't access your blog page because you're not logged in.");
 
-  str = apr_psprintf (p, "Blog: %s\n", vr->u);
-  virgule_render_header (vr, str);
+  title = apr_psprintf (p, "Blog: %s\n", vr->u);
   diary = apr_psprintf (p, "acct/%s/diary", vr->u);
   key = apr_psprintf (p, "%d", virgule_db_dir_max (vr->db, diary) + 1);
 
-  virgule_buffer_printf (b, "<p> Post a new entry: </p>\n"
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
+    
+  virgule_buffer_printf (vr->b, "<p> Post a new entry: </p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
 		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
 		 "</textarea>\n"
@@ -581,11 +584,13 @@ diary_index_serve (VirguleReq *vr)
 
   virgule_render_acceptable_html (vr);
 
-  virgule_buffer_printf (b, "<p>Recent blog entries for %s:</p>\n", vr->u);
+  virgule_buffer_printf (vr->b, "<p>Recent blog entries for %s:</p>\n", vr->u);
 
   virgule_diary_render (vr, vr->u, 5, -1);
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/site/default.xml", "content", title);
 }
 
 
@@ -593,9 +598,8 @@ static int
 diary_edit_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
   apr_table_t *args;
-  char *str;
+  char *str1, *str2;
   const char *key, *diary;
   xmlDoc *entry;
 
@@ -618,28 +622,23 @@ diary_edit_serve (VirguleReq *vr)
   if (entry != NULL)
     {
       const char *entry_nice;
-      xmlNode *date_el;
       char *feedposttime = NULL;
       char *feedupdatetime = NULL;
       char *title;
       char *error;
       char *contents;
 
-      date_el = virgule_xml_find_child (entry->xmlRootNode, "date");
-      if (date_el != NULL)
-        {
-	  str = apr_psprintf (p, "Blog: %s\n",
-			     virgule_render_date (vr,
-					  virgule_xml_get_string_contents (date_el),
-					  1));
-	  virgule_render_header (vr, str);
-	}
+      str1 = virgule_xml_find_child_string (entry->xmlRootNode, "date", NULL);
+      str2 = apr_psprintf (p, "Blog: %s\n", str1 ? virgule_render_date (vr, str1, 1) : "Unknown");
+
+      if (virgule_set_temp_buffer (vr) != 0)
+        return HTTP_INTERNAL_SERVER_ERROR;
 
       feedposttime = virgule_xml_find_child_string (entry->xmlRootNode, "feedposttime", NULL);
       feedupdatetime = virgule_xml_find_child_string (entry->xmlRootNode, "feedupdatetime", NULL);
       if (feedposttime != NULL)
         {
-	  virgule_buffer_printf (b, "<p>This is a syndicated blog entry. "
+	  virgule_buffer_printf (vr->b, "<p>This is a syndicated blog entry. "
 				    "Editing locally is not recommended."
 				    "<br />Syndicated on %s "
 				    "(last syndication update: %s)</p>\n",
@@ -650,17 +649,17 @@ diary_edit_serve (VirguleReq *vr)
       title = virgule_xml_find_child_string (entry->xmlRootNode, "title", NULL);
       if (title != NULL)
         {
-	  virgule_buffer_printf (b, "<p><b>%s</b></p>\n", title);
+	  virgule_buffer_printf (vr->b, "<p><b>%s</b></p>\n", title);
 	}
 
       contents = virgule_xml_get_string_contents (entry->xmlRootNode);
       if (contents != NULL)
 	{
 	  entry_nice = virgule_nice_htext (vr, contents, &error);
-	  virgule_buffer_printf (b, "<p>%s</p>\n", entry_nice);
+	  virgule_buffer_printf (vr->b, "<p>%s</p>\n", entry_nice);
 	}
 
-      virgule_buffer_printf (b, "<p> Edit your entry: </p>\n"
+      virgule_buffer_printf (vr->b, "<p> Edit your entry: </p>\n"
 		     "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
 		     "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
 		     "</textarea>\n"
@@ -671,16 +670,16 @@ diary_edit_serve (VirguleReq *vr)
 		     apr_table_get (args, "key"));
 
       if(title)
-        virgule_buffer_printf (b, "<input type=\"hidden\" name=\"title\" value=\"%s\" >\n", ap_escape_quotes(p, title));
+        virgule_buffer_printf (vr->b, "<input type=\"hidden\" name=\"title\" value=\"%s\" >\n", ap_escape_quotes(p, title));
 
-      virgule_buffer_puts (b, "</form>\n");
+      virgule_buffer_puts (vr->b, "</form>\n");
+      virgule_set_main_buffer (vr);
+      return virgule_render_in_template (vr, "/site/default.xml", "content", str2);
     }
   else
     {
       return virgule_send_error_page (vr, vERROR, "database", "The request blog entry was not found.");
     }
-
-  return virgule_render_footer_send (vr);
 }
 
 
