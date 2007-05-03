@@ -159,7 +159,6 @@ proj_new_serve (VirguleReq *vr)
      a pile of C. So here goes.
 */
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
 
   const char *rfields[] = { "name", "url", "fmurl", "license", "notes", NULL };
   const char *sfields[] = { "name", "url", "fmurl", "desc", "notes", NULL};  
@@ -188,21 +187,22 @@ proj_new_serve (VirguleReq *vr)
   if (!virgule_req_ok_to_create_project (vr))
     return virgule_send_error_page (vr, vERROR, "forbidden", "You need a higher certification level to create a <x>project</x>.");
 
-  virgule_render_header (vr, "Create new <x>project</x>");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_puts (b, "<p> Create a new <x>project</x>: </p>\n"
+  virgule_buffer_puts (vr->b, "<p> Create a new <x>project</x>: </p>\n"
 	       "<form method=\"POST\" action=\"newsub.html\" accept-charset=\"UTF-8\">\n");
 
-  virgule_schema_render_inputs (p, b, proj_fields, fields, NULL);
+  virgule_schema_render_inputs (p, vr->b, proj_fields, fields, NULL);
 
 
-  virgule_buffer_puts (b, " <p> <input type=\"submit\" value=\"Create\">\n"
+  virgule_buffer_puts (vr->b, " <p> <input type=\"submit\" value=\"Create\">\n"
 	       "</form>\n");
 
   virgule_render_acceptable_html (vr);
 
-  return virgule_render_footer_send (vr);
-  
+  virgule_set_main_buffer (vr);
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Create new <x>project</x>");
 }
 
 static int
@@ -644,7 +644,6 @@ proj_next_new_serve (VirguleReq *vr)
 static int
 proj_edit_serve (VirguleReq *vr)
 {
-  Buffer *b = vr->b;
   apr_pool_t *p = vr->r->pool;
   apr_table_t *args;
   const char *name;
@@ -653,8 +652,6 @@ proj_edit_serve (VirguleReq *vr)
   xmlDoc *doc;
   xmlNode *tree;
 
-//  SchemaField *proj_fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rproj_fields :
-//    							       nproj_fields;
   SchemaField *proj_fields = rproj_fields;
   if(vr->priv->projstyle == PROJSTYLE_NICK) 
     proj_fields = nproj_fields;
@@ -675,23 +672,25 @@ proj_edit_serve (VirguleReq *vr)
     return virgule_send_error_page (vr, vERROR, "forbidden",
 			    "You are not authorized to edit <x>project</x> %s. You have to either be certified to %s level or higher, or be the creator of the <x>project</x> and not have anyone else edit the page before you.", name, virgule_cert_level_to_name (vr, 1));
 
-  virgule_render_header (vr, "Edit <x>project</x>");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_printf (b, "<p> Edit <x>project</x> for %s: </p>\n"
+  virgule_buffer_printf (vr->b, "<p> Edit <x>project</x> for %s: </p>\n"
 	       "<form method=\"POST\" action=\"editsub.html\">\n"
 		 "<input type=\"hidden\" name=\"name\" value=\"%s\">\n",
 		 virgule_nice_text (p, name), virgule_escape_html_attr(p, name));
 
   tree = virgule_xml_find_child (doc->xmlRootNode, "info");
 
-  virgule_schema_render_inputs (p, b, proj_fields, fields, tree);
+  virgule_schema_render_inputs (p, vr->b, proj_fields, fields, tree);
 
-  virgule_buffer_puts (b, " <input type=\"submit\" value=\"Update\"/>\n"
-		   "</form>\n");
+  virgule_buffer_puts (vr->b, "<input type=\"submit\" value=\"Update\"/>\n</form>\n");
 
   virgule_render_acceptable_html (vr);
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Edit <x>project</x>");
 }
 
 static int
@@ -889,12 +888,16 @@ proj_update_all_pointers_serve (VirguleReq *vr)
 }
 
 
-
+/**
+ * proj_reply_submit_serve - this appears to be used only in the NICK style
+ * project configuration which turns the project area into a sort of 
+ * citadel style room-based discussion forum. This is not used in standard
+ * in standard configurations.
+ */
 static int
 proj_reply_submit_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
   apr_table_t *args;
   const char *name, *title, *body;
   const char *date;
@@ -945,29 +948,32 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   if (apr_table_get (virgule_get_args_table (vr), "preview"))
     {
-      virgule_render_header (vr, "Reply preview");
+      if (virgule_set_temp_buffer (vr) != 0)
+        return HTTP_INTERNAL_SERVER_ERROR;
+	
       virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
-      virgule_buffer_puts (b, nice_title);
+      virgule_buffer_puts (vr->b, nice_title);
       virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
-      virgule_buffer_printf (b, "<p> %s </p>\n", nice_body);
-      virgule_buffer_puts (b, "<hr>\n");
-      virgule_buffer_printf (b, "<p> Edit your reply: </p>\n"
+      virgule_buffer_printf (vr->b, "<p> %s </p>\n", nice_body);
+      virgule_buffer_puts (vr->b, "<hr>\n");
+      virgule_buffer_printf (vr->b, "<p> Edit your reply: </p>\n"
 		     "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-		     " <p> Reply title: <br>\n"
-		     " <input type=\"text\" name=\"title\" value=\"%s\" size=50> </p>\n"
-		     " <p> Body of reply: <br>\n"
-		     " <textarea name=\"body\" cols=72 rows=16 wrap=soft>%s"
+		     "<p> Reply title: <br>\n"
+		     "<input type=\"text\" name=\"title\" value=\"%s\" size=50></p>\n"
+		     "<p> Body of reply: <br>\n"
+		     "<textarea name=\"body\" cols=72 rows=16 wrap=soft>%s"
 		     "</textarea> </p>\n"
-		     " <input type=\"hidden\" name=\"name\" value=\"%s\">\n"
-		     " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		     " <input type=\"submit\" name=preview value=\"Preview\">\n"
+		     "<input type=\"hidden\" name=\"name\" value=\"%s\">\n"
+		     "<p> <input type=\"submit\" name=post value=\"Post\">\n"
+		     "<input type=\"submit\" name=preview value=\"Preview\">\n"
 		     "</form>\n",
 		     virgule_escape_html_attr (p, title),
 		     ap_escape_html (p, body),
 		     virgule_escape_html_attr (p, name));
 	  
       virgule_render_acceptable_html (vr);
-      return virgule_render_footer_send (vr);
+      virgule_set_main_buffer (vr);
+      return virgule_render_in_template (vr, "/site/default.xml", "content", "Reply preview");
     } 
 
   key = apr_psprintf (p, "%s/_%d%s",
@@ -1017,6 +1023,13 @@ proj_reply_submit_serve (VirguleReq *vr)
 
 }
 
+
+/**
+ * proj_reply_form_serve - this appears to be used only in the NICK style
+ * project configuration which turns the project area into a sort of 
+ * citadel style room-based discussion forum. This is not used in standard
+ * in standard configurations.
+ */
 static int
 proj_reply_form_serve (VirguleReq *vr)
 {
@@ -1046,7 +1059,8 @@ proj_reply_form_serve (VirguleReq *vr)
   if (doc == NULL)
     return virgule_send_error_page (vr, vERROR, "database", "<x>project</x> %s not found.", name);
 
-  virgule_render_header (vr, "Post a reply");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
   virgule_buffer_printf (b, "<p> Post a reply to <x>project</x>: %s. </p>\n"
 		 "<form method=\"POST\" action=\"/proj/replysubmit.html\" accept-charset=\"UTF-8\">\n"
@@ -1064,7 +1078,9 @@ proj_reply_form_serve (VirguleReq *vr)
 
   virgule_render_acceptable_html (vr);
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Post a reply");
 }
 
 /**

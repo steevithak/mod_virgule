@@ -1,5 +1,11 @@
 2007-04-30 R. Steven Rainwater <steve@ncc.com>
 
+	* proj.c (proj_new_serve, proj_edit_serve): Output is now rendered 
+	within a template.
+
+
+2007-04-30 R. Steven Rainwater <steve@ncc.com>
+
 	* acct_maint.c (account_index_serve): Account info page and account
 	login page are now template based. 100% of the login page markup is 
 	now configurable in the template. 
