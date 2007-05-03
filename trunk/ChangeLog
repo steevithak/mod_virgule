@@ -3,7 +3,14 @@
 	* acct_maint.c (account_index_serve): Account info page and account
 	login page are now template based. 100% of the login page markup is 
 	now configurable in the template. 
-	
+
+	* diary.c (diary_index_serve, diary_preview_serve): Output is now 
+	rendered within a template.
+
+	* diary.c (diary_edit_serve): Output is now rendered in a template.
+	Fixed several bugs dating back to the first diary editing patch, one
+	of which could potentially have been the cause of Apache segfaults.
+
 
 2007-04-29 R. Steven Rainwater <steve@ncc.com>
 
