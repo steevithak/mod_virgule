@@ -1,9 +1,31 @@
 2007-04-30 R. Steven Rainwater <steve@ncc.com>
 
 	* proj.c (proj_new_serve, proj_edit_serve): Output is now rendered 
-	within a template.
+	within the default template.
 
+	* article.c (article_render_from_xml): Reddit submissions now 
+	include the article title.
 
+	* article.c (article_form_serve): Output is now rendered within
+	the default template.
+	
+	* article.c (article_generic_submit_serve): Output is now rendered
+	within the default template.
+
+	* article.c (article_reply_form_serve): Output is now render
+	within the default template.
+	
+	* site.c (virgule_site_render_page): Removed code related to the
+	now unneeded distinction between standard and raw page headers.
+
+	* style.c (virgule_render_header): Removed this now unused function
+	along with a large block of hard-coded, site-specific header
+	markup for robots.net and Advogato. It's all in the templates now.
+
+	* style.c (virgule_render_header_raw): Renamed this function to
+	virgule_render_header().
+	
+	
 2007-04-30 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (account_index_serve): Account info page and account

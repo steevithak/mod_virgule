@@ -39,7 +39,7 @@ dayofweek(int d, int m, int y)
 
 
 void
-virgule_render_header_raw (VirguleReq *vr, const char *title)
+virgule_render_header (VirguleReq *vr, const char *title)
 {
   Buffer *b = vr->b;
 
@@ -66,34 +66,6 @@ virgule_render_header_raw (VirguleReq *vr, const char *title)
   virgule_buffer_puts (b, "</head>\n\n<body>\n");
 
   vr->raw = 1;
-}
-
-void
-virgule_render_header (VirguleReq *vr, const char *title)
-{
-  Buffer *b = vr->b;
-  
-  virgule_render_header_raw (vr, title);
-
-// begin nasty robots.net kluge - this will have no effect unless the site's
-// domain name contains robots.net.
-// vr->priv->site_name
-if (!strncmp (vr->priv->site_name, "robots.net",10)) {
-  virgule_buffer_puts (b, "<table bgcolor=\"#406690\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">\n");
-  virgule_buffer_puts (b, "<tr><td><a href=\"http://robots.net/\"><img src=\"/images/logo160.png\" width=\"160\" height=\"49\" border=\"0\">");
-  virgule_buffer_puts (b, "</a></td><td width=\"100%\" align=\"center\">&nbsp;");
-  virgule_buffer_puts (b, "</td></tr><tr><td colspan=\"2\" align=\"right\" class=\"sitemap\">");
-  virgule_render_sitemap(vr,0);
-  virgule_buffer_puts (b, "</td></tr></table>");
-  virgule_buffer_puts (b, "<div class=\"main\" style=\"margin: 2em;\">");
-}
-else {
-  virgule_buffer_puts (b, "<div class=\"main\" style=\"margin: 2em;\">");
-  virgule_buffer_printf (b, "<h1>%s</h1>", title);
-}
-// end nasty robots.net kluge
-
-  vr->raw = 0;
 }
 
 

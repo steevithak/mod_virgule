@@ -1941,7 +1941,7 @@ acct_maint (VirguleReq *vr)
     xmlDocPtr profile = NULL;
     xmlNodePtr root, alias, ctree, cert;
     DbCursor *dbc;
-    Buffer *b = vr->b;
+//    Buffer *b = vr->b;
     apr_pool_t *sp = NULL;
     apr_hash_t *stat;
     char *statk;
@@ -1959,15 +1959,16 @@ acct_maint (VirguleReq *vr)
        "Issuer profile missing."
      };
 
-    virgule_render_header (vr, "Account maintenance");
-    virgule_buffer_puts (b, "<h2>Analyzing account profiles...</h2>\n");
-
     /* initialize the statistics hash */
     stat = apr_hash_make(vr->r->pool);
     statv = apr_pcalloc (vr->r->pool, sizeof(int));
     apr_hash_set (stat, "Users", APR_HASH_KEY_STRING, statv);    
 
-    
+    if (virgule_set_temp_buffer (vr) != 0)
+      return HTTP_INTERNAL_SERVER_ERROR;
+
+    virgule_buffer_puts (vr->b, "<h2>Analyzing account profiles</h2>\n");
+
     dbc = virgule_db_open_dir (vr->db, "acct");
     while ((u = virgule_db_read_dir_raw (dbc)) != NULL)
       {
@@ -1980,14 +1981,14 @@ acct_maint (VirguleReq *vr)
 	profile = virgule_db_xml_get (sp, vr->db, dbkey);
 	if (profile == NULL)
 	  {
-	    virgule_buffer_printf (b, "%i [%s] : invalid profile [%s]<br />\n", ecount++, u, dbkey);
+	    virgule_buffer_printf (vr->b, "%i [%s] : invalid profile [%s]<br />\n", ecount++, u, dbkey);
 	    continue;
 	  }
 
 	root = xmlDocGetRootElement (profile);
 	if (root == NULL)
 	  {
-	    virgule_buffer_printf (b, "%i [%s] : profile [%s] has no root node<br />\n", ecount++, u, dbkey);
+	    virgule_buffer_printf (vr->b, "%i [%s] : profile [%s] has no root node<br />\n", ecount++, u, dbkey);
 	    continue;	    
 	  }
 
@@ -2001,13 +2002,13 @@ acct_maint (VirguleReq *vr)
 	    profile = virgule_db_xml_get (sp, vr->db, dbkey);
 	    if (profile == NULL)
 	      {
-		virgule_buffer_printf (b, "%i [%s] : invalid alias proflie [%s]<br />\n", ecount++, u, dbkey);
+		virgule_buffer_printf (vr->b, "%i [%s] : invalid alias proflie [%s]<br />\n", ecount++, u, dbkey);
 		continue;
 	      }
 	    root = xmlDocGetRootElement (profile);
 	    if (root == NULL)
 	      {
-		virgule_buffer_printf (b, "%i [%s] : alias profile [%s] has no root node<br />\n", ecount++, u, dbkey);
+		virgule_buffer_printf (vr->b, "%i [%s] : alias profile [%s] has no root node<br />\n", ecount++, u, dbkey);
 		continue;
 	      }
     	  }
@@ -2054,7 +2055,7 @@ acct_maint (VirguleReq *vr)
 		subject = (char *)xmlGetProp (cert, (xmlChar *)"subj");
 		if (subject == NULL)
 		  {
-		    virgule_buffer_printf (b, "%i [%s] : Invalid outbound cert - no subject<br />\n", ecount++, u);
+		    virgule_buffer_printf (vr->b, "%i [%s] : Invalid outbound cert - no subject<br />\n", ecount++, u);
 		    continue;
 		  }
 
@@ -2063,7 +2064,7 @@ acct_maint (VirguleReq *vr)
 
 		rc = virgule_cert_verify_outbound (vr, sp, u, subject, level, date);
 		if(rc != 0) 
-		    virgule_buffer_printf (b, "%i [%s] : %s Cert subject [%s]<br />\n", ecount++, u, cerr[rc], subject);
+		    virgule_buffer_printf (vr->b, "%i [%s] : %s Cert subject [%s]<br />\n", ecount++, u, cerr[rc], subject);
 
 		xmlFree (subject);
 		if (level != NULL)
@@ -2093,7 +2094,7 @@ acct_maint (VirguleReq *vr)
 		issuer = (char *)xmlGetProp (cert, (xmlChar *)"issuer");
 		if (issuer == NULL)
 		  {
-		    virgule_buffer_printf (b, "%i [%s] : Invalid inbound cert - no issuer<br />\n", ecount++, u);
+		    virgule_buffer_printf (vr->b, "%i [%s] : Invalid inbound cert - no issuer<br />\n", ecount++, u);
 		    continue;
 		  }
 
@@ -2102,7 +2103,7 @@ acct_maint (VirguleReq *vr)
 
 		rc = virgule_cert_verify_inbound (vr, sp, u, issuer, level, date);
 		if(rc != 0) 
-		    virgule_buffer_printf (b, "%i [%s] : %s Cert issuer [%s]<br />\n", ecount++, u, cerr[rc], issuer);
+		    virgule_buffer_printf (vr->b, "%i [%s] : %s Cert issuer [%s]<br />\n", ecount++, u, cerr[rc], issuer);
 
 		xmlFree (issuer);
 		if (level != NULL)
@@ -2118,16 +2119,16 @@ acct_maint (VirguleReq *vr)
       }
 
     if (ecount > 1)
-      virgule_buffer_printf (b, "<p><b>%i total errors found</b></p>\n", ecount-1);
+      virgule_buffer_printf (vr->b, "<p><b>%i total errors found</b></p>\n", ecount-1);
     else
-      virgule_buffer_puts (b, "<p><b>No Errors found</b></p>\n");      
+      virgule_buffer_puts (vr->b, "<p><b>No Errors found</b></p>\n");      
 
     /* Update user stats */
     statdoc = virgule_db_xml_doc_new (vr->r->pool);
     statdoc->xmlRootNode = xmlNewDocNode (statdoc, NULL, (xmlChar *)"stats", NULL);
     statv = apr_hash_get (stat, "Users", APR_HASH_KEY_STRING);
     xmlNewChild (statdoc->xmlRootNode, NULL, (xmlChar *)"Users", (xmlChar *)apr_itoa (vr->r->pool, *statv));
-    virgule_buffer_printf (b, "<p><b>Users:</b> %i</p>\n", *statv);
+    virgule_buffer_printf (vr->b, "<p><b>Users:</b> %i</p>\n", *statv);
     if (*vr->priv->cert_level_names)
       {
 	const char **l;
@@ -2135,12 +2136,14 @@ acct_maint (VirguleReq *vr)
 	  {
 	    statv = apr_hash_get (stat, *l, APR_HASH_KEY_STRING);
 	    xmlNewChild (statdoc->xmlRootNode, NULL, (xmlChar *)*l, (xmlChar *)apr_itoa (vr->r->pool, *statv));
-	    virgule_buffer_printf (b, "<p><b>%s:</b> %i</p>\n", *l, *statv);
+	    virgule_buffer_printf (vr->b, "<p><b>%s:</b> %i</p>\n", *l, *statv);
 	  }
       }
     virgule_db_xml_put (vr->r->pool, vr->db, "userstats.xml", statdoc);
 
-    return virgule_render_footer_send (vr);
+    virgule_set_main_buffer (vr);
+    
+    return virgule_render_in_template (vr, "/site/default.xml", "content", "Account maintenance");
 }
 
 

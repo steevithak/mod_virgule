@@ -188,12 +188,12 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 					 "<img src=\"/images/bm-digg.png\" alt=\"Digg This\" title=\"Digg This\" /></a>"
                                          "<a href=\"http://del.icio.us/post?v=4&amp;noui&jump=close&amp;url=%s&amp;title=%s\">"
 					 "<img src=\"/images/bm-delicious.png\" alt=\"del.icio.us\" title=\"del.icio.us\" /></a>"
-                                         "<a href=\"http://reddit.com/submit?url=%s\">"
+                                         "<a href=\"http://reddit.com/submit?url=%s&title=%s\">"
 					 "<img src=\"/images/bm-reddit.png\" alt=\"reddit\" title=\"reddit\" /></a>"
 					 "</span>",
                                          bmurl, bmtitle, ap_escape_uri (vr->r->pool, lead),
 					 bmurl, bmtitle,
-					 bmurl);
+					 bmurl, bmtitle);
     }
   
   virgule_buffer_printf (b, "<span class=\"article-title\">%s%s%s</span>",
@@ -296,7 +296,6 @@ static int
 article_form_serve (VirguleReq *vr)
 {
   const Topic **t;
-  Buffer *b = vr->b;
 
   virgule_auth_user (vr);
 
@@ -306,25 +305,26 @@ article_form_serve (VirguleReq *vr)
   if (!virgule_req_ok_to_post (vr))
     return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
-  virgule_render_header (vr, "Post a new <x>article</x>");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_puts (b, "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
+  virgule_buffer_puts (vr->b, "<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
 
   if(vr->priv->use_article_topics)
     {
-      virgule_buffer_puts (b," <p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
+      virgule_buffer_puts (vr->b,"<p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
 
       for (t = vr->priv->topics; *t; t++)
-	virgule_buffer_printf (b, "<option>%s</option>\n", (*t)->desc);
+	virgule_buffer_printf (vr->b, "<option>%s</option>\n", (*t)->desc);
 	       
-      virgule_buffer_puts (b," </select></p>\n");
+      virgule_buffer_puts (vr->b,"</select></p>\n");
     }
   
-  virgule_buffer_puts (b," <p><b><x>Article</x> title</b>:<br>\n");
+  virgule_buffer_puts (vr->b,"<p><b><x>Article</x> title</b>:<br>\n");
 
-  virgule_buffer_printf (b," <input type=\"text\" name=\"title\" size=\"40\" maxlength=\"%i\"></p>\n", vr->priv->article_title_maxsize);
+  virgule_buffer_printf (vr->b,"<input type=\"text\" name=\"title\" size=\"40\" maxlength=\"%i\"></p>\n", vr->priv->article_title_maxsize);
 
-  virgule_buffer_puts (b," <p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
+  virgule_buffer_puts (vr->b,"<p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
 	       "of the story complete with links to original sources when "
 	       "appropriate.<br>"
 	       " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>"
@@ -340,7 +340,9 @@ article_form_serve (VirguleReq *vr)
 
   virgule_render_acceptable_html (vr);
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Post a new <x>article</x>");
 }
 
 /**
@@ -378,7 +380,7 @@ article_generic_submit_serve (VirguleReq *vr,
 {
   apr_pool_t *p = vr->r->pool;
   apr_table_t *args;
-  Buffer *b = vr->b;
+  Buffer *b = NULL;
   const Topic **t;
   const char *date;
   char *key;
@@ -386,7 +388,7 @@ article_generic_submit_serve (VirguleReq *vr,
   xmlNode *root;
   xmlNode *tree;
   int status;
-  char *str;
+  char *str = NULL;
   char *lead_error, *body_error;
   char *nice_title;
   char *nice_lead;
@@ -425,9 +427,14 @@ article_generic_submit_serve (VirguleReq *vr,
   if (apr_table_get (args, "preview"))
     {
       /* render a preview */
+      if (virgule_set_temp_buffer (vr) != 0)
+        return HTTP_INTERNAL_SERVER_ERROR;
+
+      b = vr->b;
+
       if (!strcmp (submit_type, "reply"))
 	{
-	  virgule_render_header (vr, "Reply preview");
+          str = apr_pstrdup (p, "Reply preview");
 	  virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
 	  virgule_buffer_printf (b, "<font size=+2><b>%s</b></font><br>\n", nice_title);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
@@ -437,11 +444,11 @@ article_generic_submit_serve (VirguleReq *vr,
 			 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
 			 "<p><x>Article</x> title: <br>\n"
 			 "<input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"60\"></p>\n"
-			 "<p> Body of <x>article</x>: <br>\n"
+			 "<p>Body of <x>article</x>: <br>\n"
 			 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"hard\">%s"
 			 "</textarea></p>\n"
 			 "<input type=\"hidden\" name=\"art_num\" value=\"%s\">\n"
-			 "<p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
+			 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
 			 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 			 "</form>\n",
 			 virgule_str_subst (p, title, "\"", "&quot;"),
@@ -452,7 +459,7 @@ article_generic_submit_serve (VirguleReq *vr,
 	}
       else if (!strcmp (submit_type, "article"))
 	{
-	  virgule_render_header (vr, "<x>Article</x> preview");
+          str = apr_pstrdup (p, "<x>Article</x>  preview");
 	  if(vr->priv->use_article_topics)
 	    {
 	      virgule_buffer_puts (b, "<table><tr><td>");
@@ -524,7 +531,8 @@ article_generic_submit_serve (VirguleReq *vr,
 	  virgule_render_acceptable_html (vr);
 
 	}
-      return virgule_render_footer_send (vr);
+	virgule_set_main_buffer (vr);
+	return virgule_render_in_template (vr, "/site/default.xml", "content", str);
     }
 
   key = apr_psprintf (p, "%s/_%d%s",
@@ -721,7 +729,6 @@ static int
 article_reply_form_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
-  Buffer *b = vr->b;
   apr_table_t *args;
   const char *art_num_str;
   int art_num;
@@ -756,9 +763,10 @@ article_reply_form_serve (VirguleReq *vr)
   else
     title = "(no title)";
 
-  virgule_render_header (vr, "Post a reply");
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_printf (b, "<p>Post a reply to <x>article</x>: %s.</p>\n"
+  virgule_buffer_printf (vr->b, "<p>Post a reply to <x>article</x>: %s.</p>\n"
 		 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		 "<p>Reply title: <br>\n"
 		 "<input type=\"text\" name=\"title\" size=50 maxlength=50></p>\n"
@@ -772,7 +780,9 @@ article_reply_form_serve (VirguleReq *vr)
 
   virgule_render_acceptable_html (vr);
 
-  return virgule_render_footer_send (vr);
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/site/default.xml", "content", "Post a reply");
 }
 
 static int
