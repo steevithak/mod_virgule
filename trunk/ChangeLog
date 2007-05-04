@@ -1,4 +1,4 @@
-2007-04-30 R. Steven Rainwater <steve@ncc.com>
+2007-05-03 R. Steven Rainwater <steve@ncc.com>
 
 	* proj.c (proj_new_serve, proj_edit_serve): Output is now rendered 
 	within the default template.
