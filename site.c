@@ -559,10 +559,7 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
   ctx.itag = itag;
   ctx.istr = istr;
   raw = virgule_xml_get_prop (vr->r->pool, node, "raw");
-  if (raw)
-    virgule_render_header_raw (vr, title);
-  else
-    virgule_render_header (vr, title);
+  virgule_render_header (vr, title);
   site_render (&ctx, node);
 
   return virgule_render_footer_send (vr);
