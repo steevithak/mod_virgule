@@ -64,8 +64,6 @@ virgule_render_header (VirguleReq *vr, const char *title)
     virgule_buffer_puts (b, virgule_buffer_extract (vr->hb));
 
   virgule_buffer_puts (b, "</head>\n\n<body>\n");
-
-  vr->raw = 1;
 }
 
 
@@ -111,8 +109,8 @@ virgule_render_sitemap (VirguleReq *vr, int enclose)
   const NavOption **option;
   char *separator = " | ";
 
-  if (vr->sitemap_rendered)
-    return;
+//  if (vr->sitemap_rendered)
+//    return;
     
   if (enclose)
     virgule_buffer_puts (vr->b, "<p align=center>");
@@ -132,21 +130,16 @@ virgule_render_sitemap (VirguleReq *vr, int enclose)
   if (enclose)
     virgule_buffer_puts (vr->b, "</p>");
 
-  vr->sitemap_rendered = 1;
+//  vr->sitemap_rendered = 1;
 }
 
 /*
- * Note that if render_sitemap has previously been called on this page, the
- * call in render_footer_send will have no effect. Only one sitemap may be
- * rendered on each page.
+ * virgule_render_footer_send - tack on the necessary page close HTML tags
+ * and send the buffer out to the client.
  */
 int
 virgule_render_footer_send (VirguleReq *vr)
 {
-  if (!vr->raw)
-    virgule_buffer_puts (vr->b, "</div>\n");
-
-  virgule_render_sitemap (vr, 1);  /* needed for advogato.org compatibility */  
   virgule_buffer_puts (vr->b, "</body>\n</html>\n");
   return virgule_send_response (vr);
 }
@@ -179,7 +172,7 @@ virgule_send_error_page (VirguleReq *vr, int type, const char *error_short, cons
 
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/site/default.xml", "content", title);
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", title);
 }
 
 
@@ -292,8 +285,6 @@ virgule_render_in_template (VirguleReq *vr, char *tpath, char *tagname, char *ti
   /* extract the contents of the temp buffer as a string */
   if (vr->tb != NULL)
     istr = virgule_buffer_extract (vr->tb);
-//  if (istr == NULL)
-//    return virgule_send_error_page (vr, vERROR, "internal", "virgule_buffer_extract() failed");
 
   /* load the template */
   tdoc = virgule_db_xml_get (vr->r->pool, vr->db, tpath);

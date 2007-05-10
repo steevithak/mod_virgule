@@ -12,9 +12,7 @@ struct _VirguleReq {
   const char *u; /* authenticated username */
   char *args;
   DbLock *lock;
-  int raw; /* TRUE if there are no enclosing <blockquote>'s */
-  int sitemap_rendered; /* TRUE if the sitemap has already been rendered */
-//  char *tmetric;
+//  int sitemap_rendered; /* TRUE if the sitemap has already been rendered */
   char *prefix; /* Prefix of <Location> directive, to be added to links */
   apr_table_t *render_data;
 };

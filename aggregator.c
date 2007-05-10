@@ -517,7 +517,7 @@ aggregator_getfeeds_serve(VirguleReq *vr)
   xmlNanoHTTPCleanup();
 
   virgule_set_main_buffer (vr);
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Feedlist Aggregation Results");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Feedlist Aggregation Results");
 }
 
 
