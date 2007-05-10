@@ -174,7 +174,7 @@ rating_report (VirguleReq *vr, const char *u)
   virgule_eigen_report (vr, u);
 
   virgule_set_main_buffer (vr);
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Rating Report");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Rating Report");
 }
 
 int

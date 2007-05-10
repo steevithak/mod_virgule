@@ -1,5 +1,26 @@
 2007-05-03 R. Steven Rainwater <steve@ncc.com>
 
+	* general: Moved module templates to the new template directory.
+
+	* style.c (virgule_render_header): Removed references to vr->raw
+	flag which not needed with the streamlined header code.
+
+
+	* style.c (virgule_render_footer_send): Removed reference to vr->raw,
+	removed unneeded insertion of a </div> tag, Removed unneeded call
+	to virgule_render_sitemap().
+
+	* style.c (virgule_render_sitemap): Removed references to the
+	unneeded vr->sitemap_rendered flag. 
+
+	* req.h (_VirguleReq): Removed unused raw and sitemap_rendered flags
+
+	* mod_virgule.c (virgule_handler): Removed unused reference to
+	vr->sitemap_rendered flag.
+
+
+2007-05-03 R. Steven Rainwater <steve@ncc.com>
+
 	* proj.c (proj_new_serve, proj_edit_serve): Output is now rendered 
 	within the default template.
 

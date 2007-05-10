@@ -657,11 +657,11 @@ acct_index_serve (VirguleReq *vr)
 
       virgule_set_main_buffer (vr);
       
-      return virgule_render_in_template (vr, "/site/acct/account.xml", "content", "User Account Info");
+      return virgule_render_in_template (vr, "/templates/acct-info.xml", "content", "User Account Info");
     }
   else
     {
-      return virgule_render_in_template (vr, "/site/acct/login.xml", NULL, NULL);
+      return virgule_render_in_template (vr, "/templates/acct-login.xml", NULL, NULL);
     }
 }
 
@@ -1438,7 +1438,7 @@ acct_person_diary_serve (VirguleReq *vr, char *u)
   /* switch back to the main buffer */  
   virgule_set_main_buffer (vr);
   
-  return virgule_render_in_template (vr, "/site/person/diary.xml", "diary", title);
+  return virgule_render_in_template (vr, "/templates/acct-diary.xml", "diary", title);
 }
 
 
@@ -1780,7 +1780,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/site/person/profile.xml", "profile", title);
+  return virgule_render_in_template (vr, "/templates/acct-profile.xml", "profile", title);
 }
 
 
@@ -2143,7 +2143,7 @@ acct_maint (VirguleReq *vr)
 
     virgule_set_main_buffer (vr);
     
-    return virgule_render_in_template (vr, "/site/default.xml", "content", "Account maintenance");
+    return virgule_render_in_template (vr, "/templates/default.xml", "content", "Account maintenance");
 }
 
 

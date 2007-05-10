@@ -342,7 +342,7 @@ article_form_serve (VirguleReq *vr)
 
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Post a new <x>article</x>");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Post a new <x>article</x>");
 }
 
 /**
@@ -532,7 +532,7 @@ article_generic_submit_serve (VirguleReq *vr,
 
 	}
 	virgule_set_main_buffer (vr);
-	return virgule_render_in_template (vr, "/site/default.xml", "content", str);
+	return virgule_render_in_template (vr, "/templates/default.xml", "content", str);
     }
 
   key = apr_psprintf (p, "%s/_%d%s",
@@ -782,7 +782,7 @@ article_reply_form_serve (VirguleReq *vr)
 
   virgule_set_main_buffer (vr);
   
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Post a reply");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Post a reply");
 }
 
 static int
@@ -915,7 +915,7 @@ article_num_serve (VirguleReq *vr, const char *t)
   /* switch back to the main buffer */
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/site/article/article.xml", "article", title);
+  return virgule_render_in_template (vr, "/templates/article.xml", "article", title);
 }
 
 

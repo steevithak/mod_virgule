@@ -814,7 +814,6 @@ static int virgule_handler(request_rec *r)
   vr->args = virgule_get_args (r);
   vr->lock = NULL;
   vr->priv = NULL;
-  vr->sitemap_rendered = 0;
   vr->render_data = apr_table_make (r->pool, 4);
 
   /* Get our thread private data, if any */

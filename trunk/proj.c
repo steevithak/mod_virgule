@@ -202,7 +202,7 @@ proj_new_serve (VirguleReq *vr)
   virgule_render_acceptable_html (vr);
 
   virgule_set_main_buffer (vr);
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Create new <x>project</x>");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Create new <x>project</x>");
 }
 
 static int
@@ -394,7 +394,7 @@ proj_index_serve (VirguleReq *vr)
 
   virgule_set_main_buffer (vr);
   
-  return virgule_render_in_template (vr, "/site/proj/list.xml", "projects", "<x>Project</x> index");
+  return virgule_render_in_template (vr, "/templates/proj-list.xml", "projects", "<x>Project</x> index");
 }
 
 static int
@@ -596,7 +596,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 
   virgule_set_main_buffer (vr);
   
-  return virgule_render_in_template (vr, "/site/proj/project.xml", "project", title);
+  return virgule_render_in_template (vr, "/templates/proj-desc.xml", "project", title);
 }
 
 static int
@@ -690,7 +690,7 @@ proj_edit_serve (VirguleReq *vr)
 
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Edit <x>project</x>");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Edit <x>project</x>");
 }
 
 static int
@@ -973,7 +973,7 @@ proj_reply_submit_serve (VirguleReq *vr)
 	  
       virgule_render_acceptable_html (vr);
       virgule_set_main_buffer (vr);
-      return virgule_render_in_template (vr, "/site/default.xml", "content", "Reply preview");
+      return virgule_render_in_template (vr, "/templates/default.xml", "content", "Reply preview");
     } 
 
   key = apr_psprintf (p, "%s/_%d%s",
@@ -1080,7 +1080,7 @@ proj_reply_form_serve (VirguleReq *vr)
 
   virgule_set_main_buffer (vr);
   
-  return virgule_render_in_template (vr, "/site/default.xml", "content", "Post a reply");
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Post a reply");
 }
 
 /**
