@@ -38,6 +38,7 @@ struct virgule_private {
   const char	    *admin_email;
   int                recentlog_as_posted;
   const char       **cert_level_names;
+  const char       **editors;	  /* editors - article posting */
   const char       **seeds;
   const int         *caps;
   const char       **special_users;
@@ -50,7 +51,7 @@ struct virgule_private {
   int		     allow_account_extendedcharset;
   int		     use_article_title_links;
   int		     use_article_topics;
-  int		     article_post_by_seeds_only;
+  int		     article_post_by_editors_only;
   int		     article_title_maxsize;
   int                article_days_to_edit;
   int	             level_articlepost;

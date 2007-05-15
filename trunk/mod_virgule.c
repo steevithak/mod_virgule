@@ -221,6 +221,21 @@ info_page (VirguleReq *vr)
       virgule_buffer_puts (b, "</ol></td></tr>\n");
     }
 
+  if (*vr->priv->editors)
+    {
+      const char **s;
+
+      virgule_buffer_puts (b, "<tr><td>Editors</td><td><ul>");
+      for (s = vr->priv->editors; *s; s++)
+	virgule_buffer_printf (b, "<li>%s</li>\n", *s);
+      virgule_buffer_puts (b, "</ul></td></tr>\n");
+    }
+
+  if (vr->priv->article_post_by_editors_only)
+    virgule_buffer_puts (b, "<tr><td>Article posts by editors only</td><td>On</td></tr>\n");
+  else
+    virgule_buffer_puts (b, "<tr><td>Article posts by editors only</td><td>Off</td></tr>\n");
+
   if (*vr->priv->seeds)
     {
       const char **s;
@@ -487,6 +502,40 @@ read_site_config (VirguleReq *vr)
   if(text)
     vr->priv->level_blogsyndicate = virgule_cert_level_from_name(vr, text);
 
+  /* read the optional list of editors */
+  vr->priv->editors = NULL;
+  stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
+  node = virgule_xml_find_child (doc->xmlRootNode, "editors");
+  if (node != NULL)
+    {
+      for (child = node->children; child; child = child->next)
+        {
+          if (child->type != XML_ELEMENT_NODE) {
+            continue;
+          } 
+          if (xmlStrcmp (child->name, (xmlChar *)"editor"))
+	    return virgule_send_error_page (vr, vERROR, "config",
+				"Unknown element <em>%s</em> in editors.",
+				child->name);
+
+          text = virgule_xml_get_string_contents (child);
+          if (!text)
+	    return virgule_send_error_page (vr, vERROR, "config",
+				"Empty element in seeds.");
+
+          c_item = (const char **)apr_array_push (stack);
+          *c_item = apr_pstrdup(vr->priv->pool, text);
+        }
+
+      if (stack->nelts > 0)
+        {
+          c_item = (const char **)apr_array_push (stack);
+          *c_item = NULL;
+          vr->priv->editors = (const char **)stack->elts;
+        }
+    }  
+
+
   /* read the trust metric seeds */
   stack = apr_array_make (vr->priv->pool, 10, sizeof (char *));
   node = virgule_xml_find_child (doc->xmlRootNode, "seeds");
@@ -639,12 +688,12 @@ read_site_config (VirguleReq *vr)
   else
     vr->priv->use_article_title_links = 1;
 
-  /* read the article posts by seeds only setting */
-  text = virgule_xml_find_child_string (doc->xmlRootNode, "articlepostbyseedsonly", "");
+  /* read the article posts by editors only setting */
+  text = virgule_xml_find_child_string (doc->xmlRootNode, "articlepostbyeditorsonly", "");
   if (!strcasecmp (text, "on"))
-    vr->priv->article_post_by_seeds_only = 1;
+    vr->priv->article_post_by_editors_only = 1;
   else
-    vr->priv->article_post_by_seeds_only = 0;
+    vr->priv->article_post_by_editors_only = 0;
 
   /* read the max article title size setting */
   text = virgule_xml_find_child_string (doc->xmlRootNode, "articletitlesize", "");

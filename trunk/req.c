@@ -187,14 +187,13 @@ virgule_req_ok_to_post (VirguleReq *vr)
   if(virgule_user_is_special(vr, vr->u))
     return 1;
 
-  if(vr->priv->article_post_by_seeds_only && *vr->priv->seeds)
+  if(vr->priv->article_post_by_editors_only && *vr->priv->editors)
     {
       const char **s;
-      for (s = vr->priv->seeds; *s; s++)
+      for (s = vr->priv->editors; *s; s++)
         if(strcmp(vr->u,*s) == 0)
 	  return 1;
     }
-
   else if(virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, vr->u)) >= vr->priv->level_articlepost)
     return 1;
 
