@@ -342,7 +342,7 @@ article_form_serve (VirguleReq *vr)
 
   virgule_set_main_buffer (vr);
 
-  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Post a new <x>article</x>");
+  return virgule_render_in_template (vr, "/templates/article-post.xml", "content", "Post a new <x>article</x>");
 }
 
 /**
