@@ -429,6 +429,60 @@ nice_proj_link (VirguleReq *vr, const char *proj)
 }
 
 
+/**
+ * The passed string will be modified to make it a legal CSS1 class name.
+ * CSS1 class names MUST start with an [A-Za-z]. Subsequent characters MUST
+ * be [A-Za-z0-9] or '-'.  All illegal characters must be escaped using a
+ * prefix of '\' (e.g. 2foo becomes \2foo and foo_bar becomes foo\_bar).
+ */
+char *
+virgule_force_legal_css_name (VirguleReq *vr, const char *name)
+{
+  int inlen = strlen(name);
+  int outlen = inlen * 3;
+  int i = 0;
+  int o = 0;
+  char *cssname = NULL;
+   
+  if (name == NULL)
+     return NULL;
+
+  cssname = apr_palloc (vr->r->pool, outlen + 1);
+  if(cssname == NULL)
+    return NULL;
+
+  memset(cssname,0,outlen);
+
+  if (!isalpha(name[0]))
+    {
+      cssname[o++] = '\\';
+      cssname[o++] = name[0];
+    }
+  else
+    cssname[o++] = name[0];
+
+  for (i = 1; name[i]; i++,o++)
+    {
+      if (name[i] == ' ')
+        {
+	  cssname[o++] = '\\';
+	  cssname[o++] = '2';
+	  cssname[o] = '0';
+	}
+      else if (!isalnum(name[i]) && !name[i] != '-')
+        {
+          cssname[o++] = '\\';
+	  cssname[o] = name[i];
+        }
+      else
+        cssname[o] = name[i];
+    }
+    
+  cssname[o] = 0;
+  return cssname;
+}
+
+
 struct _Topic {
   char *desc;
   char *url;
