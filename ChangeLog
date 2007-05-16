@@ -1,3 +1,18 @@
+2007-05-16 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (virgule_force_legal_css_name): Added function to force an
+	arbitrary string into compliance with the CSS1 spec for use as a CSS
+	class name. This will allow usernames to be inserted into class
+	statements as additional identifiers. Some third party blog handling
+	utilities rely on this arrangement to improve dupe handling.
+
+	* diary.c (virgule_diary_entry_render): Wrapped each entry in a div
+	and assigned two classes, one for site design user and one that's a
+	CSS'ified version of the user name for screen-scraping aggregator
+	use. Also switched the diary entry body to a div from a blockquote
+	allowing more flexibility in site layout.
+
+
 2007-05-15 R. Steven Rainwater <steve@ncc.com>
 
 	* private.h (virgule_private): added editors list pointer. This will

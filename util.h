@@ -36,6 +36,9 @@ char *
 virgule_nice_htext (VirguleReq *vr, const char *raw, char **p_error);
 
 char *
+virgule_force_legal_css_name (VirguleReq *vr, const char *name);
+
+char *
 virgule_iso_now (apr_pool_t *p);
 
 time_t
@@ -70,3 +73,4 @@ virgule_is_input_valid(const char *val);
 
 char *
 virgule_sha1(apr_pool_t *p, const char *input);
+

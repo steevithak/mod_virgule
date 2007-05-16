@@ -84,6 +84,8 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   localdate = virgule_xml_find_child_string (root, "date", NULL);
   localupdate = virgule_xml_find_child_string (root, "update", NULL);
 
+  virgule_buffer_printf (b, "<div class=\"node %s\">\n", virgule_force_legal_css_name (vr, u));
+
   /* render fancy, recentlog style header if requested */
   if (h)
     {
@@ -136,7 +138,7 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   
   if (contents != NULL)
     {    
-      virgule_buffer_puts (b, "<blockquote>\n");
+      virgule_buffer_puts (b, "<div>\n");
       if (title)
         virgule_buffer_printf (b, "<p><b>%s</b></p>\n", title);
       if (strcmp (virgule_req_get_tmetric_level (vr, u),
@@ -151,8 +153,10 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
 			      feedupdatetime ? feedupdatetime : "",
 			      blogauthor ? blogauthor : u);
 	}
-      virgule_buffer_puts (b, "</blockquote>\n");
+      virgule_buffer_puts (b, "</div>\n");
     }
+
+    virgule_buffer_puts (b, "</div>\n");
 }
 
 
