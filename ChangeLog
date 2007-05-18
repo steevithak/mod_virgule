@@ -16,7 +16,7 @@
 2007-05-15 R. Steven Rainwater <steve@ncc.com>
 
 	* private.h (virgule_private): added editors list pointer. This will
-	allow a site to optionally limit articles posts to a specific set of
+	allow a site to optionally limit article posts to a specific set of
 	users, known as editors. Also changed article_post_by_seeds_only to
 	article_post_by_editors_only. The seed list was serving double duty
 	on robots.net as an editors list but it's now helpful to separate
@@ -29,7 +29,7 @@
 	list of editors, if any, and the current setting of the editor only
 	flag read from the config.xml file.
 	
-	* req.c (virgule_req_ok_to_post): Now querires the editors list
+	* req.c (virgule_req_ok_to_post): Now queries the editors list
 	if the article_post_by_editors_only flag is set.
 
 	* article.c (article_form_serve): The article post page now uses
