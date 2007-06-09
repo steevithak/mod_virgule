@@ -1125,10 +1125,7 @@ virgule_proj_set_relation (VirguleReq *vr, const char *name, const char *u, cons
       virgule_db_xml_put (vr->r->pool, vr->db, db_key, staff);
       virgule_db_xml_free (vr->r->pool, staff);
     }
-  else
-    {
-      virgule_db_relation_put (vr->r->pool, vr->db, &staff_db_rel, values);
-    }
+    virgule_db_relation_put (vr->r->pool, vr->db, &staff_db_rel, values);
 }
 
 

@@ -1,3 +1,15 @@
+2007-06-08 R. Steven Rainwater <steve@ncc.com>
+
+
+	* db_ops.c (db_relation_put_field): Fixed a bug that prevent staff
+	relations from being removed when set to a relation type of None.
+	Props to Gary Benson for noticing the problem.
+
+	* proj.c (virgule_proj_set_relation): Fixed bug that prevented
+	db_relation_put_field() from being called on certain staff
+	relationship changes.
+	
+
 2007-05-16 R. Steven Rainwater <steve@ncc.com>
 
 	* util.c (virgule_force_legal_css_name): Added function to force an
