@@ -136,6 +136,7 @@ db_relation_put_field (apr_pool_t *p, Db *db, const DbRelation *rel,
   xmlNode *root;
   xmlNode *tree = NULL;
   xmlNode *child, *next;
+  char *reltype;
   char *relname;
   int j;
 
@@ -164,13 +165,13 @@ db_relation_put_field (apr_pool_t *p, Db *db, const DbRelation *rel,
 	}
     }
 
-  /* uniqueness checking */
+  /* uniqueness checking and cleanup of "none" relations */
   for (child = root->children; child != NULL && tree != NULL; child = next)
     {
-
       next = child->next;
-      if (child != tree &&
-	  db_relation_match (p, child, tree, rel, i))
+      reltype = virgule_xml_get_prop (p, child, (xmlChar *)"type");
+      if ((child != tree && db_relation_match (p, child, tree, rel, i)) ||
+	  (!strcmp(reltype,"None")) )
 	{
 	  xmlUnlinkNode (child);
 	  xmlFreeNode (child);
