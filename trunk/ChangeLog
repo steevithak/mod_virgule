@@ -1,3 +1,11 @@
+2007-06-13 R. Steven Rainwater <steve@ncc.com>
+
+	* v.js (clrField): Started a mod_virgule JavaScript library. 
+	The clrField() function allow helpful comments to be placed in
+	form fields (e.g. username, password, etc.) that will vanish when
+	the user types in the field.
+
+
 2007-06-08 R. Steven Rainwater <steve@ncc.com>
 
 
