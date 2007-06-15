@@ -50,14 +50,16 @@ virgule_render_header (VirguleReq *vr, const char *title)
                  
   virgule_buffer_printf (b, "<link rel=\"stylesheet\" type=\"text/css\" "
                  "href=\"%s/css/global.css\" />\n"
-		 "<link rel=\"shortcut icon\" href=\"/images/favicon.ico\" />\n",
+		 "<link rel=\"shortcut icon\" href=\"%s/images/favicon.ico\" />\n",
                  vr->prefix, vr->prefix);
 
-  virgule_buffer_printf (b,"<script language=\"JavaScript\" type=\"text/javascript\">\n"
-	         "<!-- \n"
-		 "if (top != self) { top.location = self.location } \n"
-		 "//-->\n"
-		 "</script>\n");
+  virgule_buffer_printf (b,"<script language=\"javascript\" type=\"text/javascript\" src=\"%s/css/v.js\"></script>\n",vr->prefix);
+
+//  virgule_buffer_printf (b,"<script language=\"JavaScript\" type=\"text/javascript\">\n"
+//	         "<!-- \n"
+//		 "if (top != self) { top.location = self.location } \n"
+//		 "//-->\n"
+//		 "</script>\n");
 
   /* check for additional page header contents */
   if (virgule_buffer_size (vr->hb) > 0)
