@@ -1,10 +1,21 @@
 2007-06-13 R. Steven Rainwater <steve@ncc.com>
 
-	* v.js (clrField): Started a mod_virgule JavaScript library. 
+	* v.js (clrField): Started a mod_virgule Javascript library. 
 	The clrField() function allow helpful comments to be placed in
 	form fields (e.g. username, password, etc.) that will vanish when
 	the user types in the field.
 
+	* style.c (virgule_render_header): Now includes the new Javascript
+	library in each page header. Removed the hardcoded frame-buster 
+	Javascript from	the page headers and put it in the v.js file.
+
+	* util.c (virgule_strip_a): Fixed a bug that allowed spammers to
+	circumvent having anchor tags stripped from their notes field
+	by intentionally entering malformed markup.
+
+	* acct_maint.c (acct_index_serve): Cleaned up the account action
+	list.
+	
 
 2007-06-08 R. Steven Rainwater <steve@ncc.com>
 

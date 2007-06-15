@@ -729,9 +729,13 @@ virgule_strip_a (VirguleReq *vr, const char *raw)
 	    tmp1++;
 	  if(*tmp1!=0)
             tmp1++;
+	  continue;
         }
       if(strncasecmp(tmp1,"</a>",4)==0)
-        tmp1+=4;
+        {
+          tmp1+=4;
+	  continue;
+	}
       *tmp2 = *tmp1;
       tmp1++;
       tmp2++;

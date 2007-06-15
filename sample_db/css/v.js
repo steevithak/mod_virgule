@@ -8,6 +8,9 @@
  *  (at your option) any later version.
  */
 
+// Global frame-buster code
+if (top != self) { top.location = self.location }
+
 // Call via onClick to clear initial field comments
 function clrField(field) {
   if(field.defaultValue == field.value) field.value = "";

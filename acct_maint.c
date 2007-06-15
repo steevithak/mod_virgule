@@ -587,7 +587,7 @@ acct_index_serve (VirguleReq *vr)
       virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
       virgule_buffer_puts (b, "</p><p>At this level you can:</p>\n<ul>");
 
-      virgule_buffer_printf (b, "<li>Link to your <a href=\"%s/person/%s\">publicly accessible page</a></li>",vr->prefix,ap_escape_uri(vr->r->pool,vr->u));
+      virgule_buffer_printf (b, "<li>Link to your <a href=\"%s/person/%s\">public profile</a></li>",vr->prefix,ap_escape_uri(vr->r->pool,vr->u));
       virgule_buffer_printf (b, "<li><a href=\"%s/diary/\">Post a blog entry</a></li>\n",vr->prefix);
 
       if (virgule_req_ok_to_reply (vr))
@@ -597,7 +597,7 @@ acct_index_serve (VirguleReq *vr)
 
       if (virgule_req_ok_to_create_project (vr))
         {
-	  virgule_buffer_printf (b, "<li><a href=\"%s/proj/new.html\">Create new project pages</a></li>\n",vr->prefix);
+	  virgule_buffer_printf (b, "<li><a href=\"%s/proj/new.html\">Create new a project</a></li>\n",vr->prefix);
 	  virgule_buffer_printf (b, "<li>Edit your <a href=\"%s/proj/\">existing projects</a></li>\n",vr->prefix);
 	}
 
