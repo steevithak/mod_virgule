@@ -1,13 +1,15 @@
 2007-06-13 R. Steven Rainwater <steve@ncc.com>
 
 	* v.js (clrField): Started a mod_virgule Javascript library. 
-	The clrField() function allow helpful comments to be placed in
+	The clrField() function allows helpful comments to be placed in
 	form fields (e.g. username, password, etc.) that will vanish when
-	the user types in the field.
+	the user focuses the field.
 
 	* style.c (virgule_render_header): Now includes the new Javascript
 	library in each page header. Removed the hardcoded frame-buster 
-	Javascript from	the page headers and put it in the v.js file.
+	Javascript from	the page headers and put it in the v.js file, 
+	allowing it to be cached across page views. This reduces the page
+	size slightly.
 
 	* util.c (virgule_strip_a): Fixed a bug that allowed spammers to
 	circumvent having anchor tags stripped from their notes field
@@ -19,8 +21,7 @@
 
 2007-06-08 R. Steven Rainwater <steve@ncc.com>
 
-
-	* db_ops.c (db_relation_put_field): Fixed a bug that prevent staff
+	* db_ops.c (db_relation_put_field): Fixed a bug that prevented staff
 	relations from being removed when set to a relation type of None.
 	Props to Gary Benson for noticing the problem.
 
@@ -38,7 +39,7 @@
 	utilities rely on this arrangement to improve dupe handling.
 
 	* diary.c (virgule_diary_entry_render): Wrapped each entry in a div
-	and assigned two classes, one for site design user and one that's a
+	and assigned two classes, one for site design and one that's a
 	CSS'ified version of the user name for screen-scraping aggregator
 	use. Also switched the diary entry body to a div from a blockquote
 	allowing more flexibility in site layout.
