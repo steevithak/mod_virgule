@@ -1056,6 +1056,9 @@ acct_logout_serve (VirguleReq *vr)
 {
 
   virgule_auth_user (vr);
+  
+  vr->r->no_cache = TRUE;
+  vr->r->no_local_copy = TRUE;
 
   if (vr->u)
     {

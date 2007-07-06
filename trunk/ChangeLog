@@ -1,3 +1,11 @@
+2007-07-06 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint (acct_logout_serve): The no_cache and no_local_copy
+	flags are now set in the Apache request_rec structure to prevent
+	browsers from caching old logout results. This bug was preventing a
+	few users from successfully logging out of Advogato.
+
+
 2007-06-13 R. Steven Rainwater <steve@ncc.com>
 
 	* v.js (clrField): Started a mod_virgule Javascript library. 
