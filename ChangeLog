@@ -1,17 +1,25 @@
+2007-07-09 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_post_feed): Check for existing GUID before
+	doing an update in case the feed has retro-actively altered the item's
+	post time stamp. This should prevent item dupes on feeds that mess 
+	with the time stamps in bad ways, provided the GUID remains valid.
+
+
 2007-07-06 R. Steven Rainwater <steve@ncc.com>
 
-	* acct_maint (acct_logout_serve): The no_cache and no_local_copy
+	* acct_maint.c (acct_logout_serve): The no_cache and no_local_copy
 	flags are now set in the Apache request_rec structure to prevent
 	browsers from caching old logout results. This bug was preventing a
-	few users from successfully logging out of Advogato.
+	few users from successfully logging out of Advogato. Props to
+	Paul Wise (pabs3) for bringing the problem to my attention.
 
 
 2007-06-13 R. Steven Rainwater <steve@ncc.com>
 
 	* v.js (clrField): Started a mod_virgule Javascript library. 
 	The clrField() function allows helpful comments to be placed in
-	form fields (e.g. username, password, etc.) that will vanish when
-	the user focuses the field.
+	form fields that will vanish when the user focuses the field.
 
 	* style.c (virgule_render_header): Now includes the new Javascript
 	library in each page header. Removed the hardcoded frame-buster 
