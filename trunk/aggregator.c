@@ -440,14 +440,14 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
   /* Post any new, unposted entries or updated entries */
   for (i = 0; i < item_list->nelts; i++)
     {
+      int e;
       FeedItem *item = &((FeedItem *)(item_list->elts))[i];
       if (item->content == NULL)
         continue;
       if (item->post_time > latest)
 	{
-          int e;
 	  e = virgule_diary_entry_id_exists(vr, user, item->id);
-	  /* some broken feeds alter the post time on existing posts */
+	  /* some broken feeds alter post time on existing posts, check ID */
 	  if (e > -1)
 	    virgule_diary_update_feed_item (vr, user, item, e);
 	  /* it should be safe to assume this is really a new entry */
@@ -459,7 +459,9 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 	}
       else if ((item->update_time != -1) && (item->post_time != item->update_time))
 	{
-	  virgule_diary_update_feed_item (vr, user, item, -1);
+	  /* some broken feeds alter post time on existing posts, check ID */
+	  e = virgule_diary_entry_id_exists(vr, user, item->id);
+	  virgule_diary_update_feed_item (vr, user, item, e);
 	}
     }
 
