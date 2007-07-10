@@ -5,6 +5,17 @@
 	post time stamp. This should prevent item dupes on feeds that mess 
 	with the time stamps in bad ways, provided the GUID remains valid.
 
+	* article.c (article_render_from_xml): Replaced hardcoded social
+	bookmark links with standard share icon and call to external 
+	javascript social bookmarking widget.
+
+	* acct_maint.c (acct_person_serve): Added social bookmark link to
+	profile page. Replaced "this person" to the actual user name in the
+	profile certification banner.
+
+	* proj.c (proj_proj_serve): Added social bookmark link to project
+	page. Tweak HTML slightly to improve look.
+
 
 2007-07-06 R. Steven Rainwater <steve@ncc.com>
 
