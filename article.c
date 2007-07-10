@@ -183,16 +183,10 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
     {
       char *bmurl = apr_psprintf (vr->r->pool, "%s/article/%d.html", vr->priv->base_uri, art_num);
       char *bmtitle = ap_escape_uri (vr->r->pool, title);
-      bmbox = apr_psprintf (vr->r->pool, "<span id=\"bm\">"
-                                         "<a href=\"http://digg.com/submit?phase=2&amp;url=%s&amp;title=%s&amp;bodytext=%s&amp;topic=tech_news\">"
-					 "<img src=\"/images/bm-digg.png\" alt=\"Digg This\" title=\"Digg This\" /></a>"
-                                         "<a href=\"http://del.icio.us/post?v=4&amp;noui&jump=close&amp;url=%s&amp;title=%s\">"
-					 "<img src=\"/images/bm-delicious.png\" alt=\"del.icio.us\" title=\"del.icio.us\" /></a>"
-                                         "<a href=\"http://reddit.com/submit?url=%s&title=%s\">"
-					 "<img src=\"/images/bm-reddit.png\" alt=\"reddit\" title=\"reddit\" /></a>"
+      bmbox = apr_psprintf (vr->r->pool, "<span class=\"bm\">"
+                                         "<a href=\"javascript:void(0)\" onclick=\"sbm(event,'%s','%s')\">"
+					 "<img src=\"/images/share.png\" alt=\"Share This\" title=\"Share This\" /></a>"
 					 "</span>",
-                                         bmurl, bmtitle, ap_escape_uri (vr->r->pool, lead),
-					 bmurl, bmtitle,
 					 bmurl, bmtitle);
     }
   

@@ -467,6 +467,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       char *license;
       char *lastmodby;
       char *mdate;
+      char *share = NULL;
 
       creator = virgule_xml_get_prop (p, tree, "creator");
       lastmodby = virgule_xml_get_prop (p, tree, "lastmodby");
@@ -477,9 +478,21 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	  virgule_buffer_puts (b, title);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_LARGE);
 	}
+      else
+        {
+	  char *bmurl = apr_psprintf (p, "%s/proj/%s/", vr->priv->base_uri, ap_escape_uri(p,name));
+	  char *bmtitle = ap_escape_uri (p, ap_escape_uri(p,name));
+	  share = apr_psprintf(p,"<a href=\"javascript:void(0)\" onclick=\"sbm(event,'%s','%s')\">"
+				 "<img src=\"/images/share.png\" height=\"16\" width=\"16\" border=\"none\" alt=\"Share This\" title=\"Share This\" /></a> ",
+				 bmurl, bmtitle);
+	}
 
-      virgule_buffer_printf (b, "<p> Page created %s by <a href=\"%s/person/%s/\">%s</a>",
-		     virgule_render_date (vr, cdate, 1), vr->prefix, ap_escape_uri(vr->r->pool, creator), creator);
+      virgule_buffer_printf (b, "<p>%sCreated %s by <a href=\"%s/person/%s/\">%s</a>",
+			     share, 
+			     virgule_render_date (vr, cdate, 1), 
+			     vr->prefix, 
+			     ap_escape_uri(vr->r->pool, creator), 
+			     creator);
 
       if (lastmodby != NULL)
 	{
