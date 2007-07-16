@@ -1620,14 +1620,13 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
       if (!observer)
         {
-//          virgule_buffer_puts (b, "<p><a href=\"foaf.rdf\"><img src=\"/images/foaf.png\" height=\"20\" width=\"40\" border=\"none\" alt=\"FOAF RDF\" title=\"FOAF RDF\" /></a></p>\n");
 	  char *bmurl = apr_psprintf (p, "%s/person/%s/", vr->priv->base_uri, ap_escape_uri(p,u));
 	  char *bmtitle = ap_escape_uri (p, title);
 	  virgule_buffer_printf (b,
 				 "<p><a href=\"foaf.rdf\"><img src=\"/images/foaf.png\" height=\"20\" width=\"40\" border=\"none\" alt=\"FOAF RDF\" title=\"FOAF RDF\" /></a> "
                                  "<a href=\"javascript:void(0)\" onclick=\"sbm(event,'%s','%s')\">"
 				 "<img src=\"/images/share.png\" height=\"16\" width=\"16\" border=\"none\" alt=\"Share This\" title=\"Share This\" /></a></p>",
-				 bmurl, bmtitle);
+				 bmurl, virgule_str_subst (vr->r->pool, bmtitle, "'", "%27"));
 	}
       url = virgule_xml_get_prop (p, tree, (xmlChar *)"url");
       if (url && url[0])

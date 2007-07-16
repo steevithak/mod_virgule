@@ -1,3 +1,12 @@
+2007-07-16 R. Steven Rainwater <steve@ncc.com>
+
+	* proj.c (proj_proj_serve): 
+	* article.c (article_render_from_xml): 
+	* acct_maint.c (acct_person_server): Apostrophe is now escaped in the
+	HTML calling the social bookmarking Javascript function. Thanks to
+	LKCL for spotting the error.
+
+
 2007-07-09 R. Steven Rainwater <steve@ncc.com>
 
 	* aggregator.c (aggregator_post_feed): Check for existing GUID before

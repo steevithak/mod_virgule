@@ -187,7 +187,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
                                          "<a href=\"javascript:void(0)\" onclick=\"sbm(event,'%s','%s')\">"
 					 "<img src=\"/images/share.png\" alt=\"Share This\" title=\"Share This\" /></a>"
 					 "</span>",
-					 bmurl, bmtitle);
+					 bmurl, virgule_str_subst (vr->r->pool, bmtitle, "'", "%27"));
     }
   
   virgule_buffer_printf (b, "<span class=\"article-title\">%s%s%s</span>",
