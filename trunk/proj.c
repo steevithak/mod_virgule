@@ -484,7 +484,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	  char *bmtitle = ap_escape_uri (p, ap_escape_uri(p,name));
 	  share = apr_psprintf(p,"<a href=\"javascript:void(0)\" onclick=\"sbm(event,'%s','%s')\">"
 				 "<img src=\"/images/share.png\" height=\"16\" width=\"16\" border=\"none\" alt=\"Share This\" title=\"Share This\" /></a> ",
-				 bmurl, bmtitle);
+				 bmurl, virgule_str_subst (vr->r->pool, bmtitle, "'", "%27"));
 	}
 
       virgule_buffer_printf (b, "<p>%sCreated %s by <a href=\"%s/person/%s/\">%s</a>",
