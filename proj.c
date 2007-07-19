@@ -136,10 +136,10 @@ proj_ok_to_edit (VirguleReq *vr, xmlDoc *doc)
 
   tree = virgule_xml_find_child (doc->xmlRootNode, "info");
 
-  locked = virgule_xml_get_prop (p, tree, "locked");
+  locked = virgule_xml_get_prop (p, tree, (xmlChar *)"locked");
   if (locked && !strcmp (locked, "yes"))
     return 0;
-  creator = virgule_xml_get_prop (p, tree, "creator");
+  creator = virgule_xml_get_prop (p, tree, (xmlChar *)"creator");
 
   return (!strcmp (vr->u, creator));
 }
@@ -263,19 +263,19 @@ proj_newsub_serve (VirguleReq *vr)
 
   doc = virgule_db_xml_doc_new (p);
 
-  root = xmlNewDocNode (doc, NULL, "info", NULL);
+  root = xmlNewDocNode (doc, NULL, (xmlChar *)"info", NULL);
   doc->xmlRootNode = root;
 
-  tree = xmlNewChild (root, NULL, "cdate", date);
-  tree = xmlNewChild (root, NULL, "info", NULL);
-  xmlSetProp (tree, "url", url);
-  xmlSetProp (tree, "fmurl", fmurl);
-  xmlSetProp (tree, "desc", desc);
-  xmlSetProp (tree, "notes", notes);
-  xmlSetProp (tree, "license", license);
-  xmlSetProp (tree, "creator", vr->u);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"cdate", (xmlChar *)date);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"info", NULL);
+  xmlSetProp (tree, (xmlChar *)"url", (xmlChar *)url);
+  xmlSetProp (tree, (xmlChar *)"fmurl", (xmlChar *)fmurl);
+  xmlSetProp (tree, (xmlChar *)"desc", (xmlChar *)desc);
+  xmlSetProp (tree, (xmlChar *)"notes", (xmlChar *)notes);
+  xmlSetProp (tree, (xmlChar *)"license", (xmlChar *)license);
+  xmlSetProp (tree, (xmlChar *)"creator", (xmlChar *)vr->u);
   if (virgule_req_ok_to_create_project (vr))
-    xmlSetProp (tree, "locked", "yes");
+    xmlSetProp (tree, (xmlChar *)"locked", (xmlChar *)"yes");
 
   status = virgule_db_xml_put (p, db, db_key, doc);
   if (status)
@@ -365,7 +365,7 @@ proj_index_serve (VirguleReq *vr)
 
 	  proj_tree = virgule_xml_find_child (proj_doc->xmlRootNode, "info");
 	  if (proj_tree != NULL)
-	    creator = virgule_xml_get_prop (p, proj_tree, "creator");
+	    creator = virgule_xml_get_prop (p, proj_tree, (xmlChar *)"creator");
 	  else
 	    {
 	      /* No creator?  Skip it. */
@@ -469,8 +469,8 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       char *mdate;
       char *share = NULL;
 
-      creator = virgule_xml_get_prop (p, tree, "creator");
-      lastmodby = virgule_xml_get_prop (p, tree, "lastmodby");
+      creator = virgule_xml_get_prop (p, tree, (xmlChar *)"creator");
+      lastmodby = virgule_xml_get_prop (p, tree, (xmlChar *)"lastmodby");
 
       if (vr->priv->projstyle == PROJSTYLE_NICK)
 	{
@@ -496,7 +496,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 
       if (lastmodby != NULL)
 	{
-	  mdate = virgule_xml_get_prop (p, tree, "mdate");
+	  mdate = virgule_xml_get_prop (p, tree, (xmlChar *)"mdate");
 	  virgule_buffer_printf (b, ", last modified %s by <a href=\"%s/person/%s/\">%s</a>",
 			 virgule_render_date (vr, mdate, 1), vr->prefix,
 			 ap_escape_uri(vr->r->pool, lastmodby), lastmodby);
@@ -507,7 +507,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 		       virgule_escape_uri_arg (p, name));
       virgule_buffer_puts (b, ".</p\n");
 
-      url = virgule_xml_get_prop (p, tree, "url");
+      url = virgule_xml_get_prop (p, tree, (xmlChar *)"url");
       if (url && url[0])
 	{
 	  virgule_buffer_printf (b, virgule_render_url (p,
@@ -516,22 +516,22 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 					" URL: ",
 					url));
 	}
-      fmurl = virgule_xml_get_prop (p, tree, "fmurl");
+      fmurl = virgule_xml_get_prop (p, tree, (xmlChar *)"fmurl");
       if (fmurl && fmurl[0])
 	{
 	  virgule_buffer_printf (b,
 			 virgule_render_url (p, " Freshmeat page: ", fmurl));
 	}
 
-      notes = virgule_xml_get_prop (p, tree, "notes");
+      notes = virgule_xml_get_prop (p, tree, (xmlChar *)"notes");
       if (notes && notes[0])
 	virgule_buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", virgule_nice_htext (vr, notes, &err));
 
-      license = virgule_xml_get_prop (p, tree, "license");
+      license = virgule_xml_get_prop (p, tree, (xmlChar *)"license");
       if (license && license[0])
 	virgule_buffer_printf (b, "<p> License: %s </p>\n", virgule_nice_text (p, license));
 
-      desc = virgule_xml_get_prop (p, tree, "desc");
+      desc = virgule_xml_get_prop (p, tree, (xmlChar *)"desc");
       if (desc && desc[0])
 	virgule_buffer_printf (b, "<p> Description: %s </p>\n", virgule_nice_text (p, desc));
 
@@ -551,8 +551,8 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 		  char *person;
 		  char *type;
 
-		  person = virgule_xml_get_prop (p, tree, "person");
-		  type = virgule_xml_get_prop (p, tree, "type");
+		  person = virgule_xml_get_prop (p, tree, (xmlChar *)"person");
+		  type = virgule_xml_get_prop (p, tree, (xmlChar *)"type");
 		  if (vr->u != NULL && !strcmp (person, vr->u))
 		    myrel = tree;
 		  if (! !strcmp (type, "None"))
@@ -627,7 +627,7 @@ proj_next_new_serve (VirguleReq *vr)
   for (tree = root->children; tree != NULL; tree = tree->next)
     {
       char *name = virgule_xml_get_string_contents (tree);
-      char *date = virgule_xml_get_prop (p, tree, "date");
+      char *date = virgule_xml_get_prop (p, tree, (xmlChar *)"date");
       char *lastread_date = virgule_acct_get_lastread_date (vr, "proj", name);
   
       if (lastread_date != NULL)
@@ -748,11 +748,11 @@ proj_editsub_serve (VirguleReq *vr)
 
   virgule_schema_put_fields (p, proj_fields, fields, tree, args);
 
-  xmlSetProp (tree, "mdate", date);
-  xmlSetProp (tree, "lastmodby", vr->u);
+  xmlSetProp (tree, (xmlChar *)"mdate", (xmlChar *)date);
+  xmlSetProp (tree, (xmlChar *)"lastmodby", (xmlChar *)vr->u);
 
   if (virgule_req_ok_to_create_project (vr))
-    xmlSetProp (tree, "locked", "yes");
+    xmlSetProp (tree, (xmlChar *)"locked", (xmlChar *)"yes");
 
   status = virgule_db_xml_put (p, db, db_key, doc);
   if (status)
@@ -995,19 +995,19 @@ proj_reply_submit_serve (VirguleReq *vr)
 		     "/reply.xml");
 
   doc = virgule_db_xml_doc_new (p);
-  root = xmlNewDocNode (doc, NULL, "article", NULL);
+  root = xmlNewDocNode (doc, NULL, (xmlChar *)"article", NULL);
   doc->xmlRootNode = root;
 
-  tree = xmlNewChild (root, NULL, "date", date);
-  tree = xmlNewChild (root, NULL, "author", vr->u);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"author", (xmlChar *)vr->u);
 
-  tree = xmlNewChild (root, NULL, "title", NULL);
-  xmlAddChild (tree, xmlNewDocText (doc, nice_title));
+  tree = xmlNewChild (root, NULL, (xmlChar *)"title", NULL);
+  xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)nice_title));
 
   if (body != NULL && body[0])
     {
-      tree = xmlNewChild (root, NULL, "body", NULL);
-      xmlAddChild (tree, xmlNewDocText (doc, nice_body));
+      tree = xmlNewChild (root, NULL, (xmlChar *)"body", NULL);
+      xmlAddChild (tree, xmlNewDocText (doc, (xmlChar *)nice_body));
     }
 
 
@@ -1124,7 +1124,7 @@ virgule_proj_set_relation (VirguleReq *vr, const char *name, const char *u, cons
         {
           for (tree = staff->xmlRootNode->children; tree != NULL; tree = tree->next)
 	    {
-	      user = xmlGetProp (tree,"person");
+	      user = (char *)xmlGetProp (tree, (xmlChar *)"person");
 	      if (strcmp (u, user) == 0)
 	        {
                   xmlUnlinkNode (tree);

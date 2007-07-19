@@ -1,3 +1,11 @@
+2007-07-19 R. Steven Rainwater <steve@ncc.com>
+
+	* foaf.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* proj.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* rss_export.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* xmlrpc.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+
+
 2007-07-16 R. Steven Rainwater <steve@ncc.com>
 
 	* proj.c (proj_proj_serve): 
