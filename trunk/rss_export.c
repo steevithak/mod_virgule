@@ -74,11 +74,11 @@ rss_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, xmlNodePtr tree)
   *tmp2=0;
 #endif
 
-  subtree = xmlNewTextChild (tree, NULL, "title", title);
-  subtree = xmlNewTextChild (tree, NULL, "link", link);
-  subtree = xmlNewTextChild (tree, NULL, "guid", link);
-  subtree = xmlNewTextChild (tree, NULL,"pubDate", pubdate);
-  subtree = xmlNewTextChild (tree, NULL, "description", clean_description);  
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"title", (xmlChar *)title);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"link", (xmlChar *)link);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"guid", (xmlChar *)link);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"pubDate", (xmlChar *)pubdate);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"description", (xmlChar *)clean_description);  
 }
 
 static void
@@ -93,7 +93,7 @@ rss_render (VirguleReq *vr, int art_num, xmlNodePtr tree)
   doc = virgule_db_xml_get (p, vr->db, key);
   if (doc != NULL)
     {
-      subtree = xmlNewChild (tree, NULL, "item", NULL);
+      subtree = xmlNewChild (tree, NULL, (xmlChar *)"item", NULL);
       rss_render_from_xml (vr, art_num, doc, subtree);
     }
 }
@@ -111,26 +111,26 @@ rss_index_serve (VirguleReq *vr)
   int size;
   char *pubdate;
 
-  doc = xmlNewDoc ("1.0");
+  doc = xmlNewDoc ((xmlChar *)"1.0");
   if (doc == NULL)
     return virgule_send_error_page (vr, vERROR, "internal", "xmlNewDoc() failed");
 
   vr->r->content_type = "text/xml; charset=UTF-8";
-  doc->xmlRootNode = xmlNewDocNode (doc, NULL, "rss", NULL);
+  doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"rss", NULL);
 
-  xmlSetProp (doc->xmlRootNode, "version", "2.0");
+  xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"2.0");
   
-  tree = xmlNewChild (doc->xmlRootNode, NULL, "channel", NULL);
-  subtree = xmlNewTextChild (tree, NULL, "title", vr->priv->site_name);
-  subtree = xmlNewTextChild (tree, NULL, "link", 
-			apr_psprintf (p, "%s/", vr->priv->base_uri));
-  subtree = xmlNewTextChild (tree, NULL, "description", 
-			apr_psprintf (p, "Recent %s articles", vr->priv->site_name));
-  subtree = xmlNewChild (tree, NULL, "language", "en-us");
-  subtree = xmlNewChild (tree, NULL, "generator", "mod_virgule");
+  tree = xmlNewChild (doc->xmlRootNode, NULL, (xmlChar *)"channel", NULL);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"title", (xmlChar *)vr->priv->site_name);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"link", 
+			(xmlChar *)apr_psprintf (p, "%s/", vr->priv->base_uri));
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"description", 
+			(xmlChar *)apr_psprintf (p, "Recent %s articles", vr->priv->site_name));
+  subtree = xmlNewChild (tree, NULL, (xmlChar *)"language", (xmlChar *)"en-us");
+  subtree = xmlNewChild (tree, NULL, (xmlChar *)"generator", (xmlChar *)"mod_virgule");
 
   pubdate = virgule_render_date (vr, virgule_iso_now(vr->r->pool), 2);
-  subtree = xmlNewTextChild (tree, NULL, "pubDate", pubdate);
+  subtree = xmlNewTextChild (tree, NULL, (xmlChar *)"pubDate", (xmlChar *)pubdate);
 
   art_num = virgule_db_dir_max (vr->db, "articles");
 
@@ -144,7 +144,7 @@ rss_index_serve (VirguleReq *vr)
   if (size <= 0)
     return virgule_send_error_page (vr, vERROR, "internal", "xmlDocDumpFormatMemory() failed");
 
-  virgule_buffer_write (b, mem, size);
+  virgule_buffer_write (b, (char *)mem, size);
   xmlFree (mem);
   xmlFreeDoc (doc);
   return virgule_send_response (vr);

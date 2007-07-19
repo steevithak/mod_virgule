@@ -74,9 +74,9 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   
   vr->r->content_type = "application/rdf+xml; charset=UTF-8";
   foaf->xmlRootNode = xmlNewDocNode (foaf, NULL, (xmlChar *)"rdf:RDF", NULL);
-  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
-  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdfs", "http://www.w3.org/2000/01/rdf-schema#");
-  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:foaf", "http://xmlns.com/foaf/0.1/");
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdf", (xmlChar *)"http://www.w3.org/1999/02/22-rdf-syntax-ns#");
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdfs", (xmlChar *)"http://www.w3.org/2000/01/rdf-schema#");
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:foaf", (xmlChar *)"http://xmlns.com/foaf/0.1/");
 
   givenname = virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname");
   surname = virgule_xml_get_prop (p, ptree, (xmlChar *)"surname");
@@ -92,14 +92,14 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:PersonalProfileDocument", NULL);
   xmlSetProp (tree, (xmlChar *)"rdf:about", NULL);
   label = apr_pstrcat (p, vr->priv->site_name, " FOAF profile for ", name, NULL);
-  xmlNewTextChild (tree, NULL, (xmlChar *)"rdfs:label", label);
+  xmlNewTextChild (tree, NULL, (xmlChar *)"rdfs:label", (xmlChar *)label);
   tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:maker", NULL);
-  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", "#me");
+  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
   tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:primaryTopic", NULL);
-  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", "#me");
+  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
   
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Person", NULL);
-  xmlSetProp (tree, (xmlChar *)"rdf:about", "#me");
+  xmlSetProp (tree, (xmlChar *)"rdf:about", (xmlChar *)"#me");
   xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:name", (xmlChar *)name);
   xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:nick", (xmlChar *)u);
 
@@ -134,12 +134,12 @@ virgule_foaf_person (VirguleReq *vr, char *u)
 	    level = xmlGetProp (cert, (xmlChar *)"level");
 	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
 	      {
-                url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, subject), "/foaf.rdf", NULL);
+                url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, (char *)subject), "/foaf.rdf", NULL);
                 n1 = xmlNewChild (tree, NULL, (xmlChar *)"foaf:knows", NULL);
 		n1 = xmlNewChild (n1, NULL, (xmlChar *)"foaf:Person", NULL);
-                xmlSetProp (n1, (xmlChar *)"rdf:about", apr_pstrcat(p, url, "#me", NULL));
+                xmlSetProp (n1, (xmlChar *)"rdf:about", (xmlChar *)apr_pstrcat(p, url, "#me", NULL));
                 xmlNewTextChild (n1, NULL, (xmlChar *)"foaf:nick", (xmlChar *)subject);
-                url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, subject), "/foaf.rdf", NULL);
+                url = apr_pstrcat (p, vr->priv->base_uri, "/person/", ap_escape_uri(p, (char *)subject), "/foaf.rdf", NULL);
                 n2 = xmlNewChild (n1, NULL, (xmlChar *)"rdfs:seeAlso", NULL);
                 xmlSetProp (n2, (xmlChar *)"rdf:resource", (xmlChar *)url);
 	      }

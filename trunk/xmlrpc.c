@@ -26,16 +26,16 @@ xmlrpc_value_int (xmlNode *node, long i)
   char buf[12];
   apr_snprintf(buf, 12, "%ld", i);
 
-  node = xmlNewChild (node, NULL, "value", NULL);
-  node = xmlNewChild (node, NULL, "int", buf);
+  node = xmlNewChild (node, NULL, (xmlChar *)"value", NULL);
+  node = xmlNewChild (node, NULL, (xmlChar *)"int", (xmlChar *)buf);
   return node;
 }
 
 static xmlNode *
 xmlrpc_value_string (xmlNode *node, const char *s)
 {
-  node = xmlNewChild (node, NULL, "value", NULL);
-  node = xmlNewTextChild (node, NULL, "string", s);
+  node = xmlNewChild (node, NULL, (xmlChar *)"value", NULL);
+  node = xmlNewTextChild (node, NULL, (xmlChar *)"string", (xmlChar *)s);
   return node;
 }
 
@@ -59,24 +59,24 @@ xmlrpc_value_datetime (xmlNode *node, VirguleReq *vr, const char *s)
   else
     dt = apr_psprintf (vr->r->pool, "%s%s%sT%s", y, m, d, rest);
 
-  node = xmlNewChild (node, NULL, "value", NULL);
-  node = xmlNewTextChild (node, NULL, "dateTime.iso8601", dt);
+  node = xmlNewChild (node, NULL, (xmlChar *)"value", NULL);
+  node = xmlNewTextChild (node, NULL, (xmlChar *)"dateTime.iso8601", (xmlChar *)dt);
   return node;
 }
 
 static xmlNode *
 xmlrpc_value_struct (xmlNode *node)
 {
-  node = xmlNewChild (node, NULL, "value", NULL);
-  node = xmlNewChild (node, NULL, "struct", NULL);
+  node = xmlNewChild (node, NULL, (xmlChar *)"value", NULL);
+  node = xmlNewChild (node, NULL, (xmlChar *)"struct", NULL);
   return node;
 }
 
 static xmlNode *
 xmlrpc_struct_add_member (xmlNode *node, const char *name)
 {
-  node = xmlNewChild (node, NULL, "member", NULL);
-  xmlNewChild (node, NULL, "name", name);
+  node = xmlNewChild (node, NULL, (xmlChar *)"member", NULL);
+  xmlNewChild (node, NULL, (xmlChar *)"name", (xmlChar *)name);
   return node;
 }
 
@@ -85,8 +85,8 @@ xmlrpc_struct_add_member (xmlNode *node, const char *name)
 static xmlNode *
 xmlrpc_create_response (VirguleReq *vr)
 {
-  xmlDoc *r = xmlNewDoc ("1.0");
-  r->xmlRootNode = xmlNewDocNode (r, NULL, "methodResponse", NULL);
+  xmlDoc *r = xmlNewDoc ((xmlChar *)"1.0");
+  r->xmlRootNode = xmlNewDocNode (r, NULL, (xmlChar *)"methodResponse", NULL);
   return r->xmlRootNode->doc == r ? r->xmlRootNode : NULL;
 }
 
@@ -97,7 +97,7 @@ xmlrpc_send_response (VirguleReq *vr, xmlNode *r)
   int size;
 
   xmlDocDumpFormatMemory (r->doc, &mem, &size, 1);
-  virgule_buffer_write (vr->b, mem, size);
+  virgule_buffer_write (vr->b, (char *)mem, size);
   xmlFree (mem);
   xmlFreeDoc (r->doc);
 
@@ -121,7 +121,7 @@ virgule_xmlrpc_fault (VirguleReq *vr, int code, const char *fmt, ...)
   
   resp = xmlrpc_create_response (vr);
 
-  str = xmlrpc_value_struct (xmlNewChild (resp, NULL, "fault", NULL));
+  str = xmlrpc_value_struct (xmlNewChild (resp, NULL, (xmlChar *)"fault", NULL));
   xmlrpc_value_int (xmlrpc_struct_add_member (str, "faultCode"), code);
   xmlrpc_value_string (xmlrpc_struct_add_member (str, "faultString"), msg);
 
@@ -146,14 +146,14 @@ virgule_xmlrpc_response (VirguleReq *vr, const char *types, ...)
     return virgule_xmlrpc_fault (vr, 1, "internal error: must return something!");
 
   resp = xmlrpc_create_response (vr);
-  container = xmlNewChild (xmlNewChild (resp, NULL, "params", NULL),
-                           NULL, "param", NULL);
+  container = xmlNewChild (xmlNewChild (resp, NULL, (xmlChar *)"params", NULL),
+                           NULL, (xmlChar *)"param", NULL);
 
   if (strlen (types) > 1)
     {
-      container = xmlNewChild (container, NULL, "value", NULL);
-      container = xmlNewChild (xmlNewChild (container, NULL, "array", NULL),
-			       NULL, "data", NULL);
+      container = xmlNewChild (container, NULL, (xmlChar *)"value", NULL);
+      container = xmlNewChild (xmlNewChild (container, NULL, (xmlChar *)"array", NULL),
+			       NULL, (xmlChar *)"data", NULL);
     }
 
   va_start (va, types);
@@ -212,7 +212,7 @@ virgule_xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
   argc = 0;
   if (params)
     {
-      if (strcmp (params->name, "params"))
+      if (strcmp ((char *)params->name, "params"))
         return virgule_xmlrpc_fault (vr, 1, "expecting <params>, got <%s>",
                              params->name);  
 
@@ -255,11 +255,11 @@ virgule_xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
       switch (types[i])
         {
 	case 'i':
-          if (!strcmp (value->name, "int") || !strcmp (value->name, "i4"))
+          if (!strcmp ((char *)value->name, "int") || !strcmp ((char *)value->name, "i4"))
 	    {
               char *val;
 		
-              val = xmlNodeListGetString (value->doc, value->children, 1);
+              val = (char *)xmlNodeListGetString (value->doc, value->children, 1);
               *va_arg (va, int *) = atoi (val);
               xmlFree (val);
 	    }
@@ -267,7 +267,7 @@ virgule_xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
             {
               char *val;
                 
-              val = xmlNodeGetContent (value);
+              val = (char *)xmlNodeGetContent (value);
               *va_arg (va, int *) = atoi (val);
               xmlFree (val);
             }
@@ -281,11 +281,11 @@ virgule_xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
           break;
 
         case 's':
-          if (!strcmp (value->name, "string"))
+          if (!strcmp ((char *)value->name, "string"))
             {
               char *val;
 		
-              val = xmlNodeListGetString (value->doc, value->children, 1);
+              val = (char *)xmlNodeListGetString (value->doc, value->children, 1);
               *va_arg (va, char **) = apr_pstrdup (vr->r->pool, val);
               xmlFree (val);
             }
@@ -293,7 +293,7 @@ virgule_xmlrpc_unmarshal_params (VirguleReq *vr, xmlNode *params,
             {
               char *val;
                 
-              val = xmlNodeGetContent (value);
+              val = (char *)xmlNodeGetContent (value);
               *va_arg (va, char **) = apr_pstrdup (vr->r->pool, val);
               xmlFree (val);
             }  
@@ -331,7 +331,7 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
   xmlrpc_method *m;
 
   /* root element should be a <methodCall> */
-  if (strcmp (xr->name, "methodCall"))
+  if (strcmp ((char *)xr->name, "methodCall"))
     return virgule_xmlrpc_fault (vr, 1, "expecting <methodCall>, got <%s>", xr->name);
     
   /* first element of methodCall should be a <methodName> */
@@ -339,10 +339,10 @@ xmlrpc_unmarshal_request (VirguleReq *vr, xmlNode *xr)
   while (n && xmlIsBlankNode (n))
     n = n->next;
 
-  if (!n || strcmp (n->name, "methodName"))
+  if (!n || strcmp ((char *)n->name, "methodName"))
     return virgule_xmlrpc_fault (vr, 1, "expecting <methodName>, got <%s>", n->name);
 
-  tmp = xmlNodeListGetString (n->doc, n->children, 1);
+  tmp = (char *)xmlNodeListGetString (n->doc, n->children, 1);
   name = apr_pstrdup (vr->r->pool, tmp);
   xmlFree (tmp);
 
