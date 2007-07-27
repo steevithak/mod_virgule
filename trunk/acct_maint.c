@@ -1470,6 +1470,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   int observer = FALSE;
   char *err;
   char *first;
+  time_t cn = time(NULL) - 2592000;
 
 //  if (!path[0])
 //    return acct_person_index_serve (vr);
@@ -1699,6 +1700,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
   if (tree)
     {
+      time_t t;
       xmlNode *cert;
       int any = 0;
       for (cert = tree->children; cert != NULL; cert = cert->next)
@@ -1708,16 +1710,17 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	    xmlChar *subject, *level;
 	    subject = xmlGetProp (cert, (xmlChar *)"subj");
 	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    t = virgule_virgule_to_time_t (vr, (char *)xmlGetProp (cert, (xmlChar *)"date"));
 	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
 	      {
 		if (!any)
 		  {
-		    virgule_buffer_puts (b, "<p> This <x>person</x> has certified others as follows: </p>\n"
-				 "<ul>\n");
+		    virgule_buffer_printf (b, "<p>%s certified others as follows:</p><ul>\n", u);
 		    any = 1;
 		  }
-	      virgule_buffer_printf (b, "<li>%s certified <a href=\"../%s/\">%s</a> as %s\n",
-			     u, ap_escape_uri(vr->r->pool, (char *)subject), subject, level);
+	        virgule_buffer_printf (b, "<li>%s certified <a href=\"../%s/\">%s</a> as %s %s</li>\n",
+			     u, ap_escape_uri(vr->r->pool, (char *)subject), subject, level,
+			     (t > cn) ? "<span class=\"newcert\"> new</span>" : "");
 	      }
 	  }
       if (any)
@@ -1727,6 +1730,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   tree = virgule_xml_find_child (profile->xmlRootNode, "certs-in");
   if (tree)
     {
+      time_t t;
       xmlNode *cert;
       int any = 0;
       for (cert = tree->children; cert != NULL; cert = cert->next)
@@ -1736,16 +1740,17 @@ acct_person_serve (VirguleReq *vr, const char *path)
 	    xmlChar *issuer, *level;
 	    issuer = xmlGetProp (cert, (xmlChar *)"issuer");
 	    level = xmlGetProp (cert, (xmlChar *)"level");
+	    t = virgule_virgule_to_time_t (vr, (char *)xmlGetProp (cert, (xmlChar *)"date"));
 	    if (xmlStrcmp (level, (xmlChar *)virgule_cert_level_to_name (vr, 0)))
 	      {
 		if (!any)
 		  {
-		    virgule_buffer_puts (b, "<p> Others have certified this <x>person</x> as follows: </p>\n"
-		   "<ul>\n");
+		    virgule_buffer_printf (b, "<p>Others have certified %s as follows:</p>\n<ul>\n", u);
 		    any = 1;
 		  }
-		virgule_buffer_printf (b, "<li><a href=\"../%s/\">%s</a> certified %s as %s\n",
-			       issuer, issuer, u, level);
+		virgule_buffer_printf (b, "<li><a href=\"../%s/\">%s</a> certified %s as %s %s</li>\n",
+			       ap_escape_uri(vr->r->pool, (char *)issuer), issuer, u, level,
+			       (t > cn) ? "<span class=\"newcert\"> new</span>" : "");
 	      }
 	  }
       if (any)

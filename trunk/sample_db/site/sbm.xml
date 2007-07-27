@@ -1,0 +1,17 @@
+<include>
+<div id="sbm">
+<div style="float: right;"><a href="javascript:sbmClose();">X</a></div>
+<div><b>Share this page</b></div>
+<ul>
+<li><a id="bm_delicious" href="#"><img src="/images/bm-delicious.png" alt="del.icio.us" title="del.icio.us" />del.icio.us</a></li>
+<li><a id="bm_digg" href="#"><img src="/images/bm-digg.png" alt="Digg This" title="Digg This" />Digg</a></li>
+<li><a id="bm_google" href="#"><img src="/images/bm-google.png" alt="Google Bookmark" title="Google Bookmark" />Google bookmark</a></li>
+<li><a id="bm_reddit" href="#"><img src="/images/bm-reddit.png" alt="reddit" title="reddit" />reddit</a></li>
+<li><a id="bm_simpy" href="#"><img src="/images/bm-simpy.png" alt="Simpy" title="Simpy" />Simpy</a></li>
+<li><a id="bm_stumble" href="#"><img src="/images/bm-stumble.png" alt="StumbleUpon" title="StumbleUpon" />StumbleUpon</a></li>
+<li><a id="bm_furl" href="#"><img src="/images/bm-furl.png" alt="Furl" title="Furl" />Furl</a></li>
+<li><a id="bm_newsvine" href="#"><img src="/images/bm-newsvine.png" alt="Newsvine" title="Newsvine" />Newsvine</a></li>
+<li><a id="bm_technorati" href="#"><img src="/images/bm-technorati.png" alt="Technorati favorite" title="Technorati favorite" />Technorati</a></li>
+<li><a id="bm_tailrank" href="#"><img src="/images/bm-tailrank.png" alt="Tailrank" title="Tailrank" />Tailrank</a></li>
+</ul></div>
+</include>
