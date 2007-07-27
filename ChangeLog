@@ -1,3 +1,9 @@
+2007-07-22 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Inbound and outbound trust certs
+	less than 30 days old are marked as "new" in the user profile.
+
+
 2007-07-19 R. Steven Rainwater <steve@ncc.com>
 
 	* foaf.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
