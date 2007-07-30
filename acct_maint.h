@@ -28,3 +28,6 @@ virgule_acct_maint_serve (VirguleReq *vr);
 
 void
 virgule_acct_touch(VirguleReq *vr, const char *u);
+
+void
+virgule_acct_update_art_index(VirguleReq *vr, int art);

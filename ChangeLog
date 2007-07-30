@@ -1,3 +1,27 @@
+2007-07-29 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Account profiles now include a 
+	list of the 10 most recent articles posted by the user and link to
+	a full listing of articles.
+
+	* acct_maint.c (virgule_acct_update_art_index): Added this function
+	to create and maintain an XML index in the user account directory of
+	every article the user has posted.
+
+	* acct_maint.c (acct_person_articles_serve): Renders a full list of
+	all articles posted by the specified user.
+
+	* acct_maint.c (acct_kill): The articles.xml file is removed with a
+	user account is deleted.
+
+	* article.c (article_maint): Added this function to sequentially 
+	process all articles and update user profiles with a correct index
+	of articles each user has posted.
+
+	* article.c (virgule_article_serve): Added URL for the new article
+	maintenance function.
+
+
 2007-07-22 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_serve): Inbound and outbound trust certs

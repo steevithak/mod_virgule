@@ -205,6 +205,10 @@ virgule_render_date (VirguleReq *vr, const char *iso, int showtime)
   year = atoi (iso);
   month = atoi (iso + 5);
   day = atoi (iso + 8);
+  if (showtime == 3)
+    {
+      return apr_psprintf (vr->r->pool, "%d %s %02d", year, months[month], day);
+    }
   if (showtime == 2)
     {
       hhmm = apr_pstrndup (vr->r->pool, iso + 11, 8);
