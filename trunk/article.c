@@ -913,10 +913,31 @@ article_num_serve (VirguleReq *vr, const char *t)
 }
 
 
+/**
+ * article_maint: Update article index records
+ **/
+static int
+article_maint (VirguleReq *vr)
+{
+    int art;
+    int art_num = virgule_db_dir_max (vr->db, "articles");
+
+    /* check each article in the database from the earliest to the newest */
+    for (art = 0; art <= art_num; art++)
+	virgule_acct_update_art_index(vr, art);
+
+    return virgule_send_error_page (vr, vINFO, "Article maintenance", "Article indexing completed.");
+}
+
+
 int
 virgule_article_serve (VirguleReq *vr)
 {
   const char *p;
+
+  if (!strcmp (vr->uri, "/admin/articlemaint.html"))
+    return article_maint (vr);
+
   if ((p = virgule_match_prefix (vr->uri, "/article/")) == NULL)
     return DECLINED;
 

@@ -186,6 +186,10 @@ acct_kill(VirguleReq *vr, const char *u)
   diary = apr_psprintf (p, "acct/%s/diarybackup", user);
   virgule_db_del (vr->db, diary);
 
+  /* Remove article index, if any */
+  db_key2 = apr_psprintf (p, "acct/%s/articles.xml", user);
+  virgule_db_del (vr->db, db_key2);
+
   /* Remove user from recent lists (if present) */
   virgule_remove_recent (vr, "recent/acct.xml", user);
   virgule_remove_recent (vr, "recent/diary.xml", user);
@@ -1323,6 +1327,42 @@ acct_person_graph_serve (VirguleReq *vr)
   return virgule_send_response (vr);
 }
 
+/**
+ * acct_person_articles_serve - render a page containing an index of all
+ * articles posted by the specified user
+ */
+static int
+acct_person_articles_serve (VirguleReq *vr, char *u)
+{
+  xmlDoc *artidx;
+  xmlNode *tree;
+  char *pagetitle, *db_key;
+
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
+
+  /* Render the user's  article list */
+  db_key = apr_psprintf (vr->r->pool, "acct/%s/articles.xml", u);
+  artidx = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
+  if (artidx == NULL)
+    return virgule_send_error_page (vr, vERROR, "No articles found", "No articles have been posted by this user.\n");
+
+  pagetitle = apr_psprintf (vr->r->pool, "Articles Posted by %s", u);
+  virgule_buffer_printf (vr->b, "<h3>Articles Posted by <a href=\"%s/person/%s/\">%s</a></h3>\n<ul>\n", vr->prefix, ap_escape_uri(vr->r->pool, u), u);
+  for (tree = xmlGetLastChild(artidx->xmlRootNode); tree != NULL; tree = tree->prev)
+    {
+      char *title, *date, *artnum;
+      title = virgule_xml_get_prop (vr->r->pool, tree, (xmlChar *)"title");
+      date = virgule_xml_get_prop (vr->r->pool, tree, (xmlChar *)"date");
+      artnum = virgule_xml_get_string_contents (tree);
+      virgule_buffer_printf (vr->b, "<li><a href=\"%s/article/%s.html\">%s</a> <span class=\"date\">%s</span></li>\n", vr->prefix, artnum, title, virgule_render_date (vr, date, 1));
+    }
+  virgule_buffer_puts (vr->b, "</ul>\n");
+
+  virgule_set_main_buffer (vr);      
+  return virgule_render_in_template (vr, "/templates/acct-articles.xml", "content", pagetitle);
+}
+
 
 /*
  * RSR notes - Some of this code should be moved to virgule_diary_rss_export
@@ -1457,7 +1497,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   char *q;
   char *u;
   char *db_key;
-  xmlDoc *profile, *staff;
+  xmlDoc *profile, *staff, *artidx;
   xmlNode *tree, *lastlogin;
   Buffer *b = vr->b;
   char *title;
@@ -1492,6 +1532,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
 
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
+
+  if (!strcmp (q + 1, "articles.html"))
+    return acct_person_articles_serve (vr, u);
 
   if (!strcmp (q + 1, "rss.xml"))
     return acct_person_diary_rss_serve (vr, u);
@@ -1549,7 +1592,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
         virgule_buffer_puts (vr->hb, "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"rss.xml\" />\n");
     }
 
-  virgule_buffer_puts (vr->hb,
+  if (virgule_user_is_special(vr,vr->u))
+    virgule_buffer_puts (vr->hb,
 	"<script language=\"JavaScript\" type=\"text/javascript\">\n"
 	"<!-- \n"
 	"function confirmdel(name)\n"
@@ -1575,7 +1619,6 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!observer)
     {
       virgule_render_cert_level_begin (vr, u, CERT_STYLE_SMALL);
-//      virgule_buffer_printf (b, "This <x>person</x> is currently certified at %s level.\n", virgule_req_get_tmetric_level (vr, u));
       virgule_buffer_printf (b, "<b>%s</b> is currently certified at %s level.\n", u, virgule_req_get_tmetric_level (vr, u));
       virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
     }
@@ -1687,6 +1730,27 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (first[0] == 0)
     virgule_buffer_puts (b, "</ul>\n");
 
+  /* Render recent article list */
+  db_key = apr_psprintf (p, "acct/%s/articles.xml", u);
+  artidx = virgule_db_xml_get (p, vr->db, db_key);
+  if (artidx != NULL)
+    {
+      int a = 0;
+      virgule_buffer_printf (b, "<h3>Articles Posted by %s</h3>\n<ul>\n", u);
+      for (tree = xmlGetLastChild(artidx->xmlRootNode); tree != NULL && a < 10; tree = tree->prev, a++)
+        {
+	  char *atitle, *adate, *artnum;
+	  atitle = virgule_xml_get_prop (p, tree, (xmlChar *)"title");
+	  adate = virgule_xml_get_prop (p, tree, (xmlChar *)"date");
+	  artnum = virgule_xml_get_string_contents (tree);
+          virgule_buffer_printf (vr->b, "<li><a href=\"%s/article/%s.html\">%s</a> <span class=\"date\">%s</span></li>\n", vr->prefix, artnum, atitle, virgule_render_date (vr, adate, 1));
+	}
+      virgule_buffer_puts (b, "</ul>\n");
+
+      if (tree != NULL)
+        virgule_buffer_printf (b, "<p><a href=\"articles.html\">Complete list of articles by %s</a></p>", u, u);
+    }
+    
   if(diaryused > 0)
     {
       virgule_buffer_printf (b, "<h3>Recent blog entries for %s</h3>\n", u);
@@ -2160,6 +2224,68 @@ acct_maint (VirguleReq *vr)
     virgule_set_main_buffer (vr);
     
     return virgule_render_in_template (vr, "/templates/default.xml", "content", "Account maintenance");
+}
+
+
+/**
+ * virgule_acct_update_art_index - update or create an article index for
+ * this user account.
+ */
+void
+virgule_acct_update_art_index(VirguleReq *vr, int art)
+{
+    xmlDocPtr profile, article, artindex;
+    xmlNodePtr artroot, a;
+    int art_num;
+    char *title, *author, *date, *art_num_str;
+    char *artidxkey, *profilekey;
+    char *artkey = apr_psprintf (vr->r->pool, "articles/_%d/article.xml", art);
+
+    /* open the article and get the info we need */
+    article = virgule_db_xml_get (vr->r->pool, vr->db, artkey);
+    if (article == NULL)
+      return;
+    artroot = xmlDocGetRootElement (article);
+    title = virgule_xml_find_child_string (artroot, "title", "(no title)");
+    author = virgule_xml_find_child_string (artroot, "author", NULL);
+    date = virgule_xml_find_child_string (artroot, "date", NULL);
+
+// ap_log_rerror(APLOG_MARK,APLOG_CRIT, APR_SUCCESS, vr->r,"mod_virgule: art: %d - %s - %s", art, date, author);
+
+    /* open the user profile */
+    profilekey = apr_pstrcat (vr->r->pool, "acct/", author, "/profile.xml", NULL);
+    profile = virgule_db_xml_get (vr->r->pool, vr->db, profilekey);
+    if (profile == NULL)
+      return;
+
+    /* open or create the article index */
+    artidxkey = apr_pstrcat (vr->r->pool, "acct/", author, "/articles.xml", NULL);
+    artindex = virgule_db_xml_get (vr->r->pool, vr->db, artidxkey);
+    if (artindex == NULL)
+      {
+	artindex = virgule_db_xml_doc_new (vr->r->pool);
+	artindex->xmlRootNode = xmlNewDocNode (artindex, NULL, (xmlChar *)"articles", NULL);
+      }
+
+    /* if this article is already in the article index, return now */
+    for (a = artindex->xmlRootNode->children; a != NULL; a = a->next)
+      {
+	art_num_str = virgule_xml_get_prop (vr->r->pool, a, (xmlChar *)"date");
+	art_num = atoi (art_num_str);	
+	if(art_num == art)
+	  return;
+      }
+
+    /* Add the new article reference to the index */
+    a = xmlNewTextChild (artindex->xmlRootNode, NULL, (xmlChar *)"article", apr_itoa (vr->r->pool, art));
+    if (a == NULL)
+      return;
+
+    xmlSetProp (a, (xmlChar *)"date", (xmlChar *)date);
+    xmlSetProp (a, (xmlChar *)"title", (xmlChar *)title);
+
+    /* write the updated index */
+    virgule_db_xml_put (vr->r->pool, vr->db, artidxkey, artindex);	
 }
 
 
