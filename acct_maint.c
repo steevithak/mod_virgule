@@ -1753,7 +1753,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
     
   if(diaryused > 0)
     {
-      virgule_buffer_printf (b, "<h3>Recent blog entries for %s</h3>\n", u);
+      virgule_buffer_printf (b, "<h3>Recent blog entries by %s</h3>\n", u);
       if(!observer)
         virgule_buffer_printf (b, "<div class=\"feeds\">Syndication: <a href=\"rss.xml\">RSS 2.0</a></div>\n", u);
       virgule_diary_render (vr, u, 5, -1);

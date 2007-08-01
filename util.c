@@ -1333,7 +1333,8 @@ virgule_render_url (apr_pool_t *p, const char *prefix, const char *url)
     url2 = apr_pstrcat (p, "http://", url, NULL);
   return apr_psprintf (p, "<p>%s<a href=\"%s\">%s</a> </p>\n",
 		     prefix,
-		     ap_os_escape_path (p, url2, 1), virgule_nice_text (p, url));
+		     ap_escape_html (p, url2), virgule_nice_text (p, url));
+//		     ap_os_escape_path (p, url2, 1), virgule_nice_text (p, url));
 }
 
 
