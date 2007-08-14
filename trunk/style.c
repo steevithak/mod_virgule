@@ -111,9 +111,6 @@ virgule_render_sitemap (VirguleReq *vr, int enclose)
   const NavOption **option;
   char *separator = " | ";
 
-//  if (vr->sitemap_rendered)
-//    return;
-    
   if (enclose)
     virgule_buffer_puts (vr->b, "<p align=center>");
 
@@ -131,8 +128,6 @@ virgule_render_sitemap (VirguleReq *vr, int enclose)
 
   if (enclose)
     virgule_buffer_puts (vr->b, "</p>");
-
-//  vr->sitemap_rendered = 1;
 }
 
 /*
