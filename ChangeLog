@@ -1,3 +1,19 @@
+2007-08-14 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maintc. (acct_person_diary_static_serve): Handles a static
+	diary URL by rendering a single diary entry in fancy recentlog mode
+	with the addition of two links to additional diary entries for the
+	user.
+
+	* acct_maint.c (acct_person_serve): Added handlers for static diary
+	URLs. 
+
+
+	* diary.c (virgule_diary_entry_render): Change diary entry permalinks
+	to static URLs. This may improve search engine rankings for diary
+	entries and will come in handy someday when we add comments to diaries.
+	
+
 2007-08-01 R. Steven Rainwater <steve@ncc.com>
 
 	* util.c (virgule_render_url): URL is now escaped with ap_escape_html()

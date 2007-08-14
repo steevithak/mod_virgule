@@ -1432,6 +1432,55 @@ acct_person_foaf_serve (VirguleReq *vr, char *u)
 
 
 static int
+acct_person_diary_static_serve (VirguleReq *vr, char *u, char *d)
+{
+  xmlDoc *profile;
+  char *tail, *db_key, *title;
+  int n = strtol (d, &tail, 10);
+  if (strcmp (tail, ".html"))
+    return virgule_send_error_page (vr, vERROR, "form data", "Invalid blog URL: %s", d);
+
+  db_key = virgule_acct_dbkey (vr, u);
+  if (db_key == NULL)
+    return virgule_send_error_page (vr, vERROR, "username", "The user name doesn't even look valid, much less exist in the database.");
+    
+  profile = virgule_db_xml_get (vr->r->pool, vr->db, db_key);
+  if (profile == NULL)
+    {
+      vr->r->status = 404;
+      return virgule_send_error_page (vr, vERROR, "not found","Account <em>%s</em> was not found.", u);
+    }
+
+  if (virgule_diary_exists (vr, u) == 0)
+  {
+    vr->r->status = 404;
+    return virgule_send_error_page (vr, vERROR, "not found", "No blog entries exist for this user.");
+  }
+
+  title = apr_psprintf (vr->r->pool, "Blog for %s", u);
+
+  /* initialize the temporary buffer */
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
+
+  /* render the diary entry to the temp buffer */
+  virgule_diary_entry_render (vr, u, n, NULL, TRUE);
+
+  virgule_buffer_printf (vr->b, "<p><a href=\"%s/person/%s/diary.html\">Latest blog entries</a> &nbsp;&nbsp;&nbsp; ",
+		   vr->prefix, ap_escape_uri(vr->r->pool, u));
+
+  virgule_buffer_printf (vr->b, "<a href=\"%s/person/%s/diary.html?start=%d\">Older blog entries</a></p>\n",
+		   vr->prefix, ap_escape_uri(vr->r->pool, u), n);
+
+
+  /* switch back to the main buffer */  
+  virgule_set_main_buffer (vr);
+  
+  return virgule_render_in_template (vr, "/templates/acct-diary.xml", "diary", title);
+}
+
+
+static int
 acct_person_diary_serve (VirguleReq *vr, char *u)
 {
   xmlDoc *profile;
@@ -1533,6 +1582,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (!strcmp (q + 1, "diary.html"))
     return acct_person_diary_serve (vr, u);
 
+  if (!strncmp (q + 1, "diary/", 6) && isdigit (*(q+7)))
+    return acct_person_diary_static_serve (vr, u, q+7);
+
   if (!strcmp (q + 1, "articles.html"))
     return acct_person_articles_serve (vr, u);
 
@@ -1548,7 +1600,7 @@ acct_person_serve (VirguleReq *vr, const char *path)
   if (q[1] != '\0')
     {
       vr->r->status = 404;
-      return virgule_send_error_page (vr, vERROR, "not found", "The request page does not exist.");
+      return virgule_send_error_page (vr, vERROR, "not found", "The requested page does not exist.");
     }
 
   db_key = virgule_acct_dbkey (vr, u);
@@ -2270,7 +2322,7 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
     /* if this article is already in the article index, return now */
     for (a = artindex->xmlRootNode->children; a != NULL; a = a->next)
       {
-	art_num_str = virgule_xml_get_prop (vr->r->pool, a, (xmlChar *)"date");
+        art_num_str = virgule_xml_get_string_contents (a);
 	art_num = atoi (art_num_str);	
 	if(art_num == art)
 	  return;

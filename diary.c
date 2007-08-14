@@ -100,7 +100,7 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
 				gray, gray, gray, ev->rating);
 	}
       virgule_buffer_printf (vr->b,
-    			     "&nbsp; <a href=\"%s/person/%s/diary.html?start=%u\" style=\"text-decoration: none\">&raquo;</a>",
+    			     "&nbsp; <a href=\"%s/person/%s/diary/%u.html\" style=\"text-decoration: none\">&raquo;</a>",
 			     vr->prefix, u, n);
       if (vr->u && strcmp (vr->u, u) == 0)
         virgule_buffer_printf (vr->b,
@@ -117,7 +117,7 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
 	virgule_buffer_printf (vr->b, " (updated %s)",
 			       virgule_render_date (vr, localupdate, 1));
       virgule_buffer_printf (vr->b,
-    			     " <a href=\"%s/person/%s/diary.html?start=%u\" style=\"text-decoration: none\">&raquo;</a>",
+    			     " <a href=\"%s/person/%s/diary/%u.html\" style=\"text-decoration: none\">&raquo;</a>",
 			     vr->prefix, u, n);
       if (vr->u && strcmp (vr->u, u) == 0)
         virgule_buffer_printf (vr->b,
