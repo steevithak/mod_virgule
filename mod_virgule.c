@@ -211,7 +211,7 @@ info_page (VirguleReq *vr)
   else
     virgule_buffer_puts (b, "<tr><td>Lock upgrade test</td><td>Upgrade failed</td></tr>");
 	   
-  if (*vr->priv->cert_level_names)
+  if (vr->priv->cert_level_names)
     {
       const char **l;
 
@@ -221,7 +221,7 @@ info_page (VirguleReq *vr)
       virgule_buffer_puts (b, "</ol></td></tr>\n");
     }
 
-  if (*vr->priv->editors)
+  if (vr->priv->editors)
     {
       const char **s;
 
@@ -236,7 +236,7 @@ info_page (VirguleReq *vr)
   else
     virgule_buffer_puts (b, "<tr><td>Article posts by editors only</td><td>Off</td></tr>\n");
 
-  if (*vr->priv->seeds)
+  if (vr->priv->seeds)
     {
       const char **s;
 
@@ -246,7 +246,7 @@ info_page (VirguleReq *vr)
       virgule_buffer_puts (b, "</ul></td></tr>\n");
     }
 
-  if (*vr->priv->caps)
+  if (vr->priv->caps)
     {
       const int *c;
 
@@ -256,7 +256,7 @@ info_page (VirguleReq *vr)
       virgule_buffer_puts (b, "</ol></td></tr>\n");
     }
 
-  if (*vr->priv->special_users)
+  if (vr->priv->special_users)
     {
       const char **u;
 
