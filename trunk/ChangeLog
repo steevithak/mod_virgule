@@ -1,3 +1,8 @@
+2007-08-26 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule (info_page): Fixed pointer dereferencing bug.
+
+
 2007-08-14 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maintc. (acct_person_diary_static_serve): Handles a static
