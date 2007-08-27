@@ -1,4 +1,8 @@
 /* Nice hash table for Apache runtime. */
+/* rsr note: shouldn't this whole pile of code be replaced with the
+   hash implementation that is part of the Apache runtime? Does this
+   code provide features not present in the normal Apache APR hash
+   routines? */
 
 #include <apr.h>
 #include <httpd.h>
