@@ -2,6 +2,11 @@
 
 	* mod_virgule (info_page): Fixed pointer dereferencing bug.
 
+	* rating.c (rating_clean): Added a maintenance function that 
+	analyzes the eigen vector cache and removes local cache files of
+	users that have been deleted. Ratings of nonexistant users found
+	in good cache files are also removed.
+	
 
 2007-08-14 R. Steven Rainwater <steve@ncc.com>
 

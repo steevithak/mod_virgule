@@ -177,6 +177,75 @@ rating_report (VirguleReq *vr, const char *u)
   return virgule_render_in_template (vr, "/templates/default.xml", "content", "Rating Report");
 }
 
+
+/**
+ * rating_clean - Remove rating files for accounts that no longer exist. Read
+ * rating files for the remaining good accounts and remove any ratings of 
+ * nonexistent users. Because Raph's hash implementation does not provide a
+ * way of removing a key from the hash, it's necesary to create a new hash 
+ * for each rating table, leaving out the keys that should be deleted. At 
+ * some point, Raph's hash implementation should be replaced with the one in
+ * the Apache APR and this code can be simplified.
+ */
+static int
+rating_clean (VirguleReq *vr)
+{
+  apr_finfo_t finfo;
+  apr_status_t status;
+  DbCursor *dbc;
+  char *u, *eigenkey, *profilekey, *profile;
+  
+  if (virgule_set_temp_buffer (vr) != 0)
+    return HTTP_INTERNAL_SERVER_ERROR;
+    
+  virgule_buffer_puts (vr->b, "<h2>Analyzing local eigen vector cache</h2>\n");
+  
+  dbc = virgule_db_open_dir (vr->db, "eigen/local");
+  while ((u = virgule_db_read_dir_raw (dbc)) != NULL)
+    {
+      eigenkey = apr_pstrcat (vr->r->pool, "eigen/local/", u, NULL);
+      profilekey = apr_pstrcat (vr->r->pool, "acct/", u, "/profile.xml", NULL);
+      profile = virgule_db_mk_filename (vr->r->pool, vr->db, profilekey);    
+      status = apr_stat (&finfo, profile, APR_FINFO_MIN, vr->r->pool);
+      if (status == APR_SUCCESS)
+        {
+          const char *key;
+          void *val;
+	  HashTable *elt1, *elt2;
+	  HashTableIter *iter;
+	  elt1 = virgule_eigen_local_load (vr->r->pool, vr, eigenkey);
+	  elt2 = virgule_hash_table_new (vr->r->pool);
+          for (iter = virgule_hash_table_iter (vr->r->pool, elt1);
+              virgule_hash_table_iter_get (iter, &key, &val);
+              virgule_hash_table_iter_next (iter))
+	    {
+              profilekey = apr_pstrcat (vr->r->pool, "acct/", key+2, "/profile.xml", NULL);
+              profile = virgule_db_mk_filename (vr->r->pool, vr->db, profilekey);
+              status = apr_stat (&finfo, profile, APR_FINFO_MIN, vr->r->pool);
+              if (status != APR_SUCCESS)
+	        {
+                  virgule_buffer_printf (vr->b, "Removed rating of nonexistent user: %s by user: %s<br/>\n", key+2, u);
+                }
+	      else 
+	        {
+		  virgule_hash_table_set (vr->r->pool, elt2, key, val);
+		}
+	    }
+	  virgule_eigen_local_store (vr, elt2, eigenkey);
+	}
+      else
+        {
+	  virgule_buffer_printf (vr->b, "Deleted eigen cache for nonexistent user: %s<br/>\n", eigenkey);
+          virgule_db_del (vr->db, eigenkey);
+        }
+    }
+    
+  virgule_buffer_puts (vr->b, "<p>Eigen cache cleanup is complete!</p>\n");
+  virgule_set_main_buffer (vr);
+  return virgule_render_in_template (vr, "/templates/default.xml", "content", "Diary Rating Maintenance");
+}
+
+
 int
 virgule_rating_serve (VirguleReq *vr)
 {
@@ -186,6 +255,8 @@ virgule_rating_serve (VirguleReq *vr)
     return rating_rate_diary (vr);
   if (!strcmp (vr->uri, "/admin/crank-diaryratings.html"))
     return rating_crank_all (vr);
+  if (!strcmp (vr->uri, "/admin/clean-diaryratings.html"))
+    return rating_clean (vr);
   if ((tail = virgule_match_prefix (vr->uri, "/rating/crank/")) != NULL)
     return rating_crank (vr, tail);
   if ((tail = virgule_match_prefix (vr->uri, "/rating/report/")) != NULL)
