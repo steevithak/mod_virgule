@@ -89,9 +89,10 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   /* render fancy, recentlog style header if requested */
   if (h)
     {
-      virgule_render_cert_level_begin (vr, u, CERT_STYLE_MEDIUM);
+      CertLevel cl;
+      cl = virgule_render_cert_level_begin (vr, u, CERT_STYLE_MEDIUM);
       virgule_buffer_printf (vr->b, " %s ", virgule_render_date (vr, localdate, 0));
-      virgule_site_render_person_link (vr, u);
+      virgule_site_render_person_link (vr, u, cl);
       if (ev)
         {
 	  int gray = virgule_conf_to_gray (ev->confidence);

@@ -30,6 +30,7 @@
 #include "buffer.h"
 #include "db.h"
 #include "req.h"
+#include "certs.h"
 #include "site.h"
 #include "apache_util.h"
 #include "acct_maint.h"
@@ -49,7 +50,6 @@
 #include "db_xml.h"
 #include "xml_util.h"
 #include "rating.h"
-#include "certs.h"
 
 /* Process specific pool */
 static apr_pool_t *ppool = NULL;

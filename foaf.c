@@ -104,7 +104,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:nick", (xmlChar *)u);
 
   email = virgule_xml_get_prop (p, ptree, (xmlChar *)"email");
-  if (email != NULL)
+  if (email != NULL && *email != 0)
     {
       emailsha1 = virgule_sha1 (p, apr_psprintf (p, "mailto:%s", email));
       xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:mbox_sha1sum", (xmlChar *)emailsha1);

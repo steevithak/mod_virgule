@@ -70,14 +70,18 @@ site_render_children (RenderCtx *ctx, xmlNode *node)
  * virgule_site_render_person_link: Render a link to a person.
  * @vr: #VirguleReq context.
  * @name: The person's name.
+ * @cl: The person's cert level.
  *
  * Renders the link to the person, outputting to @vr's buffer.
  **/
 void
-virgule_site_render_person_link (VirguleReq *vr, const char *name)
+virgule_site_render_person_link (VirguleReq *vr, const char *name, CertLevel cl)
 {
-  virgule_buffer_printf (vr->b, "<a href=\"%s/person/%s/\">%s</a>\n",
-		 vr->prefix, ap_escape_uri(vr->r->pool, name), name);
+  virgule_buffer_printf (vr->b, "<a href=\"%s/person/%s/\"%s>%s</a>\n",
+		 vr->prefix, 
+		 ap_escape_uri(vr->r->pool, name), 
+		 cl == CERT_LEVEL_NONE ? " rel=\"nofollow\"" : "",
+		 name);		 
 }
 
 
@@ -98,11 +102,12 @@ site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
   n = 0;
   for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
     {
+      CertLevel cl;
       char *name = virgule_xml_get_string_contents (tree);
       char *date = virgule_xml_get_prop (p, tree, "date");
-      virgule_render_cert_level_begin (vr, name, CERT_STYLE_SMALL);
+      cl = virgule_render_cert_level_begin (vr, name, CERT_STYLE_SMALL);
       virgule_buffer_printf (vr->b, " %s ", virgule_render_date (vr, date, 0));
-      virgule_site_render_person_link (vr, name);
+      virgule_site_render_person_link (vr, name, cl);
       virgule_render_cert_level_text (vr, name);
       virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
       n++;

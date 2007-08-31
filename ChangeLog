@@ -1,3 +1,28 @@
+2007-08-31 R. Steven Rainwater <steve@ncc.com>
+
+	* foaf.c (virgule_foaf_person): The mbox_sha1sum field is not
+	included if the user profile has no email address. Thanks to
+	Andreas Harth of deri.org for reporting the bug.
+
+	* site.c (virgule_site_render_person_link): A rel="nofollow" is 
+	added to any person link if the user is not trusted. This should
+	help minimize the value of untrusted accounts created by spammers.
+	Suggested by ncm.
+
+	* acct_maint.c (virgule_acct_person_index_serve): The user's cert
+	level is evaluated and rel="nofollow" added for untrusted users.
+
+	* site.c (site_render_recent_acct): The user's cert level is now
+	passed to virgule_site_render_person_link().
+
+	* diary.c (virgule_diary_entry_render): The user's cert level is now
+	passed to virgule_site_render_person_link().
+
+	* certs.c (virgule_render_cert_level_begin): The CertLevel value is
+	now returned. This prevents the need to do multiple trust metric
+	lookups in some cases.
+	
+
 2007-08-26 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule (info_page): Fixed pointer dereferencing bug.
