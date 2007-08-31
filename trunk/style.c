@@ -14,6 +14,7 @@
 #include "db_xml.h"
 #include "xml_util.h"
 #include "req.h"
+#include "certs.h"
 #include "site.h"
 #include "util.h"
 

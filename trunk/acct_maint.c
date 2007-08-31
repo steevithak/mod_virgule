@@ -1198,6 +1198,7 @@ virgule_acct_person_index_serve (VirguleReq *vr, int max)
   xmlDoc *profile;
   xmlNode *tree;
   apr_table_t *args;
+  CertLevel cl;
 
   if (tmetric == NULL)
     return;
@@ -1243,10 +1244,11 @@ virgule_acct_person_index_serve (VirguleReq *vr, int max)
 	    }
           virgule_db_xml_free (vr->r->pool, profile);
 
-          virgule_render_cert_level_begin (vr, user, CERT_STYLE_SMALL);
-          virgule_buffer_printf (vr->b, "<a href=\"%s/\">%s</a>, %s %s, %s\n",
-	                 ap_escape_uri(vr->r->pool,user), user,
-			 givenname, surname,
+          cl = virgule_render_cert_level_begin (vr, user, CERT_STYLE_SMALL);
+          virgule_buffer_printf (vr->b, "<a href=\"%s/\"%s>%s</a>, %s %s, %s\n",
+	                 ap_escape_uri(vr->r->pool,user),
+			 cl == CERT_LEVEL_NONE ? " rel=\"nofollow\"" : "",
+			 user, givenname, surname,
 	                 virgule_req_get_tmetric_level (vr, user));
           virgule_render_cert_level_end (vr, CERT_STYLE_SMALL);
         }
@@ -1698,8 +1700,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
 //		     surname ? virgule_nice_utf8(p, surname) : "", date);
 // raph		     givenname ? virgule_nice_text(p, givenname) : "",
 //		     surname ? virgule_nice_text(p, surname) : "", date);
-		     givenname ? givenname : "",
-		     surname ? surname : "");
+		     givenname ? virgule_strip_a (vr, givenname) : "",
+		     surname ? virgule_strip_a (vr, surname) : "");
 
 
       date = virgule_xml_find_child_string (profile->xmlRootNode, "date", "N/A");

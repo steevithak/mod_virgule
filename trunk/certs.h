@@ -29,7 +29,7 @@ virgule_cert_get (VirguleReq *vr, const char *issuer, const char *subject);
 int
 virgule_cert_set (VirguleReq *vr, const char *issuer, const char *subject, CertLevel level);
 
-void
+CertLevel
 virgule_render_cert_level_begin (VirguleReq *vr, const char *user, CertStyle cs);
 
 void

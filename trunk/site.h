@@ -14,4 +14,4 @@ int
 virgule_conf_to_gray (double confidence);
 
 void
-virgule_site_render_person_link (VirguleReq *vr, const char *name);
+virgule_site_render_person_link (VirguleReq *vr, const char *name, CertLevel cl);
