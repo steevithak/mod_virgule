@@ -1,7 +1,10 @@
 2007-11-02 R. Steven Rainwater <steve@ncc.com>
 
 	* config.xml: Fixed XML well-formedness error. Thanks to presbrey
-	for spotting it.
+	for spotting this and the template issues.
+	
+	* sample_db: Added several missing generic default templates needed
+	for a new install. 
 	
 
 2007-10-22 R. Steven Rainwater <steve@ncc.com>
