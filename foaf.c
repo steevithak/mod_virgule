@@ -55,7 +55,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   apr_pool_t *p = vr->r->pool;
   xmlDocPtr foaf, profile, staff;
   xmlNodePtr tree, ptree, tmpnode;
-  char *givenname, *surname;
+  char *givenname, *surname, *trustref;
   char *db_key, *name, *url, *label, *email, *emailsha1;
 
   db_key = virgule_acct_dbkey (vr, u);
@@ -97,7 +97,17 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
   tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:primaryTopic", NULL);
   xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
-  
+
+  /* Express the user's trust rating in a Group section */
+  trustref = apr_pstrcat (p, "http://www.advogato.org/ns/trust#",
+                          virgule_req_get_tmetric_level (vr, u),
+	                  NULL);
+  tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Group", NULL);
+  xmlSetProp (tree, (xmlChar *)"rdf:about", (xmlChar *)trustref);
+  tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:member", NULL);
+  xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
+
+  /* Generate the Person section */  
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Person", NULL);
   xmlSetProp (tree, (xmlChar *)"rdf:about", (xmlChar *)"#me");
   xmlNewTextChild (tree, NULL, (xmlChar *)"foaf:name", (xmlChar *)name);

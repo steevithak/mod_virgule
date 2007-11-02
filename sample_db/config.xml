@@ -6,7 +6,7 @@
   <diaryrating>off</diaryrating>
   <accountcreation>on</accountcreation>
   <accountextendedcharset>off</accountextendedcharset>
-  <accountspamthreshold>15<accountspamthreshold>
+  <accountspamthreshold>15</accountspamthreshold>
   <recentlogstyle>Unique</recentlogstyle>
   <articlepostbyseedsonly>off</articlepostbyseedsonly>
   <articletitlelinks>off</articletitlelinks>

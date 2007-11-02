@@ -1,3 +1,17 @@
+2007-11-02 R. Steven Rainwater <steve@ncc.com>
+
+	* config.xml: Fixed XML well-formedness error. Thanks to presbrey
+	for spotting it.
+	
+
+2007-10-22 R. Steven Rainwater <steve@ncc.com>
+
+	* foaf.c (virgule_foaf_person): Added export of the computed trust
+	level for each user with reference to a local RDF schema of Advogato
+	trust levels. This mechanism was suggested by Sean B. Palmer and
+	Dan Connolly on the W3C #swig IRC channel.
+
+
 2007-08-31 R. Steven Rainwater <steve@ncc.com>
 
 	* foaf.c (virgule_foaf_person): The mbox_sha1sum field is not
