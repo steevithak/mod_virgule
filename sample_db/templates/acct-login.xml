@@ -1,0 +1,35 @@
+<page>
+<title>Login</title>
+
+<h3>Login</h3>
+
+<p> Please login if you have an account.  Otherwise, feel free to 
+<a href="new.html">create a new account</a>.</p>
+<p>If you have forgotten your password, fill in your user name, check the
+"forgot password" box, and then click the login button. Your password
+will be mailed to the email address found in your account profile.</p>
+<p>Note: This site uses cookies to store authentication information.</p>
+
+<div style="width: 22em;">Login
+<div class="login">
+<form method="POST" action="/acct/loginsub.html" accept-charset="UTF-8">
+<p><input size="18" name="u" type="text" value="username" alt="user name" title="user name" onFocus="clrField(this)" /></p>
+<p><input size="18" name="pass" type="password" value="password" alt="password" title="password" onFocus="clrField(this)" /></p>
+<input class="lsub" type="submit" value="Login"/>
+</form>
+</div>
+<br/>Password Reminder
+<div class="login">
+<form method="POST" action="loginsub.html" accept-charset="UTF-8">
+<p><input name="u" size="18" type="text" value="username" alt="user name" title="user name" onFocus="clrField(this)" /></p>
+<input type="hidden" name="forgot" value="checked"/>
+<input class="lsub" type="submit" value="Send Password"/>
+</form>
+</div>
+</div>
+<br />
+<div style="clear: both;"></div>
+
+
+
+</page>
