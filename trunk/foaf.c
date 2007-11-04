@@ -56,7 +56,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   xmlDocPtr foaf, profile, staff;
   xmlNodePtr tree, ptree, tmpnode;
   char *givenname, *surname, *trustref;
-  char *db_key, *name, *url, *label, *email, *emailsha1;
+  char *db_key, *name, *url, *foafuri, *label, *email, *emailsha1;
 
   db_key = virgule_acct_dbkey (vr, u);
   if (db_key == NULL)
@@ -77,6 +77,7 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdf", (xmlChar *)"http://www.w3.org/1999/02/22-rdf-syntax-ns#");
   xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:rdfs", (xmlChar *)"http://www.w3.org/2000/01/rdf-schema#");
   xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:foaf", (xmlChar *)"http://xmlns.com/foaf/0.1/");
+  xmlSetProp (foaf->xmlRootNode, (xmlChar *)"xmlns:owl", (xmlChar *)"http://www.w3.org/2002/07/owl#");
 
   givenname = virgule_xml_get_prop (p, ptree, (xmlChar *)"givenname");
   surname = virgule_xml_get_prop (p, ptree, (xmlChar *)"surname");
@@ -106,6 +107,15 @@ virgule_foaf_person (VirguleReq *vr, char *u)
   xmlSetProp (tree, (xmlChar *)"rdf:about", (xmlChar *)trustref);
   tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"foaf:member", NULL);
   xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
+
+  foafuri = virgule_xml_get_prop (p, ptree, (xmlChar *)"foafuri");
+  if (foafuri != NULL && strlen(foafuri))
+    {
+      tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"rdf:Description", NULL);
+      xmlSetProp (tree, (xmlChar *)"rdf:about", (xmlChar *)foafuri);
+      tmpnode = xmlNewChild (tree, NULL, (xmlChar *)"owl:sameAs", NULL);
+      xmlSetProp (tmpnode, (xmlChar *)"rdf:resource", (xmlChar *)"#me");
+    }
 
   /* Generate the Person section */  
   tree = xmlNewChild (foaf->xmlRootNode, NULL, (xmlChar *)"foaf:Person", NULL);

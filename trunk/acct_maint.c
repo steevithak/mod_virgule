@@ -57,6 +57,7 @@ ProfileField prof_fields[] = {
   { "Surname first?", "snf", 40, PROFILE_PUBLIC | PROFILE_BOOLEAN },
   { "Email", "email", 40, 0 },
   { "Homepage URL", "url", 40, PROFILE_PUBLIC },
+  { "External FOAF URI", "foafuri", 40, 0 },
   { "Number of old messages to display", "numold", 4, 0 },
   { "Notes", "notes", 60015, PROFILE_PUBLIC | PROFILE_TEXTAREA },
   { "Syndicate your blog from another site?", "syndicate", 40, PROFILE_PUBLIC | PROFILE_BOOLEAN | PROFILE_SYNDICATE },
