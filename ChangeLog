@@ -1,3 +1,11 @@
+2007-11-04 Joe Presbrey <presbrey@mit.edu>
+
+	* acct_maint.c (prof_fields): Added field in profile for a FOAF URI
+	
+	* foaf.c (virgule_foaf_person): Added xmlns:owl namespace to FOAF. 
+	An owl:sameAs tag is now added for the FOAF URI, if present.
+
+
 2007-11-02 R. Steven Rainwater <steve@ncc.com>
 
 	* config.xml: Fixed XML well-formedness error. Thanks to presbrey
