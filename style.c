@@ -138,6 +138,11 @@ virgule_render_sitemap (VirguleReq *vr, int enclose)
 int
 virgule_render_footer_send (VirguleReq *vr)
 {
+  if(vr->priv->google_analytics)
+    virgule_buffer_printf (vr->b, "\n<script src=\"http://www.google-analytics.com/urchin.js\" type=\"text/javascript\">\n"
+                                  "</script>\n<script type=\"text/javascript\">\n"
+				  "_uacct = \"%s\";\nurchinTracker();\n</script>\n",
+				  vr->priv->google_analytics);
   virgule_buffer_puts (vr->b, "</body>\n</html>\n");
   return virgule_send_response (vr);
 }

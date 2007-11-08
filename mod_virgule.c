@@ -158,6 +158,7 @@ info_page (VirguleReq *vr)
   virgule_buffer_printf (b, "<tr><td>Timestamp of loaded configuration</td><td>%s</td></tr>\n", tm);
   virgule_buffer_printf (b, "<tr><td>Site name (vr->priv->site_name)</td><td>%s</td></tr>\n", vr->priv->site_name);
   virgule_buffer_printf (b, "<tr><td>Admin email</td><td>%s</td></tr>\n", vr->priv->admin_email);
+  virgule_buffer_printf (b, "<tr><td>Google Analytics ID</td><td>%s</td></tr>\n", vr->priv->google_analytics);
   virgule_buffer_printf (b, "<tr><td>FOAF SHA-1 Test</td><td>Input [mailto:%s] Output [%s]</td></tr>\n",
          vr->priv->admin_email,
 	 virgule_sha1 (vr->r->pool, apr_psprintf (vr->r->pool, "mailto:%s", vr->priv->admin_email)));
@@ -401,6 +402,11 @@ read_site_config (VirguleReq *vr)
   if (!strlen (vr->priv->admin_email))
     return virgule_send_error_page (vr, vERROR, "config",
 			    "No admin email found in site config.");
+
+  /* read the google analytics ID */
+  vr->priv->google_analytics = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "googleanalytics", ""));
+  if (!strlen (vr->priv->google_analytics))
+    vr->priv->google_analytics = NULL;
 
   /* read the site's base uri, and trim any trailing slashes */
   uri = virgule_xml_find_child_string (doc->xmlRootNode, "baseuri", "");

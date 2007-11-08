@@ -1,3 +1,15 @@
+2007-11-07 R. Steven Rainwater <steve@ncc.com>
+
+	* private.h: Added pointer to a Google Analytics string
+
+	* mod_virgule.c (read_site_config, info_page): Added support for a 
+	Google Analytics code in the config.xml file
+	
+	* style.c (virgule_render_footer_send): Added support for Google
+	Analytics. If a GA ID is found, the analytics tracking code is
+	inserted prior to the HTML body close tag.
+
+
 2007-11-04 Joe Presbrey <presbrey@mit.edu>
 
 	* acct_maint.c (prof_fields): Added field in profile for a FOAF URI

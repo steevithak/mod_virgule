@@ -36,6 +36,7 @@ struct virgule_private {
   const char        *base_uri;
   const char	    *base_path;    /* Path to virgule DB in apache config */
   const char	    *admin_email;
+  const char        *google_analytics;
   int                recentlog_as_posted;
   const char       **cert_level_names;
   const char       **editors;	  /* editors - article posting */
