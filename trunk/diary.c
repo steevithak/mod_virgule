@@ -737,10 +737,8 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 {
   apr_pool_t *p = vr->r->pool;
   xmlNode *channel;
-  char *diary;
-  char *content_str;
-  char *url;
-  char *pubdate;
+  char *diary, *content_str;
+  char *url, *guid, *pubdate;
   int n;
   int i;
 
@@ -802,7 +800,12 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 	  url = ap_make_full_path (p, vr->priv->base_uri,
 		    apr_psprintf (p, "person/%s/diary.html?start=%d", u, i));
 	  xmlNewChild (item, NULL, "link", url);
-	  xmlNewChild (item, NULL, "guid", url);
+
+	  guid = virgule_xml_find_child_string (root, "id", NULL);
+	  if(guid != NULL)
+	    xmlNewChild (item, NULL, "guid", guid);
+	  else
+	    xmlNewChild (item, NULL, "guid", url);
 	  
 	  content_str = virgule_xml_get_string_contents (root);
 	  if (content_str != NULL)
