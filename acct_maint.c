@@ -2298,6 +2298,7 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
 
     /* open the article and get the info we need */
     article = virgule_db_xml_get (vr->r->pool, vr->db, artkey);
+
     if (article == NULL)
       return;
     artroot = xmlDocGetRootElement (article);
@@ -2305,14 +2306,17 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
     author = virgule_xml_find_child_string (artroot, "author", NULL);
     date = virgule_xml_find_child_string (artroot, "date", NULL);
 
+
 // ap_log_rerror(APLOG_MARK,APLOG_CRIT, APR_SUCCESS, vr->r,"mod_virgule: art: %d - %s - %s", art, date, author);
 
     /* open the user profile */
     profilekey = apr_pstrcat (vr->r->pool, "acct/", author, "/profile.xml", NULL);
     profile = virgule_db_xml_get (vr->r->pool, vr->db, profilekey);
     if (profile == NULL)
-      return;
-
+      {
+        virgule_db_xml_free(vr->r->pool, article);
+        return;
+      }
     /* open or create the article index */
     artidxkey = apr_pstrcat (vr->r->pool, "acct/", author, "/articles.xml", NULL);
     artindex = virgule_db_xml_get (vr->r->pool, vr->db, artidxkey);
@@ -2328,7 +2332,12 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
         art_num_str = virgule_xml_get_string_contents (a);
 	art_num = atoi (art_num_str);	
 	if(art_num == art)
-	  return;
+	  {
+            virgule_db_xml_free(vr->r->pool, article);
+            virgule_db_xml_free(vr->r->pool, profile);
+            virgule_db_xml_free(vr->r->pool, artindex);
+	    return;
+	  }
       }
 
     /* Add the new article reference to the index */
@@ -2340,7 +2349,12 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
     xmlSetProp (a, (xmlChar *)"title", (xmlChar *)title);
 
     /* write the updated index */
-    virgule_db_xml_put (vr->r->pool, vr->db, artidxkey, artindex);	
+    virgule_db_xml_put (vr->r->pool, vr->db, artidxkey, artindex);
+
+    /* free the article index doc */
+    virgule_db_xml_free(vr->r->pool, article);
+    virgule_db_xml_free(vr->r->pool, profile);
+    virgule_db_xml_free(vr->r->pool, artindex);
 }
 
 

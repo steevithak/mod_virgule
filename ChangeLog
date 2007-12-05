@@ -1,3 +1,11 @@
+2007-12-05 R. Steven Rainwater <steve@ncc.com>
+
+	* diary.c (virgule_diary_rss_export): The guid of syndicated diary
+	entries, when available, is preserved in Advogato's outbound diary
+	RSS feed. This should help downstream aggregators identify duplicate
+	posts more easily. Thanks to Paul Wise for noticing this.
+
+
 2007-11-07 R. Steven Rainwater <steve@ncc.com>
 
 	* private.h: Added pointer to a Google Analytics string
@@ -8,6 +16,9 @@
 	* style.c (virgule_render_footer_send): Added support for Google
 	Analytics. If a GA ID is found, the analytics tracking code is
 	inserted prior to the HTML body close tag.
+
+	* acct_maint.c (virgule_acct_update_art_index): Reduced memory
+	leakage substantially.
 
 
 2007-11-04 Joe Presbrey <presbrey@mit.edu>
