@@ -11,7 +11,6 @@ struct _VirguleReq {
   char *uri;
   const char *u; /* authenticated username */
   char *args;
-  DbLock *lock;
 //  int sitemap_rendered; /* TRUE if the sitemap has already been rendered */
   char *prefix; /* Prefix of <Location> directive, to be added to links */
   apr_table_t *render_data;

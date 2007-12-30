@@ -434,9 +434,6 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
   if(item_list == NULL)
     return FALSE;
 
-  /* Get a write lock */
-  virgule_db_lock_upgrade(vr->lock);
- 
   /* Post any new, unposted entries or updated entries */
   for (i = 0; i < item_list->nelts; i++)
     {
@@ -464,9 +461,6 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 	  virgule_diary_update_feed_item (vr, user, item, e);
 	}
     }
-
-  /* Release the write lock */
-  virgule_db_lock_downgrade(vr->lock);
 
   /* Post only one recentlog entry even if we get multiple new posts */
   if (post == 1)

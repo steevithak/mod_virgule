@@ -91,8 +91,6 @@ acct_kill(VirguleReq *vr, const char *u)
   xmlDoc *profile, *staff, *entry, *agglist;
   xmlNode *tree, *cert, *alias, *feed;
 
-  virgule_db_lock_upgrade(vr->lock);
-
   db_key = virgule_acct_dbkey(vr, u);
   profile = virgule_db_xml_get(p, vr->db, db_key);
   
@@ -317,7 +315,6 @@ virgule_acct_set_lastread(VirguleReq *vr, const char *section, const char *locat
   xmlNode *tree, *msgptr;
   int status;
 
-  virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user(vr);
   if (vr->u == NULL)
     return 0;
@@ -691,7 +688,6 @@ acct_newsub_serve (VirguleReq *vr)
   if (!vr->priv->allow_account_creation)
     return virgule_send_error_page (vr, vERROR, "forbidden", "No new accounts may be created at this time.\n");
 
-  virgule_db_lock_upgrade(vr->lock);
   args = virgule_get_args_table (vr);
 
   if (args == NULL)
@@ -1091,7 +1087,6 @@ acct_update_serve (VirguleReq *vr)
   apr_pool_t *p = vr->r->pool;
   apr_table_t *args;
 
-  virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user (vr);
 
   args = virgule_get_args_table (vr);
@@ -1930,9 +1925,7 @@ acct_certify_serve (VirguleReq *vr)
   const char *level;
   int status;
 
-  virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user (vr);
-
   args = virgule_get_args_table (vr);
 
   if (vr->u)
@@ -2045,9 +2038,7 @@ virgule_acct_touch(VirguleReq *vr, const char *u)
     xmlSetProp (lastlogin, (xmlChar *)"date", (xmlChar *)newdate);
   }
   
-//  virgule_db_lock_upgrade(vr->lock);
   virgule_db_xml_put (p, vr->db, db_key, profile);  
-//  virgule_db_lock_downgrade(vr->lock);
 }
 
 
@@ -2076,7 +2067,6 @@ acct_maint (VirguleReq *vr)
     xmlDocPtr profile = NULL;
     xmlNodePtr root, alias, ctree, cert;
     DbCursor *dbc;
-//    Buffer *b = vr->b;
     apr_pool_t *sp = NULL;
     apr_hash_t *stat;
     char *statk;
@@ -2175,17 +2165,6 @@ acct_maint (VirguleReq *vr)
 	    
 		if (cert->type != XML_ELEMENT_NODE || xmlStrcmp (cert->name, (xmlChar *)"cert"))
 		    continue;
-
-//subject = (char *)xmlGetProp (cert, (xmlChar *)"subject");
-//if(subject != NULL)
-//  {
-//virgule_buffer_printf (b, "%i [%s] : subject instead of subj property detected! Subject [%s]<br />\n", ecount++, u, subject);
-//xmlUnlinkNode(cert);
-//xmlFreeNode(cert);
-//virgule_db_xml_put (sp, vr->db, dbkey, profile);
-//cert = ctree->children;
-//continue;
-//  }
 
 		subject = (char *)xmlGetProp (cert, (xmlChar *)"subj");
 		if (subject == NULL)

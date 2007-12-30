@@ -13,12 +13,10 @@
 #include "tmetric.h"
 #include "util.h"
 
-/* Send http header and buffer. Also releases the lock. */
+/* Send http header and buffer. Probably redunant at this point? */
 int
 virgule_send_response (VirguleReq *vr)
 {
-  if (vr->lock)
-    virgule_db_unlock (vr->lock);
   return virgule_buffer_send_response (vr->r, vr->b);
 }
 

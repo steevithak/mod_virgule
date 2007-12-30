@@ -526,7 +526,6 @@ diary_post_serve (VirguleReq *vr)
   int status;
   char *error;
 
-  virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user (vr);
   if (vr->u == NULL)
     return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post a blog entry because you're not logged in.");

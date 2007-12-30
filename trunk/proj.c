@@ -164,14 +164,12 @@ proj_new_serve (VirguleReq *vr)
   const char *sfields[] = { "name", "url", "fmurl", "desc", "notes", NULL};  
   const char *nfields[] = { "name", "url", "notes", NULL };
 
-//  const char **fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rfields : nfields;
   const char **fields = rfields;
   if(vr->priv->projstyle == PROJSTYLE_NICK) 
     fields = nfields;
   else if(vr->priv->projstyle == PROJSTYLE_STEVE)
     fields = sfields;
 
-//  SchemaField *proj_fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rproj_fields :
   SchemaField *proj_fields = rproj_fields;
   if(vr->priv->projstyle == PROJSTYLE_NICK) 
     proj_fields = nproj_fields;
@@ -218,7 +216,6 @@ proj_newsub_serve (VirguleReq *vr)
   xmlNode *root, *tree;
   int status;
 
-  virgule_db_lock_upgrade(vr->lock);
   virgule_auth_user (vr);
 
   if (vr->u == NULL)
@@ -719,15 +716,12 @@ proj_editsub_serve (VirguleReq *vr)
   int status;
   const char *fields[] = { "url", "fmurl", "desc", "license", "notes", NULL };
   const char *name;
-//  SchemaField *proj_fields = vr->priv->projstyle == PROJSTYLE_RAPH ? rproj_fields :
-//    							       nproj_fields;
   SchemaField *proj_fields = rproj_fields;
   if(vr->priv->projstyle == PROJSTYLE_NICK) 
     proj_fields = nproj_fields;
   else if(vr->priv->projstyle == PROJSTYLE_STEVE)
     proj_fields = sproj_fields;
     
-  virgule_db_lock_upgrade(vr->lock);
   args = virgule_get_args_table (vr);
   name = apr_table_get (args, "name");
 
@@ -940,7 +934,6 @@ proj_reply_submit_serve (VirguleReq *vr)
 
   key_base = apr_psprintf (p, "proj/%s", name);
 
-  virgule_db_lock_upgrade (vr->lock);
   virgule_auth_user (vr);
   if (vr->u == NULL)
     return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not logged in.");
