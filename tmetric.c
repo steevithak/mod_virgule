@@ -174,10 +174,6 @@ tmetric_run (VirguleReq *vr,
     }
   virgule_db_close_dir (dbc);
 
-  if (vr->lock)
-    virgule_db_unlock (vr->lock);
-  vr->lock = NULL;
-
   for (i = 1; i < cert_level_n; i++)
     {
       int *flow;
@@ -228,14 +224,9 @@ tmetric_index_serve (VirguleReq *vr)
   int n_seeds, n_caps;
   int i;
   NodeInfo *ni;
-  DbLock *lock;
   int status;
   Buffer *cb;
   char *cache_str;
-
-  lock = virgule_db_lock_key (db, "tmetric/.lock", F_SETLK);
-  if (lock == NULL)
-    return virgule_send_error_page (vr, vERROR, "tmetric", "The tmetric lock is taken by another process.");
 
   for (n_seeds = 0;; n_seeds++)
     if (!vr->priv->seeds[n_seeds])
@@ -261,11 +252,7 @@ tmetric_index_serve (VirguleReq *vr)
     }
 
   cache_str = virgule_buffer_extract (cb);
-  vr->lock = virgule_db_lock (db);
-  virgule_db_lock_upgrade (vr->lock);
   status = virgule_db_put (db, "tmetric/default", cache_str, strlen (cache_str));
-
-  virgule_db_unlock (lock);
 
   if (status)
     return virgule_send_error_page (vr, vERROR, "tmetric", "Error writing tmetric cache.");
@@ -304,7 +291,6 @@ virgule_tmetric_get (VirguleReq *vr)
   char *result;
   int size;
 
-//  result = virgule_db_get (vr->db, "tmetric/default", &size);
   result = virgule_db_get_p (vr->priv->tm_pool, vr->db, "tmetric/default", &size);
 
   return result;

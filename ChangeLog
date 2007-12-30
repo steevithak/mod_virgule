@@ -1,3 +1,21 @@
+2007-12-15 R. Steven Rainwater <steve@ncc.com>
+
+	* db.c (virgule_db_lock_key, virgule_db_lock_upgrade, 
+	virgule_db_lock_downgrade, virgule_db_lock, virgule_db_unlock):
+	Removed all the existing lock functions and all references to them
+	throughout mod_virgule. Instead of locking the entire database, 
+	these calls are replaced with Apache APR file locking calls to 
+	lock only the specific DB Key (file) being read or written. This 
+	makes mod_virgule much more responsive and a bit more scalable.
+	
+	* db.c (virgule_db_del): Replaced unlink() with apr_file_remove().
+	Replaced rmdir() with apr_dir_remove().
+	
+	* db.c (virgule_db_put_p): Added exclusive apr_lock_file() call.
+	
+	* db.c (virgule_db_get_p): Added shared apr_lock_file() call.
+
+
 2007-12-05 R. Steven Rainwater <steve@ncc.com>
 
 	* diary.c (virgule_diary_rss_export): The guid of syndicated diary

@@ -167,8 +167,12 @@ virgule_db_get_p (apr_pool_t *p, Db *db, const char *key, int *p_size)
   result = (char *)apr_palloc (p, file_size + 1);
   /* todo: make read resistant to E_INTR. */
   bytes_read = file_size;
+
+  if (apr_file_lock(fd, APR_FLOCK_SHARED) != APR_SUCCESS)
+    return NULL;
+
   apr_file_read(fd, result, &bytes_read);
-  apr_file_close(fd);
+  apr_file_close(fd);  /* close implicitly unlocks */
 
   if (bytes_read != file_size)
     return NULL;
@@ -274,10 +278,13 @@ virgule_db_put_p (apr_pool_t *p, Db *db, const char *key, const char *val, int s
 	APR_UREAD|APR_UWRITE|APR_GREAD|APR_GWRITE|APR_WREAD, p) != APR_SUCCESS)
     return -1;
 
+  if (apr_file_lock(fd, APR_FLOCK_EXCLUSIVE) != APR_SUCCESS)
+    return -1;
+
   /* todo: make write resistant to E_INTR. */
   bytes_written = size;
   apr_file_write(fd, val, &bytes_written);
-  apr_file_close(fd);
+  apr_file_close(fd); /* close implicitly unlocks */
 
   if (bytes_written != size)
     return -1;
@@ -321,13 +328,13 @@ virgule_db_del (Db *db, const char *key)
 
   fn = virgule_db_mk_filename (db->p, db, key);
 
-  status = unlink(fn);
+  status = apr_file_remove(fn, db->p);
 
   path = apr_pstrdup (db->p, fn);
   n = strrchr(path,'/');
   if(n != NULL) {
     *n = 0;
-    rmdir(path);
+    apr_dir_remove(path, db->p);
   }
   
   return status;
@@ -529,84 +536,5 @@ virgule_db_dir_max (Db *db, const char *key)
       fn = apr_psprintf (p, "%s/%02d", fn, level_max);
     }
   return result;
-}
-
-DbLock *
-virgule_db_lock_key (Db *db, const char *key, int cmd)
-{
-  apr_pool_t *p = db->p;
-  char *fn;
-  apr_file_t *fd;
-  apr_status_t status;
-  DbLock *result;
-
-  fn = virgule_db_mk_filename (p, db, key);
-
-  if (!db_ensure_dir (db, fn))
-    return NULL;
-
-  if (apr_file_open(&fd, fn, APR_READ|APR_WRITE|APR_CREATE|APR_TRUNCATE,
-        APR_UREAD|APR_UWRITE|APR_GREAD|APR_GWRITE|APR_WREAD, p) != APR_SUCCESS)
-    return NULL;
-
-  if (cmd == F_SETLK) {
-    status = apr_file_lock(fd, APR_FLOCK_SHARED | APR_FLOCK_NONBLOCK);
-  } else if (cmd == F_SETLKW) {
-    status = apr_file_lock(fd, APR_FLOCK_SHARED);
-  } else {
-    status = APR_EGENERAL; /* shouldn't happen */
-  }
-  if (status != APR_SUCCESS)
-    {
-      apr_file_close (fd);
-      return NULL;
-    }
-
-  result = (DbLock *)apr_palloc (p, sizeof (DbLock));
-  result->p = p;
-  result->fd = fd;
-  return result;
-}
-
-
-/**
- * virgule_db_lock_upgrade - Upgrade a shared read lock to a write lock.
- * Note that this is a blocking operation.
- **/
-int
-virgule_db_lock_upgrade (DbLock *dbl)
-{
-  apr_status_t status;
-  status = apr_file_lock(dbl->fd, APR_FLOCK_EXCLUSIVE);
-  return (status == APR_SUCCESS) ? 0 : -1;
-}
-
-
-/**
- * virgule_db_lock_downgrade - Downgrades a write lock to a shared read lock.
- * Returns 0 on success or -1 on failure.
- **/
-int
-virgule_db_lock_downgrade (DbLock *dbl)
-{
-  apr_status_t status;
-  status = apr_file_lock(dbl->fd, APR_FLOCK_SHARED);
-  return (status == APR_SUCCESS) ? 0 : -1;
-}
-
-
-DbLock *
-virgule_db_lock (Db *db)
-{
-  return virgule_db_lock_key (db, ".lock", F_SETLKW);
-}
-
-int
-virgule_db_unlock (DbLock *dbl)
-{
-  apr_status_t status;
-  status = apr_file_unlock(dbl->fd);
-  apr_file_close (dbl->fd);
-  return (status == APR_SUCCESS) ? 0 : -1;
 }
 

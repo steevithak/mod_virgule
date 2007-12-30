@@ -126,11 +126,8 @@ virgule_cert_verify_outbound (VirguleReq *vr, apr_pool_t *p, const char *issuer,
   if(date != NULL)
     xmlSetProp (cert, (xmlChar *)"date", (xmlChar *)date);
 
-  /* upgrade XML lock to write and write the corrected profile */
-  virgule_db_lock_upgrade (vr->lock);
   virgule_db_xml_put (p, vr->db, db_key, profile);
   virgule_db_xml_free (p, profile);
-  virgule_db_lock_downgrade(vr->lock);
 
   return rc;
 }
@@ -202,11 +199,8 @@ virgule_cert_verify_inbound (VirguleReq *vr, apr_pool_t *p, const char *subject,
       if(date != NULL)
         xmlSetProp (cert, (xmlChar *)"date", (xmlChar *)date);
 
-      /* upgrade XML lock to write and write the corrected profile */
-      virgule_db_lock_upgrade (vr->lock);
       virgule_db_xml_put (p, vr->db, db_key, profile);
       virgule_db_xml_free (p, profile);
-      virgule_db_lock_downgrade(vr->lock);
       rc = 4;
     }
 

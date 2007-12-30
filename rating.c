@@ -54,9 +54,7 @@ rating_rate_diary (VirguleReq *vr)
 {
   apr_table_t *args;
 
-  virgule_db_lock_upgrade (vr->lock);
   virgule_auth_user (vr);
-
   args = virgule_get_args_table (vr);
 
   if (vr->u)
@@ -115,7 +113,6 @@ rating_crank (VirguleReq *vr, const char *u)
  * There is room for further improvement. The memory pool allocation in
  * each iteration of the loop is a work around for a memory leak somewhere 
  * in the eigen code.
- * Also, the locking scheme isn't thread-safe. 
  **/
 static int
 rating_crank_all (VirguleReq *vr)
@@ -128,11 +125,6 @@ rating_crank_all (VirguleReq *vr)
 
   while(tmetric[i])
     {
-
-      /* Release lock so we don't hog the system during the update */
-      virgule_db_unlock (vr->lock);
-      apr_sleep(1);
-
       for(j = 0; tmetric[i + j] && tmetric[i + j] != '\n'; j++); /* EOL */
       for(k = j; k > 0 && tmetric[i + k] != ' '; k--); /* username */
       user = apr_palloc (vr->r->pool, k + 1);
@@ -142,11 +134,7 @@ rating_crank_all (VirguleReq *vr)
       if (tmetric[i] == '\n')
         i++;
 
-      apr_pool_create(&sp,vr->r->pool);
-   
-      /* re-establish XML file system lock */
-      vr->lock = virgule_db_lock (vr->db);
-      
+      apr_pool_create(&sp,vr->r->pool);   
       virgule_eigen_crank (sp, vr, user);
       apr_pool_destroy (sp);
     }

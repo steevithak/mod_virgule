@@ -395,8 +395,6 @@ article_generic_submit_serve (VirguleReq *vr,
   if (!virgule_req_ok_to_reply (vr))
     return virgule_send_error_page (vr, vERROR, "forbidden", "You can't post because you're not certified. Please see the <a href=\"%s/certs.html\">certification overview</a> for more details.", vr->prefix);
 
-  virgule_db_lock_upgrade(vr->lock);
-
   date = virgule_iso_now (p);
 
   if (title == NULL || title[0] == 0)

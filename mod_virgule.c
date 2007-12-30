@@ -207,11 +207,6 @@ info_page (VirguleReq *vr)
   apr_table_do (header_trace, b, r->headers_out, NULL);
   virgule_buffer_puts (b, "</td></tr>");
   
-  if(virgule_db_lock_upgrade (vr->lock) != -1)
-    virgule_buffer_puts (b, "<tr><td>Lock upgrade test</td><td>Upgrade succeeded</td></tr>");
-  else
-    virgule_buffer_puts (b, "<tr><td>Lock upgrade test</td><td>Upgrade failed</td></tr>");
-	   
   if (vr->priv->cert_level_names)
     {
       const char **l;
@@ -867,7 +862,6 @@ static int virgule_handler(request_rec *r)
 
   vr->u = NULL;
   vr->args = virgule_get_args (r);
-  vr->lock = NULL;
   vr->priv = NULL;
   vr->render_data = apr_table_make (r->pool, 4);
 
@@ -921,12 +915,6 @@ static int virgule_handler(request_rec *r)
 
   /* set buffer translations */
   virgule_buffer_set_translations (vr->b, vr->priv->trans);
-
-  vr->lock = virgule_db_lock (vr->db);
-  if (vr->lock == NULL)
-    return virgule_send_error_page (vr, vERROR, "db lock",
-			    "There was an error acquiring the lock, %s.",
-			    strerror (errno));
 
   status = virgule_rss_serve (vr);
   if (status != DECLINED)
