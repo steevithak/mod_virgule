@@ -18,7 +18,8 @@ const Topic *
 virgule_add_topic (VirguleReq *vr, const char *desc, const char *url);
 
 const AllowedTag *
-virgule_add_allowed_tag (VirguleReq *vr, const char *tag, int can_be_empty);
+virgule_add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty,
+		char **allowed_attributes);
 
 int
 virgule_render_acceptable_html (VirguleReq *vr);

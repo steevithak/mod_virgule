@@ -333,6 +333,57 @@ static int virgule_init_handler(apr_pool_t *pconf, apr_pool_t *plog,
   return OK;
 }
 
+static const AllowedTag *
+read_allowed_tag (VirguleReq *vr, xmlNode *node)
+{
+  xmlNode *node_attributes, *child;
+  char *name, *text;
+  char **p;
+  int empty;
+  apr_array_header_t *stack;
+
+  name = virgule_xml_find_child_string (node, "name", NULL);
+  if (!name)
+    {
+      virgule_send_error_page (vr, vERROR, "Config error",
+		    "Allowed tag name not defined.");
+      return NULL;
+    }
+
+  text = virgule_xml_find_child_string (node, "canbeempty", NULL);
+
+  empty = text && !strcmp (text, "yes");
+
+  stack = apr_array_make (vr->priv->pool, 8, sizeof (char *));
+  node_attributes = virgule_xml_find_child (node, "allowedattributes");
+
+  if (node_attributes)
+    {
+      for (child = node_attributes->children; child; child = child->next)
+        {
+	  if (child->type != XML_ELEMENT_NODE)
+	    continue;
+
+          if (xmlStrcmp (child->name, (xmlChar *)"attribute"))
+	    {
+	      virgule_send_error_page (vr, vERROR, "Config error",
+			    "Unknown element <tt>%s</tt> in allowed attributes.",
+			    child->name);
+	      return NULL;
+	    }
+    
+          text = virgule_xml_get_string_contents (child);
+    
+          p = (char **)apr_array_push (stack);
+          *p = apr_pstrdup (vr->priv->pool, virgule_xml_get_string_contents (child));
+        }
+    }
+
+    p = (char **)apr_array_push (stack);
+    *p = NULL;
+
+    return virgule_add_allowed_tag (vr, name, empty, (char **)stack->elts);
+}
 
 /* make sure this doesn't clash with any HTTP status codes */
 #define CONFIG_READ 1000
@@ -401,6 +452,7 @@ read_site_config (VirguleReq *vr)
   /* read the google analytics ID */
   vr->priv->google_analytics = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "googleanalytics", ""));
   if (!strlen (vr->priv->google_analytics))
+
     vr->priv->google_analytics = NULL;
 
   /* read the site's base uri, and trim any trailing slashes */
@@ -786,7 +838,7 @@ read_site_config (VirguleReq *vr)
     {
 	for (child = node->children; child; child = child->next)
 	{
-	  int empty;
+	  const AllowedTag *allowed_tag;
 
           if (child->type != XML_ELEMENT_NODE) {
             continue;
@@ -796,16 +848,12 @@ read_site_config (VirguleReq *vr)
 				    "Unknown element <em>%s</em> in allowed tags.",
 				    child->name);
 
-	  text = virgule_xml_get_prop (vr->r->pool, child, (xmlChar *)"canbeempty");
-	  empty = text && !strcmp(text, "yes");
-
-	  text = virgule_xml_get_string_contents (child);
-	  if (!text)
-	    return virgule_send_error_page (vr, vERROR, "config",
-				    "Empty element in allowed tags.");
+	  allowed_tag = read_allowed_tag (vr, child);
+	  if (!allowed_tag)
+	    return !CONFIG_READ;
 
 	  t_item = (const AllowedTag **)apr_array_push (stack);
-	  *t_item = virgule_add_allowed_tag (vr, text, empty);
+	  *t_item = allowed_tag;
 	}
     }
   t_item = (const AllowedTag **)apr_array_push (stack);
