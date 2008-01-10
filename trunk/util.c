@@ -530,14 +530,15 @@ virgule_add_nav_option (VirguleReq *vr, const char *label, const char *url)
 struct _AllowedTag {
   char *tagname;
   int empty;
+  char **allowed_attributes;
   char *(*handler) (VirguleReq *vr, const char *str);
 };
 
 static AllowedTag special_allowed_tags[] = {
-  { "person", 0, nice_person_link },
-  { "proj", 0, nice_proj_link },
-  { "project", 0, nice_proj_link },
-  { "wiki", 0, virgule_wiki_link }
+  { "person", 0, NULL, nice_person_link },
+  { "proj", 0, NULL, nice_proj_link },
+  { "project", 0, NULL, nice_proj_link },
+  { "wiki", 0, NULL, virgule_wiki_link }
 };
 
 
@@ -547,7 +548,8 @@ static AllowedTag special_allowed_tags[] = {
  * multiple requests so it uses the thread private pool.
  */
 const AllowedTag *
-virgule_add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
+virgule_add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty,
+		char **allowed_attributes)
 {
   AllowedTag *tag;
   int i, n = sizeof (special_allowed_tags) / sizeof (special_allowed_tags[0]);
@@ -560,6 +562,7 @@ virgule_add_allowed_tag (VirguleReq *vr, const char *tagname, int can_be_empty)
   tag = apr_palloc (vr->priv->pool, sizeof(AllowedTag));
   tag->tagname = apr_pstrdup  (vr->priv->pool, tagname);
   tag->empty = can_be_empty;
+  tag->allowed_attributes = allowed_attributes;
   tag->handler = NULL;
 
   return tag;
@@ -745,6 +748,60 @@ virgule_strip_a (VirguleReq *vr, const char *raw)
   return clean;
 }
 
+static void
+nice_tag(Buffer *b, const AllowedTag *tag, const char *raw, int len)
+{
+  int i, end, tag_len;
+
+  tag_len = strlen (tag->tagname);
+
+  virgule_buffer_write (b, raw, tag_len + 1);
+
+  for (i = 1 + tag_len; i < len - 1; i = end)
+    {
+      for (end = i; isspace (raw[end]); end++)
+	;
+  
+      i = end;
+  
+      if (i < len - 1)
+	{
+	  int in_quote = 0;
+    
+	  for (end = i; end < len - 1; end++) {
+	    if (!in_quote && isspace (raw[end]))
+	      break;
+    
+	    if (raw[end] == '"')
+	      in_quote = !in_quote;
+	  }
+    
+	  /* ignore attributes with unterminated quotes */
+	  if (!in_quote)
+	    {
+	      char **attrib = NULL;
+    
+	      if (tag->allowed_attributes)
+		{
+		  for (attrib = tag->allowed_attributes; *attrib; attrib++)
+		    {
+		      if (match_tag(raw + i, *attrib))
+			break;
+		    }
+		}
+    
+	      /* ignore invalid attributes */
+	      if (*attrib)
+		{
+		  virgule_buffer_puts(b, " ");
+		  virgule_buffer_write(b, raw + i, end - i);
+		}
+	    }
+	}
+    }
+  
+  virgule_buffer_puts (b, ">");
+}
 
 /**
  * nice_htext: Convert raw html'ish text into nice HTML.
@@ -762,7 +819,6 @@ virgule_nice_htext (VirguleReq *vr, const char *utf8, char **p_error)
   int i, end;
   char c;
   int nl_state = 0;
-  int in_quote = 0;
 
   *p_error = NULL;
 
@@ -886,11 +942,7 @@ virgule_nice_htext (VirguleReq *vr, const char *utf8, char **p_error)
 	    {
 	      /* todo: handle quotes */
 	      while ((c = raw[end]) && c != '>')
-		{
-		  if (raw[end] == '"')
-		    in_quote = !in_quote;
 		  end++;
-		}
 	      if (c == '>')
 		{
 
@@ -929,14 +981,8 @@ virgule_nice_htext (VirguleReq *vr, const char *utf8, char **p_error)
 		    }
 		  else
 		    {
-		      if (in_quote)
-			{
-			  virgule_buffer_write (b, raw + i, end - i - 2);
-			  virgule_buffer_puts (b, "\">");
-			  *p_error = "Unterminated quote in tag";
-			}
-		      else
-			virgule_buffer_write (b, raw + i, end - i);
+		      nice_tag(b, *tag, raw + i, end - i);
+
 		      if (!(*tag)->empty)
 			{
 			  char **p_stack;

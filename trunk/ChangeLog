@@ -1,3 +1,20 @@
+2008-01-09 Mauro Persano <mauro_persano@yahoo.com>
+
+	* mod_virgule.c (read_allowed_tag): Added this function to parse
+	allowed tag structures in the config.xml file.
+	
+	* mod_virgule.c (read_site_config): Modified to handle tag attribute
+	data from config.xml.
+	
+	* util.c (virgule_add_allowed_tag): Modified to handle tag attribute 
+	data from config.xml.
+	
+	* util.c (nice_tag): Added this function to filter out disallowed
+	tag attributes in HTML.
+	
+	* util.c (nice_htext): Added call to nice_tag()
+
+
 2007-12-15 R. Steven Rainwater <steve@ncc.com>
 
 	* db.c (virgule_db_lock_key, virgule_db_lock_upgrade, 
