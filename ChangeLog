@@ -1,3 +1,13 @@
+2008-01-23 R. Steven Rainwater <steve@ncc.com> 
+
+	* diary.c (virgule_diary_entry_render): Added call to 
+	virgule_nice_htext before rendering diary. This is a kluge to get
+	around the increasingly nasty HTML syndicated from external blogs.
+	This should be replaced with proper HTML filtering and repair in the
+	aggregator storage module (it will also be necessary to retroactively
+	repair stored blogs before removing this code).
+
+
 2008-01-09 Mauro Persano <mauro_persano@yahoo.com>
 
 	* mod_virgule.c (read_allowed_tag): Added this function to parse

@@ -69,6 +69,8 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   char *feedposttime = NULL;
   char *feedupdatetime = NULL;
   char *blogauthor = NULL;
+  char *contents_nice = NULL;
+  char *error = NULL;
   xmlDoc *entry;
   xmlNode *root;
 
@@ -139,14 +141,15 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   
   if (contents != NULL)
     {    
+      contents_nice = virgule_nice_htext (vr, contents, &error);
       virgule_buffer_puts (b, "<div>\n");
       if (title)
         virgule_buffer_printf (b, "<p><b>%s</b></p>\n", title);
       if (strcmp (virgule_req_get_tmetric_level (vr, u),
          virgule_cert_level_to_name (vr, CERT_LEVEL_NONE)) == 0)
-        virgule_buffer_puts (b, virgule_add_nofollow (vr, contents));
+        virgule_buffer_puts (b, virgule_add_nofollow (vr, contents_nice));
       else
-        virgule_buffer_puts (b, contents);
+        virgule_buffer_puts (b, contents_nice);
       if (feedposttime && entrylink)
         {
           virgule_buffer_printf (b, "<p class=\"syndicated\"><a href=\"%s\">Syndicated %s %s from %s</a></p>",
