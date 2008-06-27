@@ -1,7 +1,12 @@
 2008-06-27 R. Steven Rainwater <steve@ncc.com>
 
-	* Makefile: Cleaned up a and added comments about Apache ARP 1.x
 	* mod_virgule (set_virgule_db): db arg is now a const 
+	
+	* mod_virgule (read_site_config): fixed cases where a certain 
+	config.xml setup could result in a strlen(NULL).
+	
+	* Makefile: Cleaned up a and added comments about Apache ARP 1.x
+
 	* acct_maint.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
 	* diary.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
 	* db_ops.c:  Added xmlChar/char casts to eliminate gcc 4.x warnings.
