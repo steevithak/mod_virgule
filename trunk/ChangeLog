@@ -1,3 +1,16 @@
+2008-06-27 R. Steven Rainwater <steve@ncc.com>
+
+	* Makefile: Cleaned up a and added comments about Apache ARP 1.x
+	* mod_virgule (set_virgule_db): db arg is now a const 
+	* acct_maint.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* diary.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* db_ops.c:  Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* db_xml.c:  Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* tmetric.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* schema.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* site.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+	* util.c: Added xmlChar/char casts to eliminate gcc 4.x warnings.
+
 2008-01-23 R. Steven Rainwater <steve@ncc.com> 
 
 	* diary.c (virgule_diary_entry_render): Added call to 

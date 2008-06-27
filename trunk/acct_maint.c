@@ -2320,7 +2320,7 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
       }
 
     /* Add the new article reference to the index */
-    a = xmlNewTextChild (artindex->xmlRootNode, NULL, (xmlChar *)"article", apr_itoa (vr->r->pool, art));
+    a = xmlNewTextChild (artindex->xmlRootNode, NULL, (xmlChar *)"article", (xmlChar *)apr_itoa (vr->r->pool, art));
     if (a == NULL)
       return;
 

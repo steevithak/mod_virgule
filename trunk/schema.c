@@ -28,7 +28,7 @@ virgule_schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode 
   if (tree == NULL)
     value = NULL;
   else
-    value = virgule_xml_get_prop (p, tree, sf->name);
+    value = virgule_xml_get_prop (p, tree, (xmlChar *)sf->name);
   virgule_buffer_printf (b, "<p> %s: <br>\n", sf->description);
   if (sf->flags & SCHEMA_TEXTAREA)
     virgule_buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
@@ -83,7 +83,7 @@ virgule_schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_tab
 
   value = apr_table_get (args, sf->name);
   if (value != NULL)
-    xmlSetProp (tree, sf->name, value);
+    xmlSetProp (tree, (xmlChar *)sf->name, (xmlChar *)value);
 }
 
 /**

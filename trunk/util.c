@@ -372,7 +372,7 @@ virgule_nice_utf8 (apr_pool_t *p, const char *utf8)
     return NULL;
 
   memset(out,0,outlen);
-  if(virgule_UTF8ToHtml (out,&outlen,utf8,&inlen) == 0)
+  if(virgule_UTF8ToHtml ((unsigned char *)out,&outlen,(unsigned char *)utf8,&inlen) == 0)
     {
       out[outlen] = 0;
       return out;

@@ -68,18 +68,18 @@ virgule_add_recent (apr_pool_t *p, Db *db, const char *key, const char *val, int
   if (doc == NULL)
     {
       doc = virgule_db_xml_doc_new (p);
-      root = xmlNewDocNode (doc, NULL, "recent", NULL);
+      root = xmlNewDocNode (doc, NULL, (xmlChar *)"recent", NULL);
       doc->xmlRootNode = root;
     }
   else
     root = doc->xmlRootNode;
 
-  tree = xmlNewTextChild (root, NULL, "item", val);
+  tree = xmlNewTextChild (root, NULL, (xmlChar *)"item", (xmlChar *)val);
   if (tree == NULL)
     return -1;
     
   date = virgule_iso_now (p);
-  xmlSetProp (tree, "date", date);
+  xmlSetProp (tree, (xmlChar *)"date", (xmlChar *)date);
 
   n = 0;
   for (tree = root->last; tree != NULL; tree = tree->prev)
@@ -116,8 +116,8 @@ db_relation_match (apr_pool_t *p, xmlNode *n1, xmlNode *n2,
 	  char *prop;
 
 	  prop = rel->fields[j].name;
-	  v1 = virgule_xml_get_prop (p, n1, prop);
-	  v2 = virgule_xml_get_prop (p, n2, prop);
+	  v1 = virgule_xml_get_prop (p, n1, (xmlChar *)prop);
+	  v2 = virgule_xml_get_prop (p, n2, (xmlChar *)prop);
 	  if (v1 == NULL) v1 = "";
 	  if (v2 == NULL) v2 = "";
 	  if (strcmp (v1, v2))
@@ -147,13 +147,13 @@ db_relation_put_field (apr_pool_t *p, Db *db, const DbRelation *rel,
     {
       doc = virgule_db_xml_doc_new (p);
       relname = apr_pstrcat (p, rel->name, "-", rel->fields[i].name, NULL);
-      root = xmlNewDocNode (doc, NULL, relname, NULL);
+      root = xmlNewDocNode (doc, NULL, (xmlChar *)relname, NULL);
       doc->xmlRootNode = root;
     }
   else
     root = doc->xmlRootNode;
 
-  tree = xmlNewChild (root, NULL, "rel", NULL);
+  tree = xmlNewChild (root, NULL, (xmlChar *)"rel", NULL);
   if (tree == NULL)
     return -1;
 
@@ -161,7 +161,7 @@ db_relation_put_field (apr_pool_t *p, Db *db, const DbRelation *rel,
     {
       if (i != j)
 	{
-	  xmlSetProp (tree, rel->fields[j].name, values[j]);
+	  xmlSetProp (tree, (xmlChar *)rel->fields[j].name, (xmlChar *)values[j]);
 	}
     }
 

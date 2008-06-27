@@ -91,7 +91,7 @@ virgule_create_dir_config (apr_pool_t *p, char *dir)
  * Sets the Virgule database from the httpd.conf option
  **/
 static const char *
-set_virgule_db (cmd_parms *parms, void *mconfig, char *db)
+set_virgule_db (cmd_parms *parms, void *mconfig, const char *db)
 {
   apr_finfo_t finfo;
   virgule_dir_conf *cfg = (virgule_dir_conf *)mconfig;
