@@ -138,8 +138,8 @@ tmetric_run (VirguleReq *vr,
       if (tree != NULL)
 	{
 	  tmetric_find_node (result, flows, issuer);
-	  givenname = virgule_xml_get_prop (p, tree, "givenname");
-	  surname = virgule_xml_get_prop (p, tree, "surname");
+	  givenname = virgule_xml_get_prop (p, tree, (xmlChar *)"givenname");
+	  surname = virgule_xml_get_prop (p, tree, (xmlChar *)"surname");
 	  tmetric_set_name (result, flows, issuer, givenname, surname, vr);
 	  tree = virgule_xml_find_child (profile->xmlRootNode, "certs");
 	  if (tree == NULL)
@@ -147,18 +147,18 @@ tmetric_run (VirguleReq *vr,
 	  for (cert = tree->children; cert != NULL; cert = cert->next)
 	    {
 	      if (cert->type == XML_ELEMENT_NODE &&
-		  !strcmp (cert->name, "cert"))
+		  !strcmp ((char *)cert->name, "cert"))
 		{
 		  char *cert_subj;
 		  
-		  cert_subj = virgule_xml_get_prop (p, cert, "subj");
+		  cert_subj = virgule_xml_get_prop (p, cert, (xmlChar *)"subj");
 		  if (cert_subj)
 		    {
 		      char *cert_level;
 		      CertLevel level;
 		      
 		      (void) tmetric_find_node (result, flows, cert_subj);
-		      cert_level = xmlGetProp (cert, "level");
+		      cert_level = (char *)xmlGetProp (cert, (xmlChar *)"level");
 		      level = virgule_cert_level_from_name (vr, cert_level);
 		      xmlFree (cert_level);
 #if 0

@@ -104,7 +104,7 @@ site_render_recent_acct (VirguleReq *vr, const char *list, int n_max)
     {
       CertLevel cl;
       char *name = virgule_xml_get_string_contents (tree);
-      char *date = virgule_xml_get_prop (p, tree, "date");
+      char *date = virgule_xml_get_prop (p, tree, (xmlChar *)"date");
       cl = virgule_render_cert_level_begin (vr, name, CERT_STYLE_SMALL);
       virgule_buffer_printf (vr->b, " %s ", virgule_render_date (vr, date, 0));
       virgule_site_render_person_link (vr, name, cl);
@@ -233,7 +233,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
   for (tree = root->last; tree != NULL && n < n_max; tree = tree->prev)
     {
       char *name = virgule_xml_get_string_contents (tree);
-      char *date = virgule_xml_get_prop (p, tree, "date");
+      char *date = virgule_xml_get_prop (p, tree, (xmlChar *)"date");
       
       if (vr->priv->projstyle == PROJSTYLE_NICK)
 	{
@@ -252,7 +252,7 @@ site_render_recent_proj (VirguleReq *vr, const char *list, int n_max)
   
 	  proj_tree = virgule_xml_find_child (proj_doc->xmlRootNode, "info");
 	  if (proj_tree != NULL) {
-	    creator = virgule_xml_get_prop (p, proj_tree, "creator");
+	    creator = virgule_xml_get_prop (p, proj_tree, (xmlChar *)"creator");
 	  } else {
 	    /* No creator?  Skip it. */
 	    continue;
@@ -312,82 +312,82 @@ site_render (RenderCtx *ctx, xmlNode *node)
 
   if (node->type == XML_TEXT_NODE)
     {
-      virgule_buffer_puts (b, node->content);
+      virgule_buffer_puts (b, (char *)node->content);
     }
   else if (node->type == XML_ELEMENT_NODE)
     {
 
-      if (!strcmp (node->name, "page"))
+      if (!strcmp ((char *)node->name, "page"))
 	{
 	  site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "title"))
+      else if (!strcmp ((char *)node->name, "title"))
 	{
 	  /* skip */
 	}
-      else if (!strcmp (node->name, "head_content"))
+      else if (!strcmp ((char *)node->name, "head_content"))
         {
 	  /* skip */
 	}
-      else if (!strcmp (node->name, "thetitle"))
+      else if (!strcmp ((char *)node->name, "thetitle"))
 	{
 	  virgule_buffer_puts (b, ctx->title);
 	}
-      else if (!strcmp (node->name, "br"))
+      else if (!strcmp ((char *)node->name, "br"))
 	{
 	  virgule_buffer_puts (b, "<br>\n");
 	}
-      else if (!strcmp (node->name, "dt"))
+      else if (!strcmp ((char *)node->name, "dt"))
 	{
 	  virgule_buffer_puts (b, "<dt>\n");
 	  site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "recent"))
+      else if (!strcmp ((char *)node->name, "recent"))
 	{
 	  char *list, *nmax_str;
 	  int nmax;
 
-	  list = virgule_xml_get_prop (p, node, "list");
-	  nmax_str = virgule_xml_get_prop (p, node, "nmax");
+	  list = virgule_xml_get_prop (p, node, (xmlChar *)"list");
+	  nmax_str = virgule_xml_get_prop (p, node, (xmlChar *)"nmax");
 	  if (nmax_str)
 	    nmax = atoi (nmax_str);
 	  else
 	    nmax = 10;
 	  site_render_recent_acct (vr, list, nmax);
 	}
-      else if (!strcmp (node->name, "recentlog"))
+      else if (!strcmp ((char *)node->name, "recentlog"))
 	{
 	  char *nmax_str;
 	  int nmax;
 
-	  nmax_str = virgule_xml_get_prop (p, node, "nmax");
+	  nmax_str = virgule_xml_get_prop (p, node, (xmlChar *)"nmax");
 	  if (nmax_str)
 	    nmax = atoi (nmax_str);
 	  else
 	    nmax = 10;
 	  site_render_recent_changelog (vr, nmax);
 	}
-      else if (!strcmp (node->name, "recentproj"))
+      else if (!strcmp ((char *)node->name, "recentproj"))
 	{
 	  char *list, *nmax_str;
 	  int nmax;
 
-	  list = virgule_xml_get_prop (p, node, "list");
-	  nmax_str = virgule_xml_get_prop (p, node, "nmax");
+	  list = virgule_xml_get_prop (p, node, (xmlChar *)"list");
+	  nmax_str = virgule_xml_get_prop (p, node, (xmlChar *)"nmax");
 	  if (nmax_str)
 	    nmax = atoi (nmax_str);
 	  else
 	    nmax = 10;
 	  site_render_recent_proj (vr, list, nmax);
 	}
-      else if (!strcmp (node->name, "articles"))
+      else if (!strcmp ((char *)node->name, "articles"))
 	{
 	  char *list, *nmax_str;
 	  int nmax;
 	  int start = -1;
 
-      	  list = virgule_xml_get_prop (p, node, "list");
-	  nmax_str = virgule_xml_get_prop (p, node, "nmax");
+      	  list = virgule_xml_get_prop (p, node, (xmlChar *)"list");
+	  nmax_str = virgule_xml_get_prop (p, node, (xmlChar *)"nmax");
 	  if (nmax_str)
 	    nmax = atoi (nmax_str);
 	  else
@@ -401,27 +401,27 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	    
 	  virgule_article_recent_render (vr, nmax, start);
 	}
-      else if (!strcmp (node->name, "userlist"))
+      else if (!strcmp ((char *)node->name, "userlist"))
         {
 	  char *nmax_str;
 	  int nmax;
 
-	  nmax_str = virgule_xml_get_prop (p, node, "nmax");
+	  nmax_str = virgule_xml_get_prop (p, node, (xmlChar *)"nmax");
 	  if (nmax_str)
 	    nmax = atoi (nmax_str);
 	  else
 	    nmax = 30;
 	  virgule_acct_person_index_serve (vr, nmax);
 	}
-      else if (!strcmp (node->name, "userstats"))
+      else if (!strcmp ((char *)node->name, "userstats"))
         {
           virgule_render_userstats (vr);
 	}
-      else if (!strcmp (node->name, "sitemap"))
+      else if (!strcmp ((char *)node->name, "sitemap"))
 	{
 	  virgule_render_sitemap (vr, 0);
 	}
-      else if (!strcmp (node->name, "acctname"))
+      else if (!strcmp ((char *)node->name, "acctname"))
         {
 	  virgule_auth_user(vr);
 	  if (vr->u == NULL)
@@ -429,34 +429,34 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  else
 	      virgule_buffer_printf (b, vr->u);
         }
-      else if (!strcmp (node->name, "isloggedin"))
+      else if (!strcmp ((char *)node->name, "isloggedin"))
 	{
 	    virgule_auth_user(vr);
 	    if (vr->u != NULL)
 		site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "notloggedin"))
+      else if (!strcmp ((char *)node->name, "notloggedin"))
 	{
 	    virgule_auth_user(vr);
 	    if (vr->u == NULL)
 		site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "newaccountsallowed"))
+      else if (!strcmp ((char *)node->name, "newaccountsallowed"))
         {
 	    if (vr->priv->allow_account_creation)
 	        site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "nonewaccountsallowed"))
+      else if (!strcmp ((char *)node->name, "nonewaccountsallowed"))
         {
 	    if (!vr->priv->allow_account_creation)
 	        site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "canpost"))
+      else if (!strcmp ((char *)node->name, "canpost"))
 	{
 	    if (virgule_req_ok_to_post (vr))
 		site_render_children (ctx, node);
 	}
-      else if (!strcmp (node->name, "diarybox"))
+      else if (!strcmp ((char *)node->name, "diarybox"))
 	{
 	    const char *key, *diary;
 	    diary = apr_psprintf (p, "acct/%s/diary", vr->u);
@@ -472,19 +472,19 @@ site_render (RenderCtx *ctx, xmlNode *node)
 		 "</form>\n", ap_escape_html(p, virgule_diary_get_backup(vr)), key);
 	}
 #if 0
-      else if (!strcmp (node->name, "wiki"))
+      else if (!strcmp ((char *)node->name, "wiki"))
         {
 	  virgule_buffer_puts (b, virgule_wiki_link (vr, virgule_xml_get_string_contents (node)));
 	}
 #endif
-      else if (!strcmp (node->name, "include"))
+      else if (!strcmp ((char *)node->name, "include"))
         {
 	  char *inc_path;
 	  
-	  inc_path = virgule_xml_get_prop (p, node, "path");
+	  inc_path = virgule_xml_get_prop (p, node, (xmlChar *)"path");
 	  site_render_include (ctx, vr, inc_path);
 	}
-      else if ((ctx->itag != NULL && ctx->istr != NULL) && (!strcmp (node->name, ctx->itag)))
+      else if ((ctx->itag != NULL && ctx->istr != NULL) && (!strcmp ((char *)node->name, ctx->itag)))
         {
 	  virgule_buffer_puts (b, ctx->istr);
 	}
@@ -501,7 +501,7 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	    }
 	  virgule_buffer_puts (b, ">");
 	  site_render_children (ctx, node);
-	  if (strcmp (node->name, "input") && strcmp (node->name, "img"))
+	  if (strcmp ((char *)node->name, "input") && strcmp ((char *)node->name, "img"))
 	    virgule_buffer_append (b, "</", node->name, ">", NULL);
 	}
     }
@@ -563,7 +563,7 @@ virgule_site_render_page (VirguleReq *vr, xmlNode *node, char *itag, char *istr,
 
   ctx.itag = itag;
   ctx.istr = istr;
-  raw = virgule_xml_get_prop (vr->r->pool, node, "raw");
+  raw = virgule_xml_get_prop (vr->r->pool, node, (xmlChar *)"raw");
   virgule_render_header (vr, title);
   site_render (&ctx, node);
 

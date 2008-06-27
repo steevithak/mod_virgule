@@ -46,7 +46,7 @@ virgule_db_xml_put (apr_pool_t *p, Db *db, const char *key, xmlDoc *val)
 
   xmlIndentTreeOutput = 1;
   xmlDocDumpFormatMemory (val, &buf, &buf_size, 1);
-  status = virgule_db_put (db, key, buf, buf_size);
+  status = virgule_db_put (db, key, (char *)buf, buf_size);
   xmlFree (buf);
   return status;
 }
@@ -54,7 +54,7 @@ virgule_db_xml_put (apr_pool_t *p, Db *db, const char *key, xmlDoc *val)
 xmlDoc *
 virgule_db_xml_doc_new (apr_pool_t *p)
 {
-  xmlDoc *result = xmlNewDoc ("1.0");
+  xmlDoc *result = xmlNewDoc ((xmlChar *)"1.0");
   apr_pool_cleanup_register (p, result, db_xml_cleanup, apr_pool_cleanup_null);
   return result;
 }

@@ -326,7 +326,7 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
                       diary, virgule_db_dir_max (vr->db, diary) + 1);
   
   entry_doc = virgule_db_xml_doc_new (vr->r->pool);
-  root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
+  root = xmlNewDocNode (entry_doc, NULL, (xmlChar *)"entry", NULL);
 
   /* use text node content directly */
   content = virgule_xml_get_string_contents (item->content);
@@ -341,22 +341,22 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
         }
     }
 
-  xmlAddChild (root, xmlNewDocText (entry_doc, content));
+  xmlAddChild (root, xmlNewDocText (entry_doc, (xmlChar *)content));
   entry_doc->xmlRootNode = root;
-  tree = xmlNewChild (root, NULL, "date", date);
-  tree = xmlNewTextChild (root, NULL, "title", virgule_xml_get_string_contents(item->title));
+  tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+  tree = xmlNewTextChild (root, NULL, (xmlChar *)"title", (xmlChar *)virgule_xml_get_string_contents(item->title));
   if(item->id)
-    tree = xmlNewTextChild (root, NULL, "id", item->link);
+    tree = xmlNewTextChild (root, NULL, (xmlChar *)"id", (xmlChar *)item->link);
   if(item->link)
-    tree = xmlNewTextChild (root, NULL, "entrylink", item->link);
+    tree = xmlNewTextChild (root, NULL, (xmlChar *)"entrylink", (xmlChar *)item->link);
   if(item->bloglink)
-    tree = xmlNewTextChild (root, NULL, "bloglink", item->bloglink);
+    tree = xmlNewTextChild (root, NULL, (xmlChar *)"bloglink", (xmlChar *)item->bloglink);
   if(item->blogauthor)
-    tree = xmlNewTextChild (root, NULL, "blogauthor", item->blogauthor);
+    tree = xmlNewTextChild (root, NULL, (xmlChar *)"blogauthor", (xmlChar *)item->blogauthor);
   if(item->post_time != -1)
-    tree = xmlNewChild (root, NULL, "feedposttime", virgule_time_t_to_iso(vr,item->post_time));
+    tree = xmlNewChild (root, NULL, (xmlChar *)"feedposttime", (xmlChar *)virgule_time_t_to_iso(vr,item->post_time));
   if(item->update_time != -1)
-    tree = xmlNewChild (root, NULL, "feedupdatetime", virgule_time_t_to_iso(vr,item->update_time));
+    tree = xmlNewChild (root, NULL, (xmlChar *)"feedupdatetime", (xmlChar *)virgule_time_t_to_iso(vr,item->update_time));
 
   virgule_buffer_printf (vr->b, "<br />Posted entry: [%s]", virgule_time_t_to_iso(vr,item->post_time));
 
@@ -462,13 +462,13 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, i
         }
     }
 
-  xmlNodeAddContent (root, content);  
+  xmlNodeAddContent (root, (xmlChar *)content);  
   tmpNode = virgule_xml_ensure_child (root, "title");
-  xmlNodeSetContent (tmpNode, virgule_xml_get_string_contents(item->title));  
+  xmlNodeSetContent (tmpNode, (xmlChar *)virgule_xml_get_string_contents(item->title));  
   tmpNode = virgule_xml_ensure_child (root, "feedupdatetime");
-  xmlNodeSetContent (tmpNode, virgule_time_t_to_iso(vr,item->update_time));
+  xmlNodeSetContent (tmpNode, (xmlChar *)virgule_time_t_to_iso(vr,item->update_time));
   tmpNode = virgule_xml_ensure_child (root, "update");
-  xmlNodeSetContent (tmpNode, virgule_iso_now (vr->r->pool));
+  xmlNodeSetContent (tmpNode, (xmlChar *)virgule_iso_now (vr->r->pool));
   
   virgule_buffer_printf (vr->b, "<br />Updated entry: [%s]", virgule_time_t_to_iso(vr,item->post_time));
 
@@ -497,10 +497,10 @@ virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
     {
       /* if no old entry is found, generate a new one */
       entry_doc = virgule_db_xml_doc_new (p);
-      root = xmlNewDocNode (entry_doc, NULL, "entry", NULL);
-      xmlAddChild (root, xmlNewDocText (entry_doc, entry));
+      root = xmlNewDocNode (entry_doc, NULL, (xmlChar *)"entry", NULL);
+      xmlAddChild (root, xmlNewDocText (entry_doc, (xmlChar *)entry));
       entry_doc->xmlRootNode = root;
-      tree = xmlNewChild (root, NULL, "date", date);
+      tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
       virgule_add_recent (p, vr->db, "recent/diary.xml", vr->u, 100,
 		  vr->priv->recentlog_as_posted);
     }
@@ -509,9 +509,9 @@ virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
       /* replace old entry with new entry */
       root = xmlDocGetRootElement (entry_doc);
       virgule_xml_del_string_contents(root);
-      xmlNodeAddContent (root, entry);
+      xmlNodeAddContent (root, (xmlChar *)entry);
       tree = virgule_xml_ensure_child (root, "update");
-      xmlNodeSetContent (tree, date);
+      xmlNodeSetContent (tree, (xmlChar *)date);
     }
 
   /* write the entry back to the data store */
@@ -747,18 +747,18 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
   diary = apr_psprintf (p, "acct/%s/diary", u);
   n = virgule_db_dir_max (vr->db, diary);
 
-  channel = xmlNewChild (root, NULL, "channel", NULL);
-  xmlNewChild (channel, NULL, "title",
-	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
+  channel = xmlNewChild (root, NULL, (xmlChar *)"channel", NULL);
+  xmlNewChild (channel, NULL, (xmlChar *)"title",
+	       (xmlChar *)apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
   url = ap_make_full_path (p, vr->priv->base_uri,
 			   apr_psprintf (p, "person/%s/", u));
-  xmlNewChild (channel, NULL, "link", url);
-  xmlNewChild (channel, NULL, "description",
-	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
-  xmlNewChild (channel, NULL, "language", "en-us");
-  xmlNewChild (channel, NULL, "generator", "mod_virgule");
+  xmlNewChild (channel, NULL, (xmlChar *)"link", (xmlChar *)url);
+  xmlNewChild (channel, NULL, (xmlChar *)"description",
+	       (xmlChar *)apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
+  xmlNewChild (channel, NULL, (xmlChar *)"language", (xmlChar *)"en-us");
+  xmlNewChild (channel, NULL, (xmlChar *)"generator", (xmlChar *)"mod_virgule");
   pubdate = virgule_render_date (vr, virgule_iso_now(vr->r->pool), 2);
-  xmlNewChild (channel, NULL, "pubDate", pubdate);
+  xmlNewChild (channel, NULL, (xmlChar *)"pubDate", (xmlChar *)pubdate);
 
   for (i = n; i >= 0 && i > n - 10; i--)
     {
@@ -767,7 +767,7 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
       xmlDoc *entry;
       
       key = apr_psprintf (p, "acct/%s/diary/_%d", u, i);
-      item = xmlNewChild (channel, NULL, "item", NULL);
+      item = xmlNewChild (channel, NULL, (xmlChar *)"item", NULL);
       entry = virgule_db_xml_get (p, vr->db, key);
       root = xmlDocGetRootElement (entry);
 
@@ -784,36 +784,36 @@ virgule_diary_rss_export (VirguleReq *vr, xmlNode *root, char *u)
 	    {
 	      iso = virgule_xml_get_string_contents (date_el);
 	      pubdate = virgule_render_date (vr, iso, 2);	      
-	      subtree = xmlNewChild (item, NULL, "pubDate", pubdate);
+	      subtree = xmlNewChild (item, NULL, (xmlChar *)"pubDate", (xmlChar *)pubdate);
 	    }
 
 	  title = virgule_xml_find_child_string (root, "title", NULL);
 	  if(title != NULL)
-            subtree = xmlNewChild (item, NULL, "title", title);
+            subtree = xmlNewChild (item, NULL, (xmlChar *)"title", (xmlChar *)title);
 	  else if(iso != NULL)
 	    {
 	      pubdate = virgule_render_date (vr, iso, 0);
-              subtree = xmlNewChild (item, NULL, "title", pubdate);
+              subtree = xmlNewChild (item, NULL, (xmlChar *)"title", (xmlChar *)pubdate);
 	    }
 	  else
-	    subtree = xmlNewChild (item, NULL, "title",
-	       apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
+	    subtree = xmlNewChild (item, NULL, (xmlChar *)"title",
+	       (xmlChar *)apr_pstrcat (p, vr->priv->site_name, " blog for ", u, NULL));
 
 	  url = ap_make_full_path (p, vr->priv->base_uri,
 		    apr_psprintf (p, "person/%s/diary.html?start=%d", u, i));
-	  xmlNewChild (item, NULL, "link", url);
+	  xmlNewChild (item, NULL, (xmlChar *)"link", (xmlChar *)url);
 
 	  guid = virgule_xml_find_child_string (root, "id", NULL);
 	  if(guid != NULL)
-	    xmlNewChild (item, NULL, "guid", guid);
+	    xmlNewChild (item, NULL, (xmlChar *)"guid", (xmlChar *)guid);
 	  else
-	    xmlNewChild (item, NULL, "guid", url);
+	    xmlNewChild (item, NULL, (xmlChar *)"guid", (xmlChar *)url);
 	  
 	  content_str = virgule_xml_get_string_contents (root);
 	  if (content_str != NULL)
 	    {
 	      content_str = virgule_rss_massage_text (p, content_str, vr->priv->base_uri);
-	      subtree = xmlNewChild (item, NULL, "description", content_str);
+	      subtree = xmlNewChild (item, NULL, (xmlChar *)"description", (xmlChar *)content_str);
             }
 	}
     }
