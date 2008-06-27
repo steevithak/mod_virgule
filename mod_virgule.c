@@ -439,24 +439,23 @@ read_site_config (VirguleReq *vr)
 
   /* read the site name */
   vr->priv->site_name = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "name", ""));
-  if (!strlen (vr->priv->site_name))
-    return virgule_send_error_page (vr, vERROR, "config",
-			    "No name found in site config.");
+  if (vr->priv->site_name != NULL && !strlen (vr->priv->site_name))
+    return virgule_send_error_page (vr, vERROR, "config", "No name found in site config.");
 
   /* read the admin email */
   vr->priv->admin_email = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "adminemail", ""));
-  if (!strlen (vr->priv->admin_email))
-    return virgule_send_error_page (vr, vERROR, "config",
-			    "No admin email found in site config.");
+  if (vr->priv->admin_email != NULL && !strlen (vr->priv->admin_email))
+    return virgule_send_error_page (vr, vERROR, "config", "No admin email found in site config.");
 
   /* read the google analytics ID */
   vr->priv->google_analytics = apr_pstrdup(vr->priv->pool, virgule_xml_find_child_string (doc->xmlRootNode, "googleanalytics", ""));
-  if (!strlen (vr->priv->google_analytics))
-
+  if (vr->priv->google_analytics != NULL && !strlen (vr->priv->google_analytics))
     vr->priv->google_analytics = NULL;
 
   /* read the site's base uri, and trim any trailing slashes */
   uri = virgule_xml_find_child_string (doc->xmlRootNode, "baseuri", "");
+  if (uri == NULL)
+    return virgule_send_error_page (vr, vERROR, "config", "No base URI found in site config.");
   do
     {
       int len = strlen (uri);
@@ -876,7 +875,7 @@ static int virgule_handler(request_rec *r)
   virgule_dir_conf *cfg;
   int status;
   apr_finfo_t finfo;
-  apr_status_t ap_status;
+  apr_status_t ap_status = APR_SUCCESS;
   VirguleReq *vr;
 
   if(strcmp(r->handler, "virgule")) {

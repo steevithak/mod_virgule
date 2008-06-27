@@ -1,24 +1,10 @@
 ------------------------------------------------------------------------
-Notes on Steve's for of mod_virgule:
-
-If you're using my modified version of mod_virgule, be sure to add:
-
- #define STYLE
- 
-in the style.h file. 
-
-All HTML styles for the site are set in a CSS called mod_virgule.css.
-An example is included in the site directory.
 
 Your httpd.conf should look something like this:
 
 <Location /virgule>
  VirguleDb /var/www/virgule
  VirgulePass "/images" "/css"
- VirguleTopic "Announcement" "/images/announce.png"
- VirguleTopic "Interview" "/images/interview.png"
- VirguleTopic "Hardware" "/images/hardware.png"
- VirguleTopic "Software" "/images/software.png"
 </Location>
 
 Note that you should be able to run two or more completely different 
@@ -30,11 +16,6 @@ stuff.
 
 VirgulePass specifies one or more directories that will be ignored by
 mod_virgule and handled instead by the normal Apache process. 
-
-VirguleTopic can be used to specify topic catagories for articles. Each
-topic consists of a topic name followed by an image URL. The URL may be
-absolute (e.g., "http://www.xyz.com/image/image.png") or relative
-(e.g., "/images/image.png"). You may add as many topics as you like.
 
 --R. Steven Rainwater <steve@ncc.com>
 

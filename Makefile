@@ -12,7 +12,12 @@ APACHECTL=sudo /etc/rc.d/init.d/httpd
 # Apache APR 1.0 or later
 APRCFG=apr-1-config
 
-CFLAGS=-Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `pkg-config --cflags glib-2.0` `xml2-config --cflags` `$(APRCFG) --cflags --cppflags` `$(APRCFG) --includes` -fpic -fno-strict-aliasing
+# GNU C stack smashing problem
+# if apache dies with this error: "undefined symbol: __stack_chk_fail_local"
+# you will need to turn off gcc stack protection by adding these CFLAGS:
+# -Wc, -fno-stack-protector
+
+CFLAGS=-Wall -Wmissing-prototypes -I`$(APXS) -q INCLUDEDIR` `$(APXS) -q CFLAGS CFLAGS_SHLIB` `pkg-config --cflags glib-2.0` `xml2-config --cflags` `$(APRCFG) --cflags --cppflags` `$(APRCFG) --includes` -fpic -fno-strict-aliasing -fno-stack-protector
 LD=ld
 LDLIBS=`$(APXS) -q LIBS_SHLIB` `pkg-config --libs glib-2.0` `xml2-config --libs` `$(APRCFG) --link-ld` `$(APRCFG) --libs`
 LDFLAGS=`$(APXS) -q LDFLAGS_SHLIB` `$(APRCFG) --ldflags` -shared --strip-debug
