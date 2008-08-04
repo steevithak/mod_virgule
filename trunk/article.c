@@ -132,7 +132,6 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   char *topic;
   char *title;
   char *lead;
-  char *lead_tag;
   char *lead_a_open = "";
   char *lead_a_close = "";
   char *bmbox = "";
@@ -147,7 +146,6 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   update = virgule_xml_find_child_string (root, "update", NULL);
   author = virgule_xml_find_child_string (root, "author", "(no author)");
   lead = virgule_xml_find_child_string (root, "lead", "(no lead)");
-  lead_tag = (style == ARTICLE_RENDER_LEAD) ? "blockquote" : "p";
 
   if (vr->u != NULL)
     {
@@ -155,13 +153,13 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
         editstr = apr_psprintf (vr->r->pool, " [ <a href=\"/article/edit.html?key=%d\">Edit</a> ] ", art_num);
     }
     
-  virgule_buffer_puts (b, "<table border=0 cellspacing=0 class=\"article\"><tr>");
+  virgule_buffer_puts (b, "<div class=\"node\">");
 
   if(vr->priv->use_article_topics)
     {
-      virgule_buffer_puts (b, "<td rowspan=\"2\" class=\"article-topic\">");
+      virgule_buffer_puts (b, "<div class=\"tags\">");
       article_render_topic (vr, topic);
-      virgule_buffer_puts (b, "</td>");
+      virgule_buffer_puts (b, "</div>");
     }
 
   /* check if author is a special user */
@@ -170,8 +168,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   else 
     cert_level = virgule_cert_level_from_name(vr, virgule_req_get_tmetric_level (vr, author));
 
-  virgule_buffer_printf (b, "<td width=\"100\%\" class=\"level%i\">",
-                         cert_level);
+  virgule_buffer_printf (b, "<h1 class=\"level%i\">", cert_level);
 
   if (style == ARTICLE_RENDER_LEAD && vr->priv->use_article_title_links)
     {
@@ -190,19 +187,18 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 					 bmurl, virgule_str_subst (vr->r->pool, bmtitle, "'", "%27"));
     }
   
-  virgule_buffer_printf (b, "<span class=\"article-title\">%s%s%s</span>",
-                 lead_a_open, title, lead_a_close);
+  virgule_buffer_printf (b, "%s%s%s", lead_a_open, title, lead_a_close);
 
   if (update != NULL)
     updatestr = apr_psprintf (vr->r->pool, " (updated %s)", virgule_render_date (vr, update, 1));
 
-  virgule_buffer_printf (b, "</td></tr><tr><td class=\"article-author\">Posted %s%s by "
-		 "<a href=\"%s/person/%s/\">%s</a>%s %s</td></tr></table>\n",
+  virgule_buffer_printf (b, "</h1><h2>Posted %s%s by "
+		 "<a href=\"%s/person/%s/\">%s</a>%s %s</h2>\n",
 		 virgule_render_date (vr, date, 1), updatestr, vr->prefix, 
 		 ap_escape_uri(vr->r->pool, author), author, editstr, bmbox);
 
-  virgule_buffer_printf (b, "<%s>\n"
-		 "%s\n", lead_tag, lead);
+  virgule_buffer_printf (b, "<p>%s</p>",lead);
+
   article_dir = apr_psprintf (vr->r->pool, "articles/_%d", art_num);
   n_replies = virgule_db_dir_max (vr->db, article_dir) + 1;
   if (style == ARTICLE_RENDER_FULL)
@@ -256,7 +252,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 		       vr->prefix, art_num, n_new);
       virgule_buffer_puts (b, "</p>\n");
     }
-  virgule_buffer_printf (b, "</%s>\n", lead_tag);
+  virgule_buffer_puts (b, "</div>\n");
 }
 
 
