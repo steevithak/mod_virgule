@@ -1,3 +1,9 @@
+2008-08-15 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_diary_rss_serve): Fixed typo in RSS 
+	version number (removed extra trailing dot).
+
+
 2008-08-04 R. Steven Rainwater <steve@ncc.com>
 
 	* article.c (article_render_from_xml): replaced table-based article

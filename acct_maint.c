@@ -1385,7 +1385,7 @@ acct_person_diary_rss_serve (VirguleReq *vr, char *u)
   doc = xmlNewDoc ((xmlChar *)"1.0");
   vr->r->content_type = "text/xml; charset=UTF-8";
   doc->xmlRootNode = xmlNewDocNode (doc, NULL, (xmlChar *)"rss", NULL);
-  xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"2.0.");
+  xmlSetProp (doc->xmlRootNode, (xmlChar *)"version", (xmlChar *)"2.0");
   virgule_diary_rss_export (vr, doc->xmlRootNode, u);
   xmlDocDumpFormatMemory (doc, &mem, &size, 1);
   xmlFreeDoc (doc);
