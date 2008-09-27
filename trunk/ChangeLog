@@ -1,3 +1,9 @@
+2008-09-27 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c: Removed deprecated AdInfo struct
+
+	* INSTALL: Complete rewrite of the INSTALL file based on user feedback
+
 2008-08-15 R. Steven Rainwater <steve@ncc.com>
 
 	* acct_maint.c (acct_person_diary_rss_serve): Fixed typo in RSS 
