@@ -538,7 +538,8 @@ static AllowedTag special_allowed_tags[] = {
   { "person", 0, NULL, nice_person_link },
   { "proj", 0, NULL, nice_proj_link },
   { "project", 0, NULL, nice_proj_link },
-  { "wiki", 0, NULL, virgule_wiki_link }
+  { "wiki", 0, NULL, virgule_wiki_link },
+  { "youtube", 0, NULL, virgule_youtube_link }
 };
 
 
