@@ -1480,3 +1480,23 @@ virgule_sha1(apr_pool_t *p, const char *input)
 
   return result;
 }
+
+
+/**
+ * virgule_youtube_link - return a standard format block of HTML to embed a
+ * YouTube video with the passed video ID.
+ */
+char *
+virgule_youtube_link (VirguleReq *vr, const char *id)
+{
+  apr_pool_t *p = vr->r->pool;
+
+  if( strchr( id, '<') != NULL ) return "";
+
+  return apr_psprintf (p, "<object width=\"425\" height=\"350\">\n"
+                          "<param name=\"movie\" value=\"http://www.youtube.com/v/%s\" />\n"
+                          "<param name=\"wmode\" value=\"transparent\" />\n"
+                          "<embed src=\"http://www.youtube.com/v/%s\" type=\"application/x-shockwave-flash\" wmode=\"transparent\" width=\"425\" height=\"350\"></embed>\n"
+                          "</object>",
+                          id,id);
+}

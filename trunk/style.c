@@ -56,12 +56,6 @@ virgule_render_header (VirguleReq *vr, const char *title)
 
   virgule_buffer_printf (b,"<script language=\"javascript\" type=\"text/javascript\" src=\"%s/css/v.js\"></script>\n",vr->prefix);
 
-//  virgule_buffer_printf (b,"<script language=\"JavaScript\" type=\"text/javascript\">\n"
-//	         "<!-- \n"
-//		 "if (top != self) { top.location = self.location } \n"
-//		 "//-->\n"
-//		 "</script>\n");
-
   /* check for additional page header contents */
   if (virgule_buffer_size (vr->hb) > 0)
     virgule_buffer_puts (b, virgule_buffer_extract (vr->hb));
