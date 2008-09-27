@@ -46,15 +46,6 @@ struct _RenderCtx {
   char *istr;
 };
 
-typedef struct _AdInfo AdInfo;
-
-struct _AdInfo {
-  const char *img;
-  const char *url;
-  const char *imp;
-  const char *max;
-};
-
 static void site_render (RenderCtx *ctx, xmlNode *node);
 
 static void

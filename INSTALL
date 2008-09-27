@@ -1,85 +1,90 @@
 ------------------------------------------------------------------------
 
-Your httpd.conf should look something like this:
+1. Install apache, glib, and libxml2 dev packages
 
-<Location /virgule>
- VirguleDb /var/www/virgule
- VirgulePass "/images" "/css"
-</Location>
+2. Uncomment appropriate makefile options for Apache APR and gcc
 
-Note that you should be able to run two or more completely different 
-mod_virgule sites on the same server. I have run as many as four sites on
-the same server with no problems.
+3. Build mod_virgule, typing "make" should do it
 
-VirguleDb specifies the directory used by mod_virgule to keep all of its
-stuff.
+4. Move mod_virgule.so to your Apache modules directory
 
-VirgulePass specifies one or more directories that will be ignored by
-mod_virgule and handled instead by the normal Apache process. 
+5. Add module directive to your httpd.conf file:
 
---R. Steven Rainwater <steve@ncc.com>
+  LoadModule virgule_module modules/mod_virgule.so
+  
+6. Add VirguleDB and VirgulePass directives to httpd.conf:
 
-What follows are the standard mod_virgule install notes
-------------------------------------------------------------------------
+<VirtualHost 1.2.3.4:80>
+    ServerName mysite.com
+    DocumentRoot /var/www/mysite.com
+    ...
+    VirguleDB /var/www/mysite.com
+    VirgulePass "/images" "/css"
+</VirtualHost>
+
+7. Copy the content of /sample_db to your VirguleDB directory
+
+8. Make sure the VirguleDB directory is owned by and writable by the
+Apache user (e.g. httpd, nobody, or whatever is used on your distro).
+
+9. Restart apache
+
+10. Hit the site with a browser and see if it works
+
+11. Edit the site/config.xml file as desired for your site
+
+12. Edit the CSS, images, and XML templates as desired for your site
+
+Notes:
+
+You should be able to run two or more completely different mod_virgule sites
+on the same server. I have run as many as four sites on the same server with
+no problems. 
+
+Normally the Virgule directive go inside <VirtualHost> but you can try 
+using them in <Location> as well - this should work in theory at least.
+<Directory> probably will not work because mod_virgule needs to do
+translations - if you try it, please report your results. :)
+
+VirguleDb specifies the directory used by mod_virgule to keep its XML
+database. Normally, this is the same as the site's document root and the
+VirgulePass directive specifies any paths that need to be handled as
+static paths by Apache rather than dymanically by mod_virgule.
+
+If you run into problems or notice incompatibilities with the makefile
+on your distro, please post to the mod_virgule development mailing list.
+Also post any patches you come up with that fix the build on your distro.
+
+Here's a breakdown of what the directories in the sample_db are for:
+
+acct - account XML DB, one subdir per account
+articles - article XML DB, one subdir per article
+css - static css files used by the site's HTML
+data - Stores the line delimited Wiki intermap
+eigen - diary (blog) eigenvector trust metric cache
+images - static images used by the site's HTML
+proj - project XML DB, one subdir per project
+recent - XML DB of recent activity
+site - XML pages that make up the site ( /index.html = /site/index.xml )
+templates - XML templates for dynamic pages (e.g. profile, articles)
+tmetric - trust metric cache
+
+Admin functionality 
+
+There are several special URLs used to administer and maintain the mod_virgule
+site. These are group under the /admin/ URL, which should be password
+protected in your httpd.conf file for security. The first three admin URLs
+should be hit by a cronjob at regular intervals to keep things running. The
+last three URLs are intended to run manually by the site administrator only
+if needed.
+
+ /admin/crank-tmetric.html - should be hit by cronjob to update trust
+ /admin/crank-diaryrating.html - should be hit by cronjob to update ratings
+ /admin/crank-aggregator.html - should be hit by cronjob to update aggregator
+
+ /admin/articlemaint.html - rebuilds per-user article indices
+ /admin/clean-diaryratings.html - remove refs to deleted accounts
+ /admin/acctmaint.html - repairs damaged account profiles and trust certs
+ 
 
 
-Installation of mod_virgule should be relatively easy. You need a
-development setup for Apache (the RedHat apache-dev RPM should
-suffice), as well as glib and gnome-xml.
-
-The Makefile is designed to use config binaries, in particular
-/usr/sbin/apxs for Apache, and gnome-config for glib and gnome-xml.
-Note that Debian has apxs in /usr/bin; you'll need to fiddle with the
-Makefile. Also, Debian apxs wants -ldbm instead of -lgdbm. Builder
-beware!
-
-On a RedHat box, "make install" has paths set up wrongly (this is a
-bug in the RH apxs config). You have a few choices. One is to install
-by hand. I just have the httpd.conf file point to the build dir.
-
-This is what I added to my httpd.conf:
-
-LoadModule virgule_module     /home/raph/golf/apache/virgule/mod_virgule.so
-AddModule mod_virgule.c
-
-<VirtualHost www.advogato.org>
- VirguleDb /home/raph/advogato.org
- VirgulePass "/images" "/css" "/favicon.ico"
-</VirthualHost>
-
-
-
-It doesn't have to be in a virtualhost, it can be toplevel or in a
-<Location>. Putting it in a <Directory> probably won't work at the
-moment, because virgule messes around with the translation stuff.
-
-Virgule works out of a database. The pathname is set in the VirguleDb
-directive. Within that directory you'll have a bunch of
-subdirectories:
-
-* acct/ stores account info, one subdir per account
-* site/ stores static pages
-* articles/ stores the articles
-* recent/ stores some recent stuff
-* tmetric/ stores the tmetric cache
-
-You'll need to have rw permissions for nobody set for the virgule db.
-It's probably easiest to just create it with owner nobody.
-
-Static files are stored in the site/ subdir as foo.xml. Thus, the url
-/foo/bar.html is stored as site/foo/bar.xml. The default is index.xml.
-
-I should probably package up a database with skeletal static pages,
-but it's not too hard to figure out.
-
-The sample_db/ subdirectory in this distribution contains a snapshot
-of xml files from advogato. You'll no doubt want to customize them.
-See site.c for more information on the xml tags.
-
-Finally, I have a cron job to regularly access /tmetric/, which
-refreshes the tmetric cache.
-
-Have fun!
-
-Raph Levien
-13 Nov 1999
