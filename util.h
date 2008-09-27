@@ -75,3 +75,5 @@ virgule_is_input_valid(const char *val);
 char *
 virgule_sha1(apr_pool_t *p, const char *input);
 
+char *
+virgule_youtube_link (VirguleReq *vr, const char *id);

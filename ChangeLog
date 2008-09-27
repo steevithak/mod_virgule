@@ -1,6 +1,14 @@
 2008-09-27 R. Steven Rainwater <steve@ncc.com>
 
 	* site.c: Removed deprecated AdInfo struct
+	
+	* site.c (site_render): Added experimental YouTube link. Place a 
+	YouTube video ID inside like so: <youtube>d9gjy1OsTGQ</youtube>
+
+	* util.c (virgule_youtube_link): Genrates the YouTube link code
+	from the supplied video ID.
+	
+	* style.c (virgule_render_header): Cleaned up some cruft
 
 	* INSTALL: Complete rewrite of the INSTALL file based on user feedback
 

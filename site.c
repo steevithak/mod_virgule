@@ -32,6 +32,7 @@
 #include "proj.h"
 #include "wiki.h"
 #include "auth.h"
+#include "util.h"
 #include "acct_maint.h"
 
 #include "site.h"
@@ -468,6 +469,11 @@ site_render (RenderCtx *ctx, xmlNode *node)
 	  virgule_buffer_puts (b, virgule_wiki_link (vr, virgule_xml_get_string_contents (node)));
 	}
 #endif
+      else if (!strcmp ((char *)node->name, "youtube"))
+        {
+          virgule_buffer_puts (b, virgule_youtube_link (vr, virgule_xml_get_string_contents (node)));
+        }
+
       else if (!strcmp ((char *)node->name, "include"))
         {
 	  char *inc_path;
