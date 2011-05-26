@@ -11,6 +11,7 @@
 #include "db.h"
 #include "req.h"
 #include "xml_util.h"
+#include "util.h"
 #include "schema.h"
 
 /**
@@ -29,13 +30,16 @@ virgule_schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode 
     value = NULL;
   else
     value = virgule_xml_get_prop (p, tree, (xmlChar *)sf->name);
-  virgule_buffer_printf (b, "<p> %s: <br>\n", sf->description);
+  virgule_buffer_printf (b, "<p>%s:<br/>\n", sf->description);
   if (sf->flags & SCHEMA_TEXTAREA)
-    virgule_buffer_printf (b, "<textarea name=\"%s\" cols=%d rows=%d wrap=hard>%s</textarea> </p>\n",
+    {
+      value = virgule_encode_textarea (p, value);
+      virgule_buffer_printf (b, "<textarea name=\"%s\" cols=\"%d\" rows=\"%d\" wrap=\"soft\">%s</textarea></p>\n",
 		   sf->name,
 		   sf->size / 1000,
 		   sf->size % 1000,
-		   value ? ap_escape_html (p, value) : "");
+		   value ? value : "");
+    }
   else if (sf->flags & SCHEMA_SELECT)
     {
       int i;
@@ -44,10 +48,10 @@ virgule_schema_render_input (apr_pool_t *p, Buffer *b, SchemaField *sf, xmlNode 
 	virgule_buffer_printf (b, "<option%s>%s\n",
 		       value && !strcmp (value, sf->choices[i]) ? " selected" : "",
 		       sf->choices[i]);
-      virgule_buffer_puts (b, "</select>\n");
+      virgule_buffer_puts (b, "</select></p>\n");
     }
   else
-    virgule_buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"> </p>\n",
+    virgule_buffer_printf (b, "<input name=\"%s\" size=%d value=\"%s\"></p>\n",
 		   sf->name, sf->size,
 		   value ? ap_escape_html (p, value) : "");
 }
@@ -77,13 +81,23 @@ virgule_schema_render_inputs (apr_pool_t *p, Buffer *b, SchemaField *sf, const c
 }
 
 void
-virgule_schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_table_t *args)
+virgule_schema_put_field (VirguleReq *vr, SchemaField *sf, xmlNode *tree, apr_table_t *args)
 {
   const char *value;
 
   value = apr_table_get (args, sf->name);
-  if (value != NULL)
-    xmlSetProp (tree, (xmlChar *)sf->name, (xmlChar *)value);
+  if (value == NULL)
+    return;
+
+  if (sf->flags & SCHEMA_TEXTAREA)
+    {
+      value = virgule_decode_textarea (vr->r->pool, value);
+      /* newlines encoded because of the way libxml2 stores properties */
+      value = virgule_str_subst(vr->r->pool, value, "\n", "&#10;");
+      value = virgule_normalize_html (vr, value, NULL);
+    }
+
+  xmlSetProp (tree, (xmlChar *)sf->name, (xmlChar *)value);
 }
 
 /**
@@ -93,7 +107,7 @@ virgule_schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_tab
  *
  **/
 void
-virgule_schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args)
+virgule_schema_put_fields (VirguleReq *vr, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args)
 {
   int i;
   int j;
@@ -103,7 +117,7 @@ virgule_schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, 
       for (j = 0; sf[j].name != NULL; j++)
 	if (!strcmp (fields[i], sf[j].name))
 	  {
-	    virgule_schema_put_field (p, &sf[j], tree, args);
+	    virgule_schema_put_field (vr, &sf[j], tree, args);
 	    break;
 	  }
     }

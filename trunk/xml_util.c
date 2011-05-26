@@ -75,6 +75,31 @@ virgule_xml_get_string_contents (xmlNode *n)
 
 
 /**
+ * virgule_xml_get_all_string_contents - like Raph's original except
+ * all string and CDATA nodes are returned rather than just the first one.
+ **/
+char *
+virgule_xml_get_all_string_contents (apr_pool_t *p, xmlNode *n)
+{
+  char *result = NULL;
+
+  if(n == NULL || n->children == NULL)
+    return NULL;
+
+  xmlNode *child = n->children;
+
+  while (child)
+  {
+    if (child->content && (child->type == XML_TEXT_NODE || child->type == XML_CDATA_SECTION_NODE))
+      result = result ? apr_pstrcat (p, result, (char *)child->content, NULL)
+                      : apr_pstrdup (p, (char *)child->content);
+    child = child->next;
+  }
+  return result;
+}
+
+
+/**
  * virgule_xml_del_string_contents - remove any text or CDATA child nodes
  * while leaving other nodes intact.
  **/

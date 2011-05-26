@@ -464,15 +464,11 @@ site_render (RenderCtx *ctx, xmlNode *node)
 		 "</form>\n", ap_escape_html(p, virgule_diary_get_backup(vr)), key);
 	}
 #if 0
-      else if (!strcmp ((char *)node->name, "wiki"))
-        {
-	  virgule_buffer_puts (b, virgule_wiki_link (vr, virgule_xml_get_string_contents (node)));
-	}
+//      else if (!strcmp ((char *)node->name, "wiki"))
+//        {
+//	  virgule_buffer_puts (b, virgule_wiki_link (vr, virgule_xml_get_string_contents (node)));
+//	}
 #endif
-      else if (!strcmp ((char *)node->name, "youtube"))
-        {
-          virgule_buffer_puts (b, virgule_youtube_link (vr, virgule_xml_get_string_contents (node)));
-        }
 
       else if (!strcmp ((char *)node->name, "include"))
         {

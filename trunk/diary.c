@@ -54,7 +54,7 @@ validate_key(VirguleReq *vr, const char *diary, const char *key)
  * An informational header is added in one of two styles. If h = 0, a plain
  * header consisting of the date and a permalink will be added. If h = 1, a
  * fancy header wrapped in the user's cert level style will be added, along
- * with an eigenvectory interest ranking if known.
+ * with an eigenvector interest ranking if known.
  **/
 void
 virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev, int h)
@@ -70,7 +70,8 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
   char *feedupdatetime = NULL;
   char *blogauthor = NULL;
   char *contents_nice = NULL;
-  char *error = NULL;
+  char *format_str = NULL;
+  int format_type = 0;
   xmlDoc *entry;
   xmlNode *root;
 
@@ -85,6 +86,10 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
 
   localdate = virgule_xml_find_child_string (root, "date", NULL);
   localupdate = virgule_xml_find_child_string (root, "update", NULL);
+
+  format_str = virgule_xml_find_child_string (root, "format", NULL);
+  if (format_str != NULL)
+    format_type = atoi (format_str);
 
   virgule_buffer_printf (b, "<div class=\"node %s\">\n", virgule_force_legal_css_name (vr, u));
 
@@ -114,7 +119,7 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
     }
   else
     {
-      virgule_buffer_printf (vr->b, "<p><a name=\"%u\"><b>%s</b></a>",
+      virgule_buffer_printf (vr->b, "<div class=\"blogdate\"><a name=\"%u\"><b>%s</b></a>",
 			     n, virgule_render_date (vr, localdate, 0));
       if (localupdate != NULL)
 	virgule_buffer_printf (vr->b, " (updated %s)",
@@ -126,6 +131,7 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
         virgule_buffer_printf (vr->b,
 			       "&nbsp; <a href=\"%s/diary/edit.html?key=%u\" style=\"text-decoration: none\">[ Edit ]</a> &nbsp;",
 			       vr->prefix, n);
+      virgule_buffer_puts (vr->b, "</div>");
     }
         
   contents = virgule_xml_get_string_contents (root);
@@ -140,9 +146,11 @@ virgule_diary_entry_render (VirguleReq *vr, const char *u, int n, EigenVecEl *ev
     feedupdatetime = NULL;
   
   if (contents != NULL)
-    {    
-      contents_nice = virgule_nice_htext (vr, contents, &error);
-      virgule_buffer_puts (b, "<div>\n");
+    {
+    
+      contents_nice = virgule_format_content (vr, contents, format_type);
+
+      virgule_buffer_puts (b, "<div class=\"content\">\n");
       if (title)
         virgule_buffer_printf (b, "<p><b>%s</b></p>\n", title);
       if (strcmp (virgule_req_get_tmetric_level (vr, u),
@@ -275,7 +283,14 @@ diary_preview_serve (VirguleReq *vr)
 
   entry = apr_table_get (args, "entry");
   diary_put_backup (vr, entry);
-  entry_nice = virgule_nice_htext (vr, entry, &error);
+
+  if(entry != NULL)
+    {
+      entry_nice = virgule_decode_textarea (p, (char *)entry);
+      entry_nice = virgule_format_content (vr, (char *)entry_nice, 1);
+    }
+  else
+    entry_nice = "";
 
   if (virgule_set_temp_buffer (vr) != 0)
     return HTTP_INTERNAL_SERVER_ERROR;
@@ -284,7 +299,7 @@ diary_preview_serve (VirguleReq *vr)
 
   virgule_buffer_printf (vr->b, "<p>Edit your entry:</p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
-		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
+		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"soft\">%s"
 		 "</textarea>\n"
 		 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
 		 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
@@ -306,7 +321,7 @@ diary_preview_serve (VirguleReq *vr)
 /**
  * virgule_diary_store_feed_item - Store a diary entry based on the contents
  * of the passed feed item. This will store a couple of extra elements in
- * the XML document such the original permalink.
+ * the XML document such as the original permalink.
  *
  * ToDo: Eventually, it would be good to refactor the various diary storage
  * functions to reduce the amount of duplicated code.
@@ -317,9 +332,11 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
   char *content = NULL;
   const char *date = virgule_time_t_to_iso (vr,-1);
   const char *diary, *key;
+  char *str;
+  int format_type = 1;
   xmlDoc *entry_doc;
   xmlNode *root, *tree;
-  xmlOutputBuffer *xbuf;
+//  xmlOutputBuffer *xbuf;
   
   diary = apr_psprintf (vr->r->pool, "acct/%s/diary", (char *)user);
   key = apr_psprintf (vr->r->pool, "%s/_%d", 
@@ -328,20 +345,10 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
   entry_doc = virgule_db_xml_doc_new (vr->r->pool);
   root = xmlNewDocNode (entry_doc, NULL, (xmlChar *)"entry", NULL);
 
-  /* use text node content directly */
-  content = virgule_xml_get_string_contents (item->content);
-  /* if not a text node, content is a tree, dump it to text */
-  if (content == NULL)
-    {
-      xbuf = xmlAllocOutputBuffer (NULL);
-      if (xbuf != NULL)
-        {
-	  xmlNodeDumpOutput (xbuf, NULL, item->content, 0, 0, NULL);
-	  content = (char *) xbuf->buffer->content;
-        }
-    }
+  content = virgule_normalize_html (vr, item->strcontent, NULL);
 
-  xmlAddChild (root, xmlNewDocText (entry_doc, (xmlChar *)content));
+  if(content && *content != 0)
+    xmlAddChild (root, xmlNewDocText (entry_doc, (xmlChar *)content));
   entry_doc->xmlRootNode = root;
   tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
   tree = xmlNewTextChild (root, NULL, (xmlChar *)"title", (xmlChar *)virgule_xml_get_string_contents(item->title));
@@ -357,6 +364,8 @@ virgule_diary_store_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item)
     tree = xmlNewChild (root, NULL, (xmlChar *)"feedposttime", (xmlChar *)virgule_time_t_to_iso(vr,item->post_time));
   if(item->update_time != -1)
     tree = xmlNewChild (root, NULL, (xmlChar *)"feedupdatetime", (xmlChar *)virgule_time_t_to_iso(vr,item->update_time));
+  str = apr_psprintf(vr->r->pool, "%i", format_type);
+  xmlNewChild (root, NULL, (xmlChar *)"format", (xmlChar *)str);
 
   virgule_buffer_printf (vr->b, "<br />Posted entry: [%s]", virgule_time_t_to_iso(vr,item->post_time));
 
@@ -420,7 +429,6 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, i
   time_t utime;
   xmlNode *root, *tmpNode;
   xmlDoc *entry;
-  xmlOutputBuffer *xbuf;
 
   if (user == NULL || item == NULL)
     return 0;
@@ -449,20 +457,10 @@ virgule_diary_update_feed_item (VirguleReq *vr, xmlChar *user, FeedItem *item, i
   /* update the entry */
   virgule_xml_del_string_contents (root);
 
-  /* use text node content directly */
-  content = virgule_xml_get_string_contents (item->content);
-  /* if not a text node, content is a tree, dump it to text */
-  if (content == NULL)
-    {
-      xbuf = xmlAllocOutputBuffer (NULL);
-      if (xbuf != NULL)
-        {
-	  xmlNodeDumpOutput (xbuf, NULL, item->content, 0, 0, NULL);
-	  content = (char *) xbuf->buffer->content;
-        }
-    }
+  content = virgule_normalize_html (vr, item->strcontent, NULL);
 
-  xmlNodeAddContent (root, (xmlChar *)content);  
+  if(content && *content != 0)
+    xmlNodeAddContent (root, (xmlChar *)content);  
   tmpNode = virgule_xml_ensure_child (root, "title");
   xmlNodeSetContent (tmpNode, (xmlChar *)virgule_xml_get_string_contents(item->title));  
   tmpNode = virgule_xml_ensure_child (root, "feedupdatetime");
@@ -493,6 +491,7 @@ virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
   /* read the old entry */
   entry_doc = virgule_db_xml_get (p, vr->db, key);
 
+
   if (entry_doc == NULL)
     {
       /* if no old entry is found, generate a new one */
@@ -501,6 +500,7 @@ virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
       xmlAddChild (root, xmlNewDocText (entry_doc, (xmlChar *)entry));
       entry_doc->xmlRootNode = root;
       tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
+      xmlNewChild (root, NULL, (xmlChar *)"format", (xmlChar *)"1");
       virgule_add_recent (p, vr->db, "recent/diary.xml", vr->u, 100,
 		  vr->priv->recentlog_as_posted);
     }
@@ -510,6 +510,8 @@ virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
       root = xmlDocGetRootElement (entry_doc);
       virgule_xml_del_string_contents(root);
       xmlNodeAddContent (root, (xmlChar *)entry);
+      tree = virgule_xml_ensure_child (root, "format");
+      xmlNodeSetContent (tree, (xmlChar *)"1");
       tree = virgule_xml_ensure_child (root, "update");
       xmlNodeSetContent (tree, (xmlChar *)date);
     }
@@ -527,7 +529,6 @@ diary_post_serve (VirguleReq *vr)
   const char *entry, *diary;
   const char *key;
   int status;
-  char *error;
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
@@ -545,7 +546,14 @@ diary_post_serve (VirguleReq *vr)
     return virgule_send_error_page (vr, vERROR, "form data", "An invalid blog key was submitted.");
 
   entry = apr_table_get (args, "entry");
-  entry = virgule_nice_htext (vr, entry, &error);
+
+  if(entry != NULL)
+    {
+      entry = virgule_decode_textarea (p, (char *)entry);
+      entry = virgule_format_content (vr, (char *)entry, 1);
+    }
+  else
+    entry = "";
 
   status = virgule_diary_store_entry (vr, key, entry);
   
@@ -581,7 +589,7 @@ diary_index_serve (VirguleReq *vr)
     
   virgule_buffer_printf (vr->b, "<p> Post a new entry: </p>\n"
 		 "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
-		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
+		 "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"soft\">%s"
 		 "</textarea>\n"
 		 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
 		 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
@@ -631,7 +639,6 @@ diary_edit_serve (VirguleReq *vr)
       char *feedposttime = NULL;
       char *feedupdatetime = NULL;
       char *title;
-      char *error;
       char *contents;
 
       str1 = virgule_xml_find_child_string (entry->xmlRootNode, "date", NULL);
@@ -661,18 +668,18 @@ diary_edit_serve (VirguleReq *vr)
       contents = virgule_xml_get_string_contents (entry->xmlRootNode);
       if (contents != NULL)
 	{
-	  entry_nice = virgule_nice_htext (vr, contents, &error);
-	  virgule_buffer_printf (vr->b, "<p>%s</p>\n", entry_nice);
+	  virgule_buffer_printf (vr->b, "<p>%s</p>\n", contents);
+	  entry_nice = virgule_encode_textarea (vr->r->pool, (char *)contents);
 	}
 
       virgule_buffer_printf (vr->b, "<p> Edit your entry: </p>\n"
 		     "<form method=\"POST\" action=\"post.html\" accept-charset=\"UTF-8\">\n"
-		     "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"hard\">%s"
+		     "<textarea name=\"entry\" cols=\"60\" rows=\"16\" wrap=\"soft\">%s"
 		     "</textarea>\n"
 		     "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
 		     "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 		     "<input type=\"hidden\" name=\"key\" value=\"%s\">\n",
-		     contents == NULL ? "" : ap_escape_html(p, contents),
+                     ap_escape_html (p, (contents ? entry_nice : "")),
 		     apr_table_get (args, "key"));
 
       if(title)

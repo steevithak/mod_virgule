@@ -3,6 +3,8 @@
 #include <httpd.h>
 #include <http_log.h>
 
+#include <libxml/tree.h>
+
 #include "private.h"
 #include "buffer.h"
 #include "db.h"

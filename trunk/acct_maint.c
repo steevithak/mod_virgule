@@ -643,11 +643,15 @@ acct_index_serve (VirguleReq *vr)
 			   prof_fields[i].attr_name,
 			   value ? (strcmp (value, "on") ? "" : " checked") : "");
 	  else if (prof_fields[i].flags & PROFILE_TEXTAREA)
-	    virgule_buffer_printf (b, "<textarea name=\"%s\" cols=\"%d\" rows=\"%d\" wrap=\"hard\">%s</textarea></p>\n",
+	    {
+//	      value = virgule_encode_textarea (p, value);
+	      virgule_buffer_printf (b, "<textarea name=\"%s\" cols=\"%d\" rows=\"%d\" wrap=\"soft\">%s</textarea></p>\n",
 			   prof_fields[i].attr_name,
 			   prof_fields[i].size / 1000,
 			   prof_fields[i].size % 1000,
-			   value ? ap_escape_html (p, value) : "");
+			   value ? virgule_encode_textarea (p, value) : "");
+//			   value ? ap_escape_html (p, value) : "");
+	    }
 	  else
 	    virgule_buffer_printf (b, "<input name=\"%s\" size=\"%d\" value=\"%s\"> </p>\n",
 			   prof_fields[i].attr_name, prof_fields[i].size,
@@ -769,6 +773,7 @@ acct_newsub_serve (VirguleReq *vr)
   xmlSetProp (tree, (xmlChar *)"cookie", (xmlChar *)cookie);
 
   tree = xmlNewChild (root, NULL, (xmlChar *)"info", NULL);
+  xmlSetProp (tree, (xmlChar *)"format", (xmlChar *)"1");
   for (i = 0; prof_fields[i].description; i++)
     {
       const char *val;
@@ -776,7 +781,16 @@ acct_newsub_serve (VirguleReq *vr)
       if (val == NULL)
         continue;
       if (virgule_is_input_valid(val))
-        xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
+        {
+          if (prof_fields[i].flags & PROFILE_TEXTAREA)
+            {
+              val = virgule_decode_textarea (p, val);
+              /* newlines encoded because of the way libxml2 stores properties */
+              val = virgule_str_subst(p, val, "\n", "&#10;");
+              val = virgule_normalize_html (vr, val, NULL);
+            }
+          xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
+        }
       else
         return virgule_send_error_page (vr, vERROR,
                                 "invalid UTF-8",
@@ -1103,6 +1117,7 @@ acct_update_serve (VirguleReq *vr)
       profile = virgule_db_xml_get (p, vr->db, db_key);
 
       info = virgule_xml_ensure_child (profile->xmlRootNode, "info");
+      xmlSetProp (info, (xmlChar *)"format", (xmlChar *)"1");
       aggregate = virgule_xml_ensure_child (profile->xmlRootNode, "aggregate");
 
       for (i = 0; prof_fields[i].description; i++)
@@ -1122,6 +1137,13 @@ acct_update_serve (VirguleReq *vr)
 	    val = "off";
           if (virgule_is_input_valid(val))
 	    {
+              if (prof_fields[i].flags & PROFILE_TEXTAREA)
+                {
+                  val = virgule_decode_textarea (p, val);
+                  /* newlines encoded because of the way libxml2 stores properties */
+                  val = virgule_str_subst(p, val, "\n", "&#10;");
+                  val = virgule_normalize_html (vr, val, NULL);
+                }
               xmlSetProp (tree, (xmlChar *)prof_fields[i].attr_name, (xmlChar *)val);
 	    }
           else
@@ -1555,7 +1577,8 @@ acct_person_serve (VirguleReq *vr, const char *path)
   int diaryused = 0;
   int any;
   int observer = FALSE;
-  char *err;
+  int format_type = 0;
+//  char *err;
   char *first;
   time_t cn = time(NULL) - 2592000;
 
@@ -1689,6 +1712,12 @@ acct_person_serve (VirguleReq *vr, const char *path)
   tree = virgule_xml_find_child (profile->xmlRootNode, "info");
   if (tree)
     {
+      char *format_str = NULL;
+      
+      format_str = virgule_xml_get_prop (p, tree, (xmlChar *)"format");
+      if (format_str != NULL)
+        format_type = atoi (format_str);
+
       givenname = virgule_xml_get_prop (p, tree, (xmlChar *)"givenname");
       surname = virgule_xml_get_prop (p, tree, (xmlChar *)"surname");
       virgule_buffer_printf (b, "<p>Name: %s %s<br />\n",
@@ -1742,10 +1771,9 @@ acct_person_serve (VirguleReq *vr, const char *path)
       notes = virgule_xml_get_prop (p, tree, (xmlChar *)"notes");
       if (notes && notes[0])
 	{
-	  if(observer)
-  	    virgule_buffer_printf (b, "<p><b>Notes:</b> %s</p>\n", virgule_nice_htext (vr, virgule_strip_a (vr, notes), &err));
-	  else 
-	    virgule_buffer_printf (b, "<p><b>Notes:</b> %s</p>\n", virgule_nice_htext (vr, notes, &err));
+          virgule_buffer_printf (b, "<p><b>Notes:</b> %s</p>\n", observer ? 
+              virgule_format_content (vr, virgule_strip_a (vr, notes), format_type) :
+              virgule_format_content (vr, notes, format_type));
 	  any = 1;
 	}
     }
@@ -2151,7 +2179,7 @@ acct_maint (VirguleReq *vr)
 	else
 	  (*statv)++;	  
 	apr_hash_set (stat, statk, APR_HASH_KEY_STRING, statv);
-	  
+
 	/* loop through outbound certs */
 	ctree = virgule_xml_find_child (root, "certs");
 	if (ctree != NULL)
@@ -2190,7 +2218,6 @@ acct_maint (VirguleReq *vr)
 	      }
 	  }
 	  	      
-
 	/* loop through inbound certs */
 	ctree = virgule_xml_find_child (root, "certs-in");
 	if (ctree != NULL)
@@ -2243,16 +2270,21 @@ acct_maint (VirguleReq *vr)
     statv = apr_hash_get (stat, "Users", APR_HASH_KEY_STRING);
     xmlNewChild (statdoc->xmlRootNode, NULL, (xmlChar *)"Users", (xmlChar *)apr_itoa (vr->r->pool, *statv));
     virgule_buffer_printf (vr->b, "<p><b>Users:</b> %i</p>\n", *statv);
+
     if (*vr->priv->cert_level_names)
       {
+        int i = 0;
 	const char **l;
 	for (l = vr->priv->cert_level_names; *l; l++)
 	  {
 	    statv = apr_hash_get (stat, *l, APR_HASH_KEY_STRING);
+	    if(statv == NULL) 
+	      statv = &i;
 	    xmlNewChild (statdoc->xmlRootNode, NULL, (xmlChar *)*l, (xmlChar *)apr_itoa (vr->r->pool, *statv));
 	    virgule_buffer_printf (vr->b, "<p><b>%s:</b> %i</p>\n", *l, *statv);
 	  }
       }
+
     virgule_db_xml_put (vr->r->pool, vr->db, "userstats.xml", statdoc);
 
     virgule_set_main_buffer (vr);
@@ -2284,9 +2316,6 @@ virgule_acct_update_art_index(VirguleReq *vr, int art)
     title = virgule_xml_find_child_string (artroot, "title", "(no title)");
     author = virgule_xml_find_child_string (artroot, "author", NULL);
     date = virgule_xml_find_child_string (artroot, "date", NULL);
-
-
-// ap_log_rerror(APLOG_MARK,APLOG_CRIT, APR_SUCCESS, vr->r,"mod_virgule: art: %d - %s - %s", art, date, author);
 
     /* open the user profile */
     profilekey = apr_pstrcat (vr->r->pool, "acct/", author, "/profile.xml", NULL);

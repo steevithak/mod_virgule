@@ -7,8 +7,11 @@
 #include <apr_date.h>
 #include <apr_sha1.h>
 #include <httpd.h>
+#include <http_log.h>
 
+#include <libxml/tree.h>
 #include <libxml/entities.h>
+#include <libxml/HTMLtree.h>
 #include <libxml/HTMLparser.h>
 
 #include "private.h"
@@ -17,6 +20,7 @@
 #include "req.h"
 #include "wiki.h"
 #include "util.h"
+#include "xml_util.h"
 
 static const char UTF8length[256] = {
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -404,28 +408,34 @@ virgule_nice_text (apr_pool_t *p, const char *raw)
   return result;
 }
 
-static char *
-nice_person_link (VirguleReq *vr, const char *name)
-{
-  apr_pool_t *p = vr->r->pool;
-  int i;
 
-  for (i = 0; name[i]; i++)
-    if (!isalnum (name[i]))
-      return apr_psprintf (p, "&lt;person&gt;%s&lt;/person&gt;", name);
-  return apr_psprintf (p, "<a href=\"%s/person/%s/\">%s</a>",
-		      vr->prefix, ap_os_escape_path(p, name, 1), name);
+static void
+nice_person_link (VirguleReq *vr, xmlNode *n)
+{
+    apr_pool_t *p = vr->r->pool;
+    char *tmp = "";
+    char *name = virgule_xml_get_string_contents (n);
+    if(name != NULL)
+    {
+	tmp =  apr_psprintf (p, "%s/person/%s", vr->prefix, ap_os_escape_path (p, name, 1));
+	xmlNodeSetName (n, (xmlChar *)"a");
+	xmlSetProp (n, (xmlChar *)"href", (xmlChar *)(tmp == NULL ? "" : tmp));
+    }
 }
 
-static char *
-nice_proj_link (VirguleReq *vr, const char *proj)
-{
-  apr_pool_t *p = vr->r->pool;
 
-  if (strchr (proj, '/') || proj[0] == '.' || strlen (proj) > 30)
-    return apr_psprintf (p, "&lt;proj&gt;%s&lt;/proj&gt;", proj);
-  return apr_psprintf (p, "<a href=\"%s/proj/%s/\">%s</a>",
-                      vr->prefix, ap_os_escape_path (p, proj, 1), proj);
+static void
+nice_proj_link (VirguleReq *vr, xmlNode *n)
+{
+    apr_pool_t *p = vr->r->pool;
+    char *tmp = "";
+    char *name = virgule_xml_get_string_contents (n);
+    if(name != NULL)
+    {
+	tmp =  apr_psprintf (p, "%s/proj/%s", vr->prefix, ap_os_escape_path (p, name, 1));
+        xmlNodeSetName (n, (xmlChar *)"a");
+	xmlSetProp (n, (xmlChar *)"href", (xmlChar *)(tmp == NULL ? "" : tmp));
+    }
 }
 
 
@@ -531,15 +541,14 @@ struct _AllowedTag {
   char *tagname;
   int empty;
   char **allowed_attributes;
-  char *(*handler) (VirguleReq *vr, const char *str);
+  void (*handler) (VirguleReq *vr, xmlNode *n);
 };
 
 static AllowedTag special_allowed_tags[] = {
   { "person", 0, NULL, nice_person_link },
-  { "proj", 0, NULL, nice_proj_link },
+//  { "proj", 0, NULL, nice_proj_link },
   { "project", 0, NULL, nice_proj_link },
   { "wiki", 0, NULL, virgule_wiki_link },
-  { "youtube", 0, NULL, virgule_youtube_link }
 };
 
 
@@ -585,58 +594,6 @@ virgule_render_acceptable_html (VirguleReq *vr)
   return 0;
 }
 
-/**
- * match_tag: Match the html source against the tag.
- * @src: Pointer to html source, right after the '<'.
- * @tag: Tag name, in lower case.
- *
- * Return value: pointer to next token after tag if matched, NULL
- * otherwise.
- **/
-static const char *
-match_tag (const char *src, const char *tag)
-{
-  int i;
-  char c;
-
-  for (i = 0; isalpha (c = src[i]); i++)
-    if (tolower (c) != tag[i])
-      return NULL;
-  if (tag[i] != 0)
-    return NULL;
-  while (isspace (src[i])) i++;
-  return src + i;
-}
-
-static const char *
-find_end_tag (const char *str, const char *tag, const char **after)
-{
-  int i;
-
-  for (i = 0; str[i]; i++)
-    {
-      if (str[i] == '<')
-	{
-	  const char *ptr;
-
-	  if (str[i + 1] != '/')
-	    return NULL;
-
-	  /* Allow </> close tag syntax. */
-	  if (str[i + 2] == '>')
-	    ptr = str + i + 2;
-	  else
-	    ptr = match_tag (str + i + 2, tag);
-
-	  if (ptr == NULL) return NULL;
-	  if (ptr[0] != '>')
-	    return NULL;
-	  *after = ptr + 1;
-	  return str + i;
-	}
-    }
-  return NULL;
-}
 
 /**
  * virgule_user_is_special: Test whether or not the current user, if any, is
@@ -749,298 +706,288 @@ virgule_strip_a (VirguleReq *vr, const char *raw)
   return clean;
 }
 
-static void
-nice_tag(Buffer *b, const AllowedTag *tag, const char *raw, int len)
-{
-  int i, end, tag_len;
-
-  tag_len = strlen (tag->tagname);
-
-  virgule_buffer_write (b, raw, tag_len + 1);
-
-  for (i = 1 + tag_len; i < len - 1; i = end)
-    {
-      for (end = i; isspace (raw[end]); end++)
-	;
-  
-      i = end;
-  
-      if (i < len - 1)
-	{
-	  int in_quote = 0;
-    
-	  for (end = i; end < len - 1; end++) {
-	    if (!in_quote && isspace (raw[end]))
-	      break;
-    
-	    if (raw[end] == '"')
-	      in_quote = !in_quote;
-	  }
-    
-	  /* ignore attributes with unterminated quotes */
-	  if (!in_quote)
-	    {
-	      char **attrib = NULL;
-    
-	      if (tag->allowed_attributes)
-		{
-		  for (attrib = tag->allowed_attributes; *attrib; attrib++)
-		    {
-		      if (match_tag(raw + i, *attrib))
-			break;
-		    }
-		}
-    
-	      /* ignore invalid attributes */
-	      if (*attrib)
-		{
-		  virgule_buffer_puts(b, " ");
-		  virgule_buffer_write(b, raw + i, end - i);
-		}
-	    }
-	}
-    }
-  
-  virgule_buffer_puts (b, ">");
-}
 
 /**
- * nice_htext: Convert raw html'ish text into nice HTML.
- * @raw: Raw text.
- * @p_error: Where error message is to be stored.
+ * virgule_format_content: Applies appropriate type of content conversion
+ * for rendering the specified type of data.
  *
- * Return value: HTML formatted text.
  **/
 char *
-virgule_nice_htext (VirguleReq *vr, const char *utf8, char **p_error)
+virgule_format_content (VirguleReq *vr, char *raw, int format_type)
 {
-  apr_pool_t *p = vr->r->pool;
-  Buffer *b = virgule_buffer_new (p);
-  apr_array_header_t *tag_stack;
-  int i, end;
-  char c;
-  int nl_state = 0;
 
-  *p_error = NULL;
+// debug use only
+//ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"format type [%d]",format_type);
 
-  const char *raw = virgule_nice_utf8 (vr->r->pool, utf8);
-
-#if 0
-  /* revert to old nicetext behavior */
-  return virgule_nice_text (p, raw);
-#endif
-  tag_stack = apr_array_make (p, 16, sizeof (char *));
-  for (i = 0; raw[i]; i = end)
+    switch (format_type)
     {
-      for (end = i;
-	   (c = raw[end]) &&
-	     c != '\n' && c != '&' && c != '<' && c != '>' && !(c & 0x80);
-	   end++);
-      if (end > i + 1 || raw[i] != '\r')
-	{
-	  if (nl_state == 2)
-	    virgule_buffer_puts (b, "<p> ");
-	  nl_state = 3;
-	}
-      if (end > i)
-	virgule_buffer_write (b, raw + i, end - i);
-      i = end;
-      if (c == '&')
-	{
-	  end++;
-	  if (raw[end] == '#')
-	    {
-	      /* numeric entity */
-	      if (isdigit (raw[end + 1]))
-		{
-		  /* decimal character reference */
-		  end += 2;
-		  while (isdigit (raw[end])) end++;
-		}
-#if 0
-	      /* apparently, the &#x123; syntax is not valid HTML,
-		 even though it is XML. */
-	      else if (raw[end + 1] == 'x')
-		{
-		  /* hexadecimal character reference */
-		  if (isxdigit (raw[end + 2]))
-		    {
-		      end += 3;
-		      while (isxdigit (raw[end])) end++;
-		    }
-		}
-#endif
-	    }
-	  else
-	    {
-	      /* entity reference */
-	      while (isalpha (raw[end])) end++;
-	    }
-	  if (end > i + 1 && raw[end] == ';')
-	    {	
-	      end++;
-	      virgule_buffer_write (b, raw + i, end - i);
-	      continue;
-	    }
-	  end = i + 1;
-	  virgule_buffer_puts (b, "&amp;");
-	}
-      else if (c == '<')
-	{
-	  const AllowedTag **tag;
-	  const char *tail = NULL; /* to avoid uninitialized warning */
-	  end++;
-	  if (raw[end] == '/')
-	    {
-	      char *tos;
-	      int tos_idx;
-
-	      /* just skip closing tag for empty elements */
-	      for (tag = vr->priv->allowed_tags; *tag; tag++)
-		if ((*tag)->empty &&
-		    (tail = match_tag (raw + end + 1, (*tag)->tagname)) != NULL)
-		    break;
-
-	      if (*tag)
-		{
-		  end = tail - raw + 1;
-		  continue;
-		}
-
-	      /* pop tag stack if closing tag matches */
-	      tos_idx = tag_stack->nelts - 1;
-	      if (tos_idx >= 0)
-		{
-		  tos = ((char **)(tag_stack->elts))[tos_idx];
-
-		  /* Allow </> syntax to close tags. */
-		  if (raw[end + 1] == '>')
-		    tail = raw + end + 1;
-		  else
-		    tail = match_tag (raw + end + 1, tos);
-
-		  if (tail != NULL && *tail == '>')
-		    {
-		      virgule_buffer_printf (b, "</%s>", tos);
-		      tag_stack->nelts--;
-		      end = tail - raw + 1;
-		      continue;
-		    }
-		}
-	      while(*tag)
-		tag++;
-	    }
-	  else
-	    {
-	      for (tag = vr->priv->allowed_tags; *tag; tag++)
-		{
-		  tail = match_tag (raw + end, (*tag)->tagname);
-		  if (tail != NULL)
-		    break;
-		}
-	    }
-	  if (*tag)
-	    {
-	      /* todo: handle quotes */
-	      while ((c = raw[end]) && c != '>')
-		  end++;
-	      if (c == '>')
-		{
-
-		  end++;
-		  if ((*tag)->handler != NULL)
-		    {
-		      char *body;
-		      int body_size;
-		      const char *body_end;
-		      const char *after;
-
-		      body_end = find_end_tag (raw + end,
-					       (*tag)->tagname,
-					       &after);
-		      if (body_end != NULL)
-			{
-			  body_size = body_end - (raw + end);
-			  body = apr_palloc (p, body_size + 1);
-			  memcpy (body, raw + end, body_size);
-			  body[body_size] = 0;
-#if 1
-			  virgule_buffer_puts (b, (*tag)->handler (vr, body));
-#else
-			  virgule_buffer_printf (b, "[body = %s, %d]", body, body_size);
-#endif
-			  end = after - raw;
-			  continue;
-			}
-
-		      else
-			{
-#if 0
-			  virgule_buffer_printf (b, "[body_end = NULL]");
-#endif
-			}
-		    }
-		  else
-		    {
-		      nice_tag(b, *tag, raw + i, end - i);
-
-		      if (!(*tag)->empty)
-			{
-			  char **p_stack;
-			  
-			  p_stack = (char **)apr_array_push (tag_stack);
-			  *p_stack = (*tag)->tagname;
-			}
-		      continue;
-		    }
-		}
-	      end = i + 1;
-	    }
-	  /* tag not matched, escape the html */
-	  virgule_buffer_puts (b, "&lt;");
-	}
-      else if (c == '>')
-	{
-	  end++;
-	  virgule_buffer_puts (b, "&gt;");
-	}
-      else if (c == '\n')
-	{
-	  end++;
-	  virgule_buffer_puts (b, "\n");
-
-	  if (nl_state == 3)
-	    nl_state = 1;
-	  else if (nl_state == 1)
-	    nl_state = 2;
-	}
-      else if (c != 0)
-	{
-	  const char *replacement;
-	  end++;
-	  replacement = escape_noniso_char (c);
-	  if (replacement == NULL)
-	    virgule_buffer_write (b, raw + i, end - i);
-	  else
-	    virgule_buffer_puts (b, replacement);
-	}
+	case 0:
+	    return virgule_normalize_html (vr, raw, NULL);
+	case 1:
+	    return raw;
+	case 2:
+	default:
+	    return raw;
     }
-
-  /* close all open tags */
-  while (tag_stack->nelts)
-    {
-      int tos_idx;
-      char *tos;
-
-      tos_idx = --tag_stack->nelts;
-      tos = ((char **)(tag_stack->elts))[tos_idx];
-      virgule_buffer_printf (b, "</%s>", tos);
-      if (*p_error == NULL)
-	*p_error = apr_psprintf (p, "Unclosed tag %s", tos);
-    }
-
-  return virgule_buffer_extract (b);
+    return raw;
 }
+
+ 
+/**
+ * virgule_xmlSetTreeNs:
+ * @tree: the top element
+ * @ns: the namespace
+ *
+ * update all nodes under the tree to point to the namespace
+ */
+void
+virgule_xmlSetTreeNs (xmlNodePtr tree, xmlNsPtr ns) {
+    xmlAttrPtr prop;
+    
+    if (tree == NULL)
+	return;
+    if (tree->ns != ns) {
+	if (tree->type == XML_ELEMENT_NODE) {
+	    prop = tree->properties;
+	    while (prop != NULL) {
+		prop->ns = ns;
+		virgule_xmlSetListNs(prop->children, ns);
+		prop = prop->next;
+	    }
+	}
+	if (tree->children != NULL)
+	    virgule_xmlSetListNs(tree->children, ns);
+	tree->ns = ns;
+    }
+}
+
+
+/**
+ * virgule_xmlSetListNs:
+ * @list: the first element
+ * @ns: the namespace
+ *
+ * update all nodes in the list to point to the namespace
+ */
+void
+virgule_xmlSetListNs(xmlNodePtr list, xmlNsPtr ns) {
+    xmlNodePtr cur;
+    
+    if (list == NULL)
+	return;
+    cur = list;
+    while (cur != NULL) {
+	if (cur->ns != ns)
+	    virgule_xmlSetTreeNs (cur, ns);
+	cur = cur->next;
+    }
+}
+
+
+/**
+ * nice_element: Walks the attribute list for a single HTML element tag
+ * stripping out any properties not on the allowed attributes list.
+ * Also checks for relative img src attributes and prepends the baseurl.
+ *
+ **/
+ 
+// debug
+// ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"img src after fixup [%s]",(char *)np->children->content);
+
+void
+nice_element (VirguleReq *vr, const AllowedTag *tag, xmlNodePtr n, const char *baseurl)
+{
+    xmlAttrPtr np = n->properties;
+    while (np != NULL)
+    {
+	xmlAttrPtr npnext = np->next;
+	/* Allowed attribute check */
+	if (tag->allowed_attributes)
+	{
+	    char **att = NULL;
+	    for (att = tag->allowed_attributes; *att; att++)
+	    {
+		if(strcasecmp((char *)np->name,*att)==0)
+		    break;
+	    }
+	    if (*att == NULL)
+	    {
+		xmlAttrPtr tmp = np;
+		np = np->next;
+		xmlRemoveProp (tmp);
+		continue;
+	    }
+	}
+	/* BaseURL fixup */
+	if (baseurl != NULL && strcasecmp(tag->tagname, "img")==0 && strcasecmp((char *)np->name,"src")==0)
+	{
+	    char *absurl = NULL;
+	    if(strncasecmp((char *)np->children->content,"http://",7)!=0) {
+		absurl = apr_pstrcat(vr->r->pool, baseurl, (char *)np->children->content, NULL);
+		xmlSetProp(n, (xmlChar *)"src", (xmlChar *)absurl);
+	    }
+	}
+	np = npnext;
+    }
+}
+
+
+/**
+ * virgule_normalize_html_node: Normalizes a node of an HTML tree,
+ * recursively Walking the tree if needed.
+ *
+ **/
+void
+virgule_normalize_html_node (VirguleReq *vr, xmlNodePtr a_node, const char *baseurl)
+{
+    xmlNodePtr cur_node = NULL;
+    for (cur_node = a_node; cur_node; cur_node = cur_node->next) {
+
+	if(cur_node->type == XML_ELEMENT_NODE) {
+	    const AllowedTag **tag = NULL;
+
+	    /* Look up tag in the allowed tag list */
+	    for (tag = vr->priv->allowed_tags; *tag; tag++)
+	    {
+		if(strcasecmp((*tag)->tagname, (char *)cur_node->name)==0)
+		{
+		    /* if it has a handler, run it */
+		    if((*tag)->handler != NULL)
+			(*tag)->handler(vr, cur_node);
+		
+		    /* if it has properties, clean 'em up */
+		    if(cur_node->properties != NULL)
+			nice_element (vr, *tag, cur_node, baseurl);
+
+		    break;
+		}
+	    
+		/* If our tag wasn't found, rip it out */
+		if (*tag == NULL)
+		{
+//ap_log_rerror(APLOG_MARK, APLOG_CRIT, APR_SUCCESS, vr->r,"disallowed tag [%s]",(char *)cur_node->name);
+		    if (cur_node->children != NULL)
+			xmlReplaceNode (cur_node, cur_node->children);
+		    xmlFreeNode (cur_node);
+// will this keep going past a removed node?
+// we might need to patch cur_node->previous into cur_node after the removal
+		}
+
+// create handler for danger tags that allow youtube and vimeo
+// can this be done through configurable regex somehow?
+
+	        // look this tag up in the disallowed list (XSS and stuff)
+		// if found and handler exists, run handler
+		// if found but no handler exists, remove this tag (continue)
+	    }
+	}
+	virgule_normalize_html_node(vr,cur_node->children,baseurl);
+    }
+}
+
+
+/**
+ * virgule_normalize_html_tree: Walks an XML tree of HTML tags and 
+ * removes any undesired or dangerous markup that could lead to XSS
+ * threats. Dumps tree to a text buffer and returns a pointer.
+ * NOTE: This function does not free the XML tree; make sure the 
+ * calling function free the tree (or xmldoc) when finished!
+ *
+ **/
+char *
+virgule_normalize_html_tree (VirguleReq *vr, xmlNodePtr tree, const char *baseurl)
+{
+    char *nicehtml = NULL;
+    xmlNsPtr ns = NULL;
+    xmlNodePtr out_n;
+    xmlBufferPtr buf = NULL;
+
+    if (tree == NULL || tree->children == NULL)
+	return NULL;
+
+    /* walk tree */
+    virgule_normalize_html_node(vr,tree->children,baseurl);
+
+    /* Create the XHTML namespace pointer and assign to all nodes. */
+    /* Should be done after normalization to avoid need to set the */ 
+    /* ns on every new node added during normalizing process */
+    ns = xmlNewNs (tree, (xmlChar *)"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd", NULL);
+    virgule_xmlSetTreeNs (tree, ns);
+
+    /* create an output buffer and dump tree to it */
+    buf = xmlBufferCreate();
+    for (out_n = tree->children; out_n != NULL; out_n = out_n->next)
+	xmlNodeDump (buf, tree->doc, out_n, 0, 1);
+
+    /* Free memory and return the cleaned HTML */
+    nicehtml = apr_pstrdup (vr->priv->pool, (char *)(buf->content));
+
+    xmlBufferFree (buf);
+
+    return nicehtml;
+}
+
+
+/**
+ * virgule_normalize_html: Converts any HTML/XML like tag soup into 
+ * reasonably legal HTML. XSS threats and illegal tags are stripped.
+ * Since many functions utilizing the return value segfault on NULL
+ * values, it's important to return an empty string in case of failure!
+ *
+ **/
+
+#if !defined(HTML_PARSE_RECOVER)
+    #define HTML_PARSE_RECOVER 0
+#endif
+#if !defined(HTML_PARSE_COMPACT)
+    #define HTML_PARSE_COMPACT 0
+#endif
+
+char *
+virgule_normalize_html (VirguleReq *vr, const char *raw, const char *baseurl)
+{
+    htmlDocPtr hdoc = NULL;
+    xmlDtdPtr dtd = NULL;
+    xmlNodePtr root_n, cur_n;
+    char *nicehtml = NULL;
+    int size = strlen(raw);
+    char *empty = "";
+
+    if(!raw || size == 0)
+	return empty;
+
+    /* parse HTML in the least strict mode possible */
+    hdoc = htmlReadMemory (raw, size, NULL, "utf-8",
+		HTML_PARSE_RECOVER | HTML_PARSE_NOERROR |
+		HTML_PARSE_NOWARNING | HTML_PARSE_NOBLANKS |
+		HTML_PARSE_NONET | HTML_PARSE_COMPACT);
+
+    if(hdoc == NULL)
+	return empty;
+
+    /* get pointer to the <html> node */    
+    root_n = xmlDocGetRootElement (hdoc);
+    if(root_n == NULL || root_n->children == NULL) 
+	return empty;
+
+    /* set cur_n to the <body> node */
+    for (cur_n = root_n->children; cur_n != NULL; cur_n = cur_n->next)
+	if((cur_n->type == XML_ELEMENT_NODE) && (strcmp((char *)cur_n->name,"body") == 0))
+	    break;
+
+    if(cur_n == NULL)
+	return empty;
+
+    /* Create the XHTML DTD and assign to the root node */
+    dtd = xmlNewDtd (hdoc, (xmlChar *)"html", (xmlChar *)"-//W3C/DTD XHTML 1.0 Transitional//EN", (xmlChar *)"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd");
+    xmlDocSetRootElement (hdoc, (xmlNodePtr)dtd);
+
+    nicehtml = virgule_normalize_html_tree (vr, cur_n, baseurl);
+
+    xmlFreeDoc (hdoc);
+    return (nicehtml == NULL ? empty : nicehtml);
+}
+
 
 /**
  * virgule_time_t_to_iso: Converts a Unix time_t value to string in an ISO
@@ -1358,6 +1305,7 @@ virgule_escape_html_attr (apr_pool_t *p, const char *raw)
   return result;
 }
 
+
 /**
  * render_url: Render URL with a href link.
  * @p: The pool.
@@ -1435,7 +1383,7 @@ is_legal_UTF8(unsigned char *source, char length)
 
 
 /**
- * in_input_valid: Checks a null-terminated char string to see if there
+ * is_input_valid: Checks a null-terminated char string to see if there
  * are any invalid UTF-8 byte sequences or illegal XML characters.
  *
  * Returns: TRUE if string is valid, FALSE otherwise
@@ -1484,20 +1432,116 @@ virgule_sha1(apr_pool_t *p, const char *input)
 
 
 /**
- * virgule_youtube_link - return a standard format block of HTML to embed a
- * YouTube video with the passed video ID.
- */
+ * virgule_decode_textarea: Prepare textarea data for saving
+ * @p: APR memory pool pointer.
+ * @raw: The original raw string.
+ *
+ * This attempts to handle common line feed issues with text areas by
+ * preserving certain combinations of line feeds as <br>s while removing
+ * other combinations of line feeds.
+ *
+ * In theory, what we want to do is:
+ * convert \r\n to <br/> when saving editor data as HTML
+ * convert <br/> to \n when loading HTML into the editor
+ *
+ * Return value: textarea data ready for saving.
+ **/
 char *
-virgule_youtube_link (VirguleReq *vr, const char *id)
+virgule_decode_textarea (apr_pool_t *p, const char *raw)
 {
-  apr_pool_t *p = vr->r->pool;
+    char *out = NULL;
 
-  if( strchr( id, '<') != NULL ) return "";
-
-  return apr_psprintf (p, "<object width=\"425\" height=\"350\">\n"
-                          "<param name=\"movie\" value=\"http://www.youtube.com/v/%s\" />\n"
-                          "<param name=\"wmode\" value=\"transparent\" />\n"
-                          "<embed src=\"http://www.youtube.com/v/%s\" type=\"application/x-shockwave-flash\" wmode=\"transparent\" width=\"425\" height=\"350\"></embed>\n"
-                          "</object>",
-                          id,id);
+    if(raw == NULL)
+	return NULL;
+    
+    out = virgule_str_subst(p, (char *)raw, ">\r\n<","><");
+    out = virgule_str_subst(p, out, "\r\n<p>","<p>");
+    out = virgule_str_subst(p, out, "\r\n</p>","</p>");
+    out = virgule_str_subst(p, out, "<p>\r\n","<p>");
+    out = virgule_str_subst(p, out, "</p>\r\n","</p>");
+    out = virgule_str_subst(p, out, "\r\n", "<br/>\n");
+    
+    return out;
 }
+
+
+/**
+ * virgule_encode_textarea: Prepare textarea data for rendering
+ * @p: APR memory pool pointer.
+ * @raw: The original raw string.
+ *
+ * This attempts to handle common line feed issues with text areas by
+ * inserting linefeeds that will make the display more readable.
+ *
+ * In theory, what we want to do is:
+ * convert \r\n to <br/> when saving editor data as HTML
+ * convert <br/> to \n when loading HTML into the editor
+ *
+ * Return value: textarea data ready for display.
+ **/
+char *
+virgule_encode_textarea (apr_pool_t *p, const char *raw)
+{
+    char *out = NULL;
+    
+    if(raw == NULL)
+	return NULL;
+    
+    out = virgule_str_subst(p, (char *)raw, "<br>\n", "\r\n");
+    out = virgule_str_subst(p, out, "<br/>\n", "\r\n");
+    
+    return out;
+}
+
+
+/**
+ * virgule_strsub - Return a newly allocated copy of str with any 
+ * occurances of string o(ld) replaced with string n(ew).
+ * duh - I wrote this and then realized Raph had already written
+ * essentially the same thing. For now I'm using his but maybe it
+ * would make sense to see if one or the other of these is more
+ * efficient or faster?
+ */
+/*
+char *
+virgule_strsub(apr_pool_t *pool, const char *str, const char *o, const char *n)
+{
+    int cnt = 0;
+    int strl = strlen(str);
+    int ol = strlen(o);
+    int nl = strlen(n);
+    int bl = 0;
+    int i = 0;
+
+    char *out = NULL;
+    char *op = NULL;
+    char *p = NULL;
+    char *end = (char *)str + strl;
+*/
+    /* count occurances of old in string */
+/*    for (p = (char *)str; p < end; p++)
+	if (strncmp (p, o, ol) == 0)
+	    cnt++;
+*/
+    /* calculate buffer size and allocate */
+/*    bl = strl - (ol * cnt) + (nl * cnt) + 1;
+    out = apr_palloc (pool, bl);
+*/        
+    /* make replacements during copy */
+/*    for (p = (char *)str, op = out; p < end;)
+    {
+	if (strncmp (p, o, ol) == 0)
+	{
+	    for (i = 0; i < nl; i++)
+		*(op+i) = *(n+i);
+	    p+=ol;
+	    op+=nl;
+	}
+	else *op++ = *p++;
+    }
+    *op = 0;
+        
+    return out;
+}
+*/
+
