@@ -75,5 +75,32 @@ virgule_is_input_valid(const char *val);
 char *
 virgule_sha1(apr_pool_t *p, const char *input);
 
+void
+nice_element (VirguleReq *vr, const AllowedTag *tag, xmlNodePtr n, const char *baseurl);
+
+void
+virgule_normalize_html_node (VirguleReq *vr, xmlNodePtr tree, const char *baseurl);
+
 char *
-virgule_youtube_link (VirguleReq *vr, const char *id);
+virgule_normalize_html_tree (VirguleReq *vr, xmlNodePtr tree, const char *baseurl);
+
+char *
+virgule_normalize_html (VirguleReq *vr, const char *raw, const char *baseurl);
+
+char *
+virgule_format_content (VirguleReq *vr, char *raw, int format_type);
+
+void
+virgule_xmlSetListNs(xmlNodePtr list, xmlNsPtr ns);
+
+void
+virgule_xmlSetTreeNs (xmlNodePtr tree, xmlNsPtr ns);
+
+char *
+virgule_encode_textarea (apr_pool_t *p, const char *raw);
+
+char *
+virgule_decode_textarea (apr_pool_t *p, const char *raw);
+
+//char *
+//virgule_strsub(apr_pool_t *pool, const char *str, const char *o, const char *n);

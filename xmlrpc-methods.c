@@ -149,7 +149,6 @@ diary_set (VirguleReq *vr, xmlNode *params)
   const char *user;
   int index, max;
   const char *key;
-  char *error;
   int ret;
 
   ret = virgule_xmlrpc_unmarshal_params (vr, params, "sis", &cookie, &index, &entry);
@@ -168,9 +167,9 @@ diary_set (VirguleReq *vr, xmlNode *params)
     return virgule_xmlrpc_fault (vr, 1, "invalid entry key %d", index);
   key = apr_psprintf (vr->r->pool, "acct/%s/diary/_%d", user, index);
   
-  entry = virgule_nice_htext (vr, entry, &error);
-  if (error)
-    return virgule_xmlrpc_fault (vr, 1, "%s", error);
+  entry = virgule_normalize_html (vr, entry, NULL);
+  if (entry == NULL)
+    return virgule_xmlrpc_fault (vr, 1, "error parsing diary entry");
   ret = virgule_diary_store_entry (vr, key, entry);
   if (ret)
     return virgule_xmlrpc_fault (vr, 1, "error storing diary entry");

@@ -188,13 +188,13 @@ proj_new_serve (VirguleReq *vr)
   if (virgule_set_temp_buffer (vr) != 0)
     return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_puts (vr->b, "<p> Create a new <x>project</x>: </p>\n"
+  virgule_buffer_puts (vr->b, "<p>Create a new <x>project</x>:</p>\n"
 	       "<form method=\"POST\" action=\"newsub.html\" accept-charset=\"UTF-8\">\n");
 
   virgule_schema_render_inputs (p, vr->b, proj_fields, fields, NULL);
 
 
-  virgule_buffer_puts (vr->b, " <p> <input type=\"submit\" value=\"Create\">\n"
+  virgule_buffer_puts (vr->b, "<p><input type=\"submit\" value=\"Create\">\n"
 	       "</form>\n");
 
   virgule_render_acceptable_html (vr);
@@ -231,8 +231,12 @@ proj_newsub_serve (VirguleReq *vr)
   fmurl = apr_table_get (args, "fmurl");
   desc = apr_table_get (args, "desc");
   license = apr_table_get (args, "license");
-  notes = apr_table_get (args, "notes");
   date = virgule_iso_now (p);
+  notes = apr_table_get (args, "notes");
+  notes = virgule_decode_textarea (p, notes);
+  /* newlines encoded because of the way libxml2 stores properties */
+  notes = virgule_str_subst(p, notes, "\n", "&#10;");
+  notes = virgule_normalize_html (vr, notes, NULL);
 
   if (!name[0])
     return virgule_send_error_page (vr, vERROR, "form data",
@@ -271,6 +275,7 @@ proj_newsub_serve (VirguleReq *vr)
   xmlSetProp (tree, (xmlChar *)"notes", (xmlChar *)notes);
   xmlSetProp (tree, (xmlChar *)"license", (xmlChar *)license);
   xmlSetProp (tree, (xmlChar *)"creator", (xmlChar *)vr->u);
+  xmlSetProp (tree, (xmlChar *)"format", (xmlChar *)"1");
   if (virgule_req_ok_to_create_project (vr))
     xmlSetProp (tree, (xmlChar *)"locked", (xmlChar *)"yes");
 
@@ -406,13 +411,13 @@ proj_proj_serve (VirguleReq *vr, const char *path)
   char *title;
   xmlDoc *doc, *staff;
   xmlNode *tree;
-  char *err;
   char *cdate;
   const char *fields[] = { "type", NULL };
   char *first;
   xmlNode *myrel;
   char *proj_dir;
   int n_replies;
+  int format_type = 0;
 
   virgule_auth_user (vr);
 
@@ -465,6 +470,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
       char *lastmodby;
       char *mdate;
       char *share = NULL;
+      char *format_str = NULL;
 
       creator = virgule_xml_get_prop (p, tree, (xmlChar *)"creator");
       lastmodby = virgule_xml_get_prop (p, tree, (xmlChar *)"lastmodby");
@@ -509,34 +515,38 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 	{
 	  virgule_buffer_printf (b, virgule_render_url (p,
 					vr->priv->projstyle != PROJSTYLE_NICK ?
-					" Homepage: " :
-					" URL: ",
+					"Homepage: " :
+					"URL: ",
 					url));
 	}
       fmurl = virgule_xml_get_prop (p, tree, (xmlChar *)"fmurl");
       if (fmurl && fmurl[0])
 	{
 	  virgule_buffer_printf (b,
-			 virgule_render_url (p, " Freshmeat page: ", fmurl));
+			 virgule_render_url (p, "Freshmeat page: ", fmurl));
 	}
+
+      format_str = virgule_xml_get_prop (p, tree, (xmlChar *)"format");
+      if (format_str != NULL)
+        format_type = atoi (format_str);
 
       notes = virgule_xml_get_prop (p, tree, (xmlChar *)"notes");
       if (notes && notes[0])
-	virgule_buffer_printf (b, "<p> <b>Notes:</b> %s </p>\n", virgule_nice_htext (vr, notes, &err));
+	virgule_buffer_printf (b, "<p><b>Notes:</b> %s</p>\n", virgule_format_content (vr, notes, format_type));
 
       license = virgule_xml_get_prop (p, tree, (xmlChar *)"license");
       if (license && license[0])
-	virgule_buffer_printf (b, "<p> License: %s </p>\n", virgule_nice_text (p, license));
+	virgule_buffer_printf (b, "<p>License: %s</p>\n", virgule_nice_text (p, license));
 
       desc = virgule_xml_get_prop (p, tree, (xmlChar *)"desc");
       if (desc && desc[0])
-	virgule_buffer_printf (b, "<p> Description: %s </p>\n", virgule_nice_text (p, desc));
+	virgule_buffer_printf (b, "<p>Description: %s</p>\n", virgule_nice_text (p, desc));
 
       if (vr->priv->projstyle != PROJSTYLE_NICK)
 	{
 	  /* Render staff listings */
 	  myrel = NULL;
-	  first = "<p> This <x>project</x> has the following developers: </p>\n"
+	  first = "<p>This <x>project</x> has the following developers:</p>\n"
 	    "<ul>\n";
 	  db_key = apr_psprintf (p, "proj/%s/staff-name.xml", name);
 
@@ -566,7 +576,7 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 
 	  if (proj_ok_to_edit (vr, doc))
 	    {
-	      virgule_buffer_printf (b, "<p> I have the following relation to %s: </p>\n"
+	      virgule_buffer_printf (b, "<p>I have the following relation to %s:</p>\n"
 			     "<form method=\"POST\" action=\"../relsub.html\">\n"
 			     "<input type=\"hidden\" name=\"name\" value=\"%s\">\n",
 			     virgule_nice_text (p, name), virgule_escape_html_attr (p, name));
@@ -587,16 +597,16 @@ proj_proj_serve (VirguleReq *vr, const char *path)
 
 	  if (virgule_req_ok_to_post (vr))
 	    {
-	      virgule_buffer_printf (b, "<p> Post a reply: %s. </p>\n"
+	      virgule_buffer_printf (b, "<p>Post a reply: %s.</p>\n"
 		"<form method=\"POST\" action=\"/proj/replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		" <p> Reply title: <br>\n"
-		" <input type=\"text\" name=\"title\" size=50> </p>\n"
+		" <input type=\"text\" name=\"title\" size=\"50\"> </p>\n"
 		" <p> Body of reply: <br>\n"
-		" <textarea name=\"body\" cols=72 rows=16 wrap=soft>"
+		" <textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
 		"</textarea> </p>\n"
 		" <input type=\"hidden\" name=\"name\" value=\"%s\">\n"
-		" <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		" <input type=\"submit\" name=preview value=\"Preview\">\n"
+		" <p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		" <input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 		"</form>\n", virgule_nice_text (p, name), virgule_escape_html_attr (p, name));
 
 	      virgule_render_acceptable_html (vr);
@@ -685,7 +695,7 @@ proj_edit_serve (VirguleReq *vr)
   if (virgule_set_temp_buffer (vr) != 0)
     return HTTP_INTERNAL_SERVER_ERROR;
 
-  virgule_buffer_printf (vr->b, "<p> Edit <x>project</x> for %s: </p>\n"
+  virgule_buffer_printf (vr->b, "<p>Edit <x>project</x> for %s: </p>\n"
 	       "<form method=\"POST\" action=\"editsub.html\">\n"
 		 "<input type=\"hidden\" name=\"name\" value=\"%s\">\n",
 		 virgule_nice_text (p, name), virgule_escape_html_attr(p, name));
@@ -740,7 +750,7 @@ proj_editsub_serve (VirguleReq *vr)
   tree = virgule_xml_find_child (doc->xmlRootNode, "info");
   date = virgule_iso_now (p);
 
-  virgule_schema_put_fields (p, proj_fields, fields, tree, args);
+  virgule_schema_put_fields (vr, proj_fields, fields, tree, args);
 
   xmlSetProp (tree, (xmlChar *)"mdate", (xmlChar *)date);
   xmlSetProp (tree, (xmlChar *)"lastmodby", (xmlChar *)vr->u);
@@ -899,7 +909,7 @@ proj_update_all_pointers_serve (VirguleReq *vr)
  * proj_reply_submit_serve - this appears to be used only in the NICK style
  * project configuration which turns the project area into a sort of 
  * citadel style room-based discussion forum. This is not used in standard
- * in standard configurations.
+ * configurations.
  */
 static int
 proj_reply_submit_serve (VirguleReq *vr)
@@ -915,7 +925,6 @@ proj_reply_submit_serve (VirguleReq *vr)
   xmlNode *tree;
   int status;
   char *str; 
-  char *body_error;
   char *nice_title;
   char *nice_body;
 
@@ -924,7 +933,6 @@ proj_reply_submit_serve (VirguleReq *vr)
   if (args == NULL)
     return virgule_send_error_page (vr, vERROR, "form data", "Invalid form submission.");
 
-  /* XXX */
   name = apr_table_get (args, "name");
   title = apr_table_get (args, "title");
   body = apr_table_get (args, "body");
@@ -950,7 +958,11 @@ proj_reply_submit_serve (VirguleReq *vr)
 
 
   nice_title = virgule_nice_text (p, title);
-  nice_body = body == NULL ? NULL : virgule_nice_htext (vr, body, &body_error);
+  if(body != NULL)
+    {
+      nice_body = virgule_decode_textarea (p, (char *)body);
+      nice_body = virgule_format_content (vr, nice_body, 1);
+    }
 
   if (apr_table_get (virgule_get_args_table (vr), "preview"))
     {
@@ -960,18 +972,18 @@ proj_reply_submit_serve (VirguleReq *vr)
       virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
       virgule_buffer_puts (vr->b, nice_title);
       virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
-      virgule_buffer_printf (vr->b, "<p> %s </p>\n", nice_body);
+      virgule_buffer_printf (vr->b, "<p>%s</p>\n", nice_body ? nice_body : "");
       virgule_buffer_puts (vr->b, "<hr>\n");
-      virgule_buffer_printf (vr->b, "<p> Edit your reply: </p>\n"
+      virgule_buffer_printf (vr->b, "<p>Edit your reply:</p>\n"
 		     "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-		     "<p> Reply title: <br>\n"
-		     "<input type=\"text\" name=\"title\" value=\"%s\" size=50></p>\n"
-		     "<p> Body of reply: <br>\n"
-		     "<textarea name=\"body\" cols=72 rows=16 wrap=soft>%s"
-		     "</textarea> </p>\n"
+		     "<p>Reply title:<br>\n"
+		     "<input type=\"text\" name=\"title\" value=\"%s\" size=\"50\"></p>\n"
+		     "<p>Body of reply:<br>\n"
+		     "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">%s"
+		     "</textarea></p>\n"
 		     "<input type=\"hidden\" name=\"name\" value=\"%s\">\n"
-		     "<p> <input type=\"submit\" name=post value=\"Post\">\n"
-		     "<input type=\"submit\" name=preview value=\"Preview\">\n"
+		     "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		     "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 		     "</form>\n",
 		     virgule_escape_html_attr (p, title),
 		     ap_escape_html (p, body),
@@ -1034,7 +1046,7 @@ proj_reply_submit_serve (VirguleReq *vr)
  * proj_reply_form_serve - this appears to be used only in the NICK style
  * project configuration which turns the project area into a sort of 
  * citadel style room-based discussion forum. This is not used in standard
- * in standard configurations.
+ * configurations.
  */
 static int
 proj_reply_form_serve (VirguleReq *vr)
@@ -1071,13 +1083,13 @@ proj_reply_form_serve (VirguleReq *vr)
   virgule_buffer_printf (b, "<p> Post a reply to <x>project</x>: %s. </p>\n"
 		 "<form method=\"POST\" action=\"/proj/replysubmit.html\" accept-charset=\"UTF-8\">\n"
 		 " <p> Reply title: <br>\n"
-		 " <input type=\"text\" name=\"title\" size=50> </p>\n"
+		 " <input type=\"text\" name=\"title\" size=\"50\"> </p>\n"
 		 " <p> Body of reply: <br>\n"
-		 " <textarea name=\"body\" cols=72 rows=16 wrap=soft>"
+		 " <textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
 		 "</textarea> </p>\n"
 		 " <input type=\"hidden\" name=\"name\" value=\"%s\">\n"
-		 " <p> <input type=\"submit\" name=post value=\"Post\">\n"
-		 " <input type=\"submit\" name=preview value=\"Preview\">\n"
+		 " <p> <input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		 " <input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 		 "</form>\n",
 		 virgule_render_proj_name (vr, name),
 		 virgule_escape_html_attr (p, name));

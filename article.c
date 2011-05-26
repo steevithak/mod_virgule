@@ -6,6 +6,7 @@
 #include <apr.h>
 #include <apr_strings.h>
 #include <httpd.h>
+#include <http_log.h>
 
 #include <libxml/tree.h>
 
@@ -65,11 +66,13 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
   if (doc != NULL)
     {
       xmlNode *root = doc->xmlRootNode;
+      int format_type = 0;
       char *author;
       char *title;
       char *body;
       char *date;
 
+      format_type = atoi (virgule_xml_find_child_string ( root, "format", "0"));
       author = virgule_xml_find_child_string (root, "author", "(no author)");
       title = virgule_xml_find_child_string (root, "title", "(no title)");
       body = virgule_xml_find_child_string (root, "body", "(no body)");
@@ -80,7 +83,8 @@ article_render_reply (VirguleReq *vr, int art_num, int reply_num)
 		     reply_num, title, virgule_render_date (vr, date, 1), vr->prefix, ap_escape_uri(vr->r->pool, author), author, reply_num);
       virgule_render_cert_level_text (vr, author);
       virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
-      virgule_buffer_printf (b, "<blockquote>\n%s\n</blockquote>\n", body);
+      virgule_buffer_printf (b, "<div>%s</div>\n",
+    			     virgule_format_content (vr, body, format_type));
     }
   else
     {
@@ -125,6 +129,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 {
   Buffer *b = vr->b;
   xmlNode *root = doc->xmlRootNode;
+  int format_type = 0;
   char *date;
   char *update;
   char *updatestr = "";
@@ -140,6 +145,7 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
   char *article_dir;
   CertLevel cert_level;
 
+  format_type = atoi (virgule_xml_find_child_string ( root, "format", "0"));
   topic = virgule_xml_find_child_string (root, "topic", "(no topic)");
   title = virgule_xml_find_child_string (root, "title", "(no title)");
   date = virgule_xml_find_child_string (root, "date", "(no date)");
@@ -197,7 +203,8 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 		 virgule_render_date (vr, date, 1), updatestr, vr->prefix, 
 		 ap_escape_uri(vr->r->pool, author), author, editstr, bmbox);
 
-  virgule_buffer_printf (b, "<p>%s</p>",lead);
+  virgule_buffer_printf (b, "<div class=\"content\">%s</div>",
+                         virgule_format_content (vr, lead, format_type));
 
   article_dir = apr_psprintf (vr->r->pool, "articles/_%d", art_num);
   n_replies = virgule_db_dir_max (vr->db, article_dir) + 1;
@@ -206,7 +213,8 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
       char *body;
       body = virgule_xml_find_child_string (root, "body", NULL);
       if (body)
-	  virgule_buffer_printf (b, "<p>%s</p>\n", body);
+	  virgule_buffer_printf (b, "<div class=\"content\">%s</div>\n",
+                                 virgule_format_content (vr, body, format_type));
 
       article_render_replies (vr, art_num);
 
@@ -214,9 +222,9 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
         {
 	  virgule_buffer_printf (b, "<hr><p>Post a reply to <x>article</x>: %s.</p>\n"
                  "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-		 "<p>Reply title: <br>\n"
+		 "<p>Reply title: <br/>\n"
 		 "<input type=\"text\" name=\"title\" size=\"50\" maxlength=\"60\"></p>\n"
-		 "<p> Body of reply: <br>\n"
+		 "<p> Body of reply: <br/>\n"
 		 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
 		 "</textarea></p>\n"
 		 "<input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
@@ -244,13 +252,13 @@ article_render_from_xml (VirguleReq *vr, int art_num, xmlDoc *doc, ArticleRender
 	n_new = n_replies;
 
 
-      virgule_buffer_printf (b, "<p><a href=\"%s/article/%d.html\">Read more...</a> (%d repl%s) ",
+      virgule_buffer_printf (b, "<div class=\"readmore\"><a href=\"%s/article/%d.html\">Read more...</a> (%d repl%s) ",
 		     vr->prefix,
 		     art_num, n_replies, n_replies == 1 ? "y" : "ies");
       if (n_new > 0)
         virgule_buffer_printf (b, "(<a href=\"%s/article/%d.html#lastread\">%d new</a>) ",
 		       vr->prefix, art_num, n_new);
-      virgule_buffer_puts (b, "</p>\n");
+      virgule_buffer_puts (b, "</div>\n");
     }
   virgule_buffer_puts (b, "</div>\n");
 }
@@ -282,6 +290,9 @@ article_render (VirguleReq *vr, int art_num, int render_body)
 }
 
 
+/**
+ * article_form_serve: renders the article posting form for authorized users
+ */
 static int
 article_form_serve (VirguleReq *vr)
 {
@@ -302,7 +313,7 @@ article_form_serve (VirguleReq *vr)
 
   if(vr->priv->use_article_topics)
     {
-      virgule_buffer_puts (vr->b,"<p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
+      virgule_buffer_puts (vr->b,"<p><b><x>Article</x> topic</b>:<br/>\n <select name=\"topic\">\n");
 
       for (t = vr->priv->topics; *t; t++)
 	virgule_buffer_printf (vr->b, "<option>%s</option>\n", (*t)->desc);
@@ -310,20 +321,20 @@ article_form_serve (VirguleReq *vr)
       virgule_buffer_puts (vr->b,"</select></p>\n");
     }
   
-  virgule_buffer_puts (vr->b,"<p><b><x>Article</x> title</b>:<br>\n");
+  virgule_buffer_puts (vr->b,"<p><b><x>Article</x> title</b>:<br/>\n");
 
   virgule_buffer_printf (vr->b,"<input type=\"text\" name=\"title\" size=\"40\" maxlength=\"%i\"></p>\n", vr->priv->article_title_maxsize);
 
   virgule_buffer_puts (vr->b,"<p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
 	       "of the story complete with links to original sources when "
-	       "appropriate.<br>"
-	       " <textarea name=\"lead\" cols=72 rows=6 wrap=hard>"
+	       "appropriate.<br/>"
+	       " <textarea name=\"lead\" cols=\"72\" rows=\"6\" wrap=\"soft\">"
 	       "</textarea></p>\n"
 	       "<p><b><x>Article</x> Body</b>. This should contain the body "
 	       "of your article and may be as long as needed. If your entire "
 	       "article is only one paragraph, put it in the lead field above "
-	       "and leave this one empty.<br>"
-	       "<textarea name=\"body\" cols=72 rows=16 wrap=hard>"
+	       "and leave this one empty.<br/>"
+	       "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
 	       "</textarea></p>\n"
 	       "<p><input type=\"submit\" name=preview value=\"Preview\">\n"
 	       "</form>\n");
@@ -379,10 +390,11 @@ article_generic_submit_serve (VirguleReq *vr,
   xmlNode *tree;
   int status;
   char *str = NULL;
-  char *lead_error, *body_error;
-  char *nice_title;
-  char *nice_lead;
-  char *nice_body;
+  char *lead_error = NULL;
+  char *body_error = NULL;
+  char *nice_title = NULL;
+  char *nice_lead = NULL;
+  char *nice_body = NULL;
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
@@ -401,8 +413,18 @@ article_generic_submit_serve (VirguleReq *vr,
     return virgule_send_error_page (vr, vERROR, "Need body", "Your reply needs a body. Go back and try again.");
 
   nice_title = virgule_nice_text (p, title);
-  nice_lead = lead == NULL ? "" : virgule_nice_htext (vr, lead, &lead_error);
-  nice_body = body == NULL ? "" : virgule_nice_htext (vr, body, &body_error);
+
+  if(lead != NULL)
+    {
+      nice_lead = virgule_decode_textarea (p, (char *)lead);
+      nice_lead = virgule_normalize_html (vr, nice_lead, NULL);
+    }
+
+  if(body != NULL)
+    {
+      nice_body = virgule_decode_textarea (p, (char *)body);
+      nice_body = virgule_normalize_html (vr, nice_body, NULL);
+    }
 
   args = virgule_get_args_table (vr);
   if(olddate != NULL)
@@ -424,16 +446,16 @@ article_generic_submit_serve (VirguleReq *vr,
 	{
           str = apr_pstrdup (p, "Reply preview");
 	  virgule_render_cert_level_begin (vr, vr->u, CERT_STYLE_MEDIUM);
-	  virgule_buffer_printf (b, "<font size=+2><b>%s</b></font><br>\n", nice_title);
+	  virgule_buffer_printf (b, "<font size=+2><b>%s</b></font><br/>\n", nice_title);
 	  virgule_render_cert_level_end (vr, CERT_STYLE_MEDIUM);
-	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_body);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_body ? nice_body : "");
 	  virgule_buffer_puts (b, "<hr>\n");
 	  virgule_buffer_printf (b, "<p>Edit your reply:</p>\n"
 			 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-			 "<p><x>Article</x> title: <br>\n"
+			 "<p><x>Article</x> title: <br/>\n"
 			 "<input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"60\"></p>\n"
-			 "<p>Body of <x>article</x>: <br>\n"
-			 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"hard\">%s"
+			 "<p>Body of <x>article</x>: <br/>\n"
+			 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">%s"
 			 "</textarea></p>\n"
 			 "<input type=\"hidden\" name=\"art_num\" value=\"%s\">\n"
 			 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
@@ -462,7 +484,7 @@ article_generic_submit_serve (VirguleReq *vr,
             virgule_buffer_puts (b, "</td></tr></table>\n");
 
 	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_lead);
-	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_body);
+	  virgule_buffer_printf (b, "<p>%s</p>\n", nice_body ? nice_body : "");
 	  virgule_buffer_puts (b, "<hr>\n");
 	  virgule_buffer_puts (b, "<p>Edit your <x>article</x>:</p>\n"
 		"<form method=\"POST\" action=\"postsubmit.html\" accept-charset=\"UTF-8\">\n");
@@ -475,7 +497,7 @@ article_generic_submit_serve (VirguleReq *vr,
 	    
 	  if(vr->priv->use_article_topics)
 	    {
-	      virgule_buffer_puts (b, "<p><b><x>Article</x> topic</b>:<br>\n <select name=\"topic\">\n");
+	      virgule_buffer_puts (b, "<p><b><x>Article</x> topic</b>:<br/>\n <select name=\"topic\">\n");
 
               for (t = vr->priv->topics; *t; t++)
 	        virgule_buffer_printf (b, "<option%s>%s</option>\n",
@@ -485,13 +507,13 @@ article_generic_submit_serve (VirguleReq *vr,
 	    }
 
 	  virgule_buffer_printf (b,
-			 "<p><b><x>Article</x> title</b>:<br>\n"
+			 "<p><b><x>Article</x> title</b>:<br/>\n"
 			 "<input type=\"text\" name=\"title\" value=\"%s\" size=\"40\" maxlength=\"%i\"></p>\n"
 	        	 "<p><b><x>Article</x> lead</b>. This should be a one paragraph summary "
 	    		 "of the story complete with links to the original "
-	    		 "sources when appropriate.<br>"			 
-			 "<textarea name=\"lead\" cols=72 rows=6 wrap=hard>%s"
-			 "</textarea> </p>\n",
+	    		 "sources when appropriate.<br/>"			 
+			 "<textarea name=\"lead\" cols=\"72\" rows=\"6\" wrap=\"soft\">%s"
+			 "</textarea></p>\n",
 			 virgule_str_subst (p, title, "\"", "&quot;"),
 			 vr->priv->article_title_maxsize,
 			 ap_escape_html (p, lead));
@@ -501,8 +523,8 @@ article_generic_submit_serve (VirguleReq *vr,
 	  virgule_buffer_printf (b,"<p><b><x>Article</x> Body</b>. This should "
 	    		 "contain the body of your article and may be as long as "
 			 "needed. If your entire article is only one paragraph, "
-			 "put it in the lead field above and leave this one empty<br>"
-			 "<textarea name=\"body\" cols=72 rows=16 wrap=hard>%s"
+			 "put it in the lead field above and leave this one empty<br/>"
+			 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">%s"
 			 "</textarea></p>\n"
 			 "<p><b>Warning:</b> Please proof read your article "
 			 "and verify spelling and any html markup before posting. "
@@ -541,6 +563,7 @@ article_generic_submit_serve (VirguleReq *vr,
     {
       tree = xmlNewChild (root, NULL, (xmlChar *)"date", (xmlChar *)date);
     }
+  xmlNewChild (root, NULL, (xmlChar *)"format", (xmlChar *)"1");
   tree = xmlNewChild (root, NULL, (xmlChar *)"author", (xmlChar *)vr->u);
 
   tree = xmlNewChild (root, NULL, (xmlChar *)"title", NULL);
@@ -701,8 +724,14 @@ article_edit_serve (VirguleReq *vr)
 
   topic = virgule_xml_find_child_string (root, "topic", NULL);
   title = virgule_xml_find_child_string (root, "title", NULL);
+
   lead = virgule_xml_find_child_string (root, "lead", NULL);
+  if (lead)
+    lead = virgule_encode_textarea (vr->r->pool, (char *)lead);
+
   body = virgule_xml_find_child_string (root, "body", NULL);
+  if (body)
+    body = virgule_encode_textarea (vr->r->pool, (char *)body);
 
   /* load the editor in preview mode */
   return article_generic_submit_serve (vr, topic, title, lead, body, date, 
@@ -756,14 +785,14 @@ article_reply_form_serve (VirguleReq *vr)
 
   virgule_buffer_printf (vr->b, "<p>Post a reply to <x>article</x>: %s.</p>\n"
 		 "<form method=\"POST\" action=\"replysubmit.html\" accept-charset=\"UTF-8\">\n"
-		 "<p>Reply title: <br>\n"
-		 "<input type=\"text\" name=\"title\" size=50 maxlength=50></p>\n"
-		 "<p>Body of reply: <br>\n"
-		 "<textarea name=\"body\" cols=72 rows=16 wrap=hard>"
+		 "<p>Reply title: <br/>\n"
+		 "<input type=\"text\" name=\"title\" size=\"50\" maxlength=\"50\"></p>\n"
+		 "<p>Body of reply: <br/>\n"
+		 "<textarea name=\"body\" cols=\"72\" rows=\"16\" wrap=\"soft\">"
 		 "</textarea></p>\n"
 		 "<input type=\"hidden\" name=\"art_num\" value=\"%d\">\n"
-		 "<p><input type=\"submit\" name=post value=\"Post\">\n"
-		 "<input type=\"submit\" name=preview value=\"Preview\">\n"
+		 "<p><input type=\"submit\" name=\"post\" value=\"Post\">\n"
+		 "<input type=\"submit\" name=\"preview\" value=\"Preview\">\n"
 		 "</form>\n", title, art_num);
 
   virgule_render_acceptable_html (vr);

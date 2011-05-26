@@ -21,7 +21,7 @@ void
 virgule_schema_render_inputs (apr_pool_t *p, Buffer *b, SchemaField *sf, const char **fields, xmlNode *tree);
 
 void
-virgule_schema_put_field (apr_pool_t *p, SchemaField *sf, xmlNode *tree, apr_table_t *args);
+virgule_schema_put_field (VirguleReq *vr, SchemaField *sf, xmlNode *tree, apr_table_t *args);
 
 void
-virgule_schema_put_fields (apr_pool_t *p, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args);
+virgule_schema_put_fields (VirguleReq *vr, SchemaField *sf, const char **fields, xmlNode *tree, apr_table_t *args);

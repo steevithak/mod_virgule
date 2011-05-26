@@ -1,3 +1,197 @@
+2011-05-26 R. Steven Rainwater <steve@ncc.com>
+
+	* mod_virgule: Various minor code cleanup and debug code removal 
+	to prep for checking in to subversion.
+
+2011-05-03 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (extract_content): Skip feed items that exist in
+	markup but have no content.
+
+2010-07-21 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_getfeeds_serve): Switched to using private
+	memory pool that can be completely freed after each iteration of the
+	aggregation loop.
+	
+	* aggregator.c (extract_content): Added text/html to supported content
+	types. 
+
+
+2010-06-10 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (aggregator_post_feed): Free content and title after
+	posting each item in feed to slow down memory consumption. This
+	applies to libxml2 functions that don't use the Apache APR memory
+	pool.
+
+
+2010-02-10 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (virgule_normalize_html, virgule_normalize_html_tree): 
+	Added baseurl argument to allow the content aggregator to pass the
+	base URL used for relative image anchor tags.
+
+	* aggregator.c (extract_content): Now passed the feed's base URL to
+	the HTML normalization procedures, so that images with relative
+	anchor tags can be converted to absolute URLs.
+
+	* util.c (virgule_normalize_html_node, virgule_nice_element):
+	Added recursive functions for normalizing HTML tree nodes and nicing
+	individual elements and properties. When nice_element updates the
+	properties, relative img src URLs are corrected to absolute using
+	the baseurl (when available). This should fix some of the bad images
+	that show up in syndicated blog posts.
+
+
+2009-05-27 R. Steven Rainwater <steve@ncc.com>
+
+	* attc_maint.c (acct_maint): Fixed rare segfault that could occur
+	when computing stats on a user database that had zero users at one
+	of the certification levels.
+
+
+2009-05-20 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.c (extract_content): new function to extract content
+	from a syndicated feed item based on the explicitly specified or
+	guessed content type. This should allow to us properly parse feeds
+	containing unescaped XHTML tags inside of the feed's XML tags. Any
+	feed that does not explicitly specify the content type is assumed
+	to be either XML escaped HTML markup or a CDATA section contain
+	raw HTML.
+
+	* aggregator.c (aggregator_index_rdf_site_summary_10): Added support
+	for feeds that use the description tag rather than the more common
+	Dublin Core content tag.
+	
+	* aggregator.c (aggregator_index_atom_10): Added parsing of the feed's
+	content type for use by the content extractor. So far types of 'html'
+	and 'xhtml' are supported.
+
+
+2009-04-24 R. Steven Rainwater <steve@ncc.com>
+
+	* aggregator.h (struct _FeedItem): added strcontent, a pointer to
+	a fully parsed, stringified version of the feed item content.
+
+	* aggregator.c (aggregator_post_feed): extract feed content as a 
+	string to simplify parsing on our end.
+
+
+2009-02-13 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (nice_element): rewrote element property scanner to work
+	with the libxml2 parser. 
+
+
+2009-01-26 R. Steven Rainwater <steve@ncc.com>
+
+	* util.c (virgule_nice_htext, nice_tag, find_end_tag, match_tag):
+	Removed these functions, which have been replaced by the libxml2
+	HTML parser.
+
+	* util.c (virgule_normalize_html_tree): Broke out tree-specific
+	portion of HTML parser. If you need to normalize an existing XML
+	tree, use virgule_normalize_html_tree(). If you need to clean up
+	a text buffer of HTML-like tag soup, call virgule_normalize_html(),
+	which will turn it into a legal XML tree and pass it to, you guessed
+	it, virgule_normalize_html_tree().
+
+	* diary.c (virgule_diary_store_feed_item): Adapted to work with the
+	new libxml2 HTML parser.
+
+
+2009-01-23 R. Steven Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_person_serve): Renders appropriately based on
+	content type.
+
+	* acct_maint.c (acct_update_serve, acct_newsub_serve): updated to
+	work with libxml2 HTML parser and store with format type identifier.
+
+2009-01-19 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c, diary.c, proj.c, schema.c: lots of minor tweaks to 
+	normalize the preview, editing and storage paths of content in these
+	modules. This should make HTML handling more consistent and hopefully
+	will allow us to someday combined the common code.
+
+	* proj.c (proj_newsub_serve, proj_proj_serve): updated to work with 
+	libxml2 HTML parser and store with format type identifier.
+
+	* schema.c (virgule_schema_render_input, virgule_schema_put_field): 
+	Textarea fields now receive additional processing to improve line 
+	break handling. Removed	redundant entity escaping on textarea fields.
+
+
+2009-01-16 R. Steven Rainwater <steve@ncc.com>
+
+	* proj.c (proj_proj_serve, proj_reply_submit_serve):
+	* proj.c ( proj_reply_form_serve): Fixed broken HTML in forms.
+
+	* aggregator.c (aggregator_post_feed): Added support for parsing of
+	gzipped	feeds.
+
+
+2008-12-19 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_generic_submit_serve, article_edit_serve): 
+	updated code to work with libxml2 HTML parser and fixed random 
+	HTML markup bugs. All form textareas now use softwrap.
+
+	* diary.c (diary_edit_serve, diary_post_serve, diary_preview_serve):
+	updated code to work with libxml2 HTML parser and fixed random 
+	HTML markup bugs. All form textareas now use softwrap.
+
+
+2008-12-17 R. Steven Rainwater <steve@ncc.com>
+
+	* site.c (site_render): Removed experimental YouTube tag.
+
+	* util.c (virgule_youtube_link): Removed experimental YouTube tag.
+
+	* util.c (nice_person_link, nice_project_link): Updated to work
+	with the new libxml2 based HTML parser.
+
+	* wiki.c (virgule_wiki_link): Updated to work with new HTML parser.
+
+
+2008-12-16 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_render_reply): Now passes content to 
+	virgule_format_content() for appropriate formatting at render time.
+	
+	* article.c (article_render_from_xml): Now passes lead and body to
+	virgule_format_content() for appropriate formatting at render time.
+	Also improved CSS support in HTML markup for articles. NOTE: All
+	this format tag stuff is strickly to maintain backward compatibilty
+	on Advogato and robots.net. Once the migration to the new HTML
+	parser is complete and the database at those sites are updated, I'll
+	pull this stuff out. It should be safe to go ahead and use the code
+	on new sites in the meantime. No functionality will be lost when
+	the format stuff is removed.
+	
+
+2008-11-25 R. Steven Rainwater <steve@ncc.com>
+
+	* article.c (article_generic_submit_serve): Added storage format type
+	field with a default of type 0.
+
+	* diary.c (virgule_diary_store_entry): Added storage format type
+	field with a default of type 0.
+
+	* diary.c (virgule_diary_store_feed_item): Added storage format type
+	field with a default of type 1.
+
+	* util.c (virgule_normalize_html): Added new function to normalize
+	any tag soup that even vaguely resembles HTML or XML. This is based
+	on libxml2 and replaces mod_virgule's older homebrew HTML parser.
+	
+	* util.c (virgule_format_content): Added new function to call an
+	appropriate content formatting function based on type of content.
+
+
 2008-09-27 R. Steven Rainwater <steve@ncc.com>
 
 	* site.c: Removed deprecated AdInfo struct

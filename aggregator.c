@@ -27,6 +27,8 @@
 #include <apr.h>
 #include <apr_strings.h>
 #include <httpd.h>
+#include <http_protocol.h>
+#include <http_log.h>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -86,6 +88,11 @@ virgule_buffer_printf (vr->b, "<br/>author [%s]<br />entry permalink [%s]<br/>ti
 virgule_buffer_printf (vr->b, "<p>Latest Entry: [%s][%lu]</p>", user, latest);
 
 virgule_buffer_printf (vr->b, "<p>Posting Entry: [%s][%lu]</p>", virgule_xml_get_string_contents (item->title), item->post_time);
+
+ap_log_rerror(APLOG_MARK,APLOG_CRIT, APR_SUCCESS, vr->r,"mod_virgule: art: %d - %s - %s", art, date, author);
+
+virgule_buffer_printf (vr->b,"<p>Found an item:  [%s]", item->content);
+return FALSE;
 
 */
 
@@ -197,6 +204,9 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
    if (!strcmp ((char *)entry->name, "entry"))
     {
       FeedItem *item = (FeedItem *)apr_array_push (result);
+      item->content = NULL;
+      item->strcontent = NULL;
+      item->content_type = NULL;
       item->blogauthor = author;
       item->bloglink = link;
       item->id = virgule_xml_find_child_string (entry, "id", NULL);
@@ -208,9 +218,14 @@ aggregator_index_atom_10 (VirguleReq *vr, xmlDoc *feedbuffer)
         item->link = virgule_xml_get_prop (vr->r->pool, tmp, (xmlChar *)"href");
 	
       item->title = virgule_xml_find_child (entry, "title");
+
       item->content = virgule_xml_find_child (entry, "content");
+      item->content_type = virgule_xml_get_prop (vr->r->pool, item->content, (xmlChar *)"type");
       if (item->content == NULL)
-        item->content = virgule_xml_find_child (entry, "summary");
+        {
+          item->content = virgule_xml_find_child (entry, "summary");
+          item->content_type = virgule_xml_get_prop (vr->r->pool, item->content, (xmlChar *)"type");
+        }
       
       item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "published", NULL));
       if(item->post_time == -1)
@@ -264,6 +279,9 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
         continue;
 
       FeedItem *item = (FeedItem *)apr_array_push (result);
+      item->content = NULL;
+      item->strcontent = NULL;
+      item->content_type = NULL;
       item->blogauthor = author;
       item->bloglink = link;
 
@@ -282,7 +300,7 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
       item->content = virgule_xml_find_child (entry, "encoded");
       if(item->content == NULL)
         item->content = virgule_xml_find_child (entry, "description");
-
+        
       item->post_time = virgule_rfc822_to_time_t (vr, virgule_xml_find_child_string (entry, "pubDate", NULL));
       if(item->post_time == -1)
         item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "date", NULL));
@@ -300,8 +318,9 @@ aggregator_index_rss_20 (VirguleReq *vr, xmlDoc *feedbuffer)
  * array containing an unsorted index of blog entries from the raw feed. 
  * Returns NULL if the feed cannot be parsed or doesn't not contain enough
  * information. This code assume the date tag dc:date from the Dublin Core
- * module will be present and that the content will be contianed in the
- * content:encoded tag of the Draft version of the Content module.
+ * module will be present and that the content will be contained in the
+ * content:encoded tag of the Draft version of the Content module. If the
+ * content:encoded tag is not found, we'll fall back on the description tag
  **/
 static apr_array_header_t *
 aggregator_index_rdf_site_summary_10 (VirguleReq *vr, xmlDoc *feedbuffer)
@@ -330,14 +349,20 @@ aggregator_index_rdf_site_summary_10 (VirguleReq *vr, xmlDoc *feedbuffer)
         continue;
 
       FeedItem *item = (FeedItem *)apr_array_push (result);
+      item->content = NULL;
+      item->strcontent = NULL;
+      item->content_type = NULL;
       item->blogauthor = author;
       item->bloglink = link;
       item->id = virgule_xml_get_prop (vr->r->pool, entry, (xmlChar *)"about");
       item->link = virgule_xml_find_child_string (entry, "link", NULL);
       item->title = virgule_xml_find_child (entry, "title");
       item->content = virgule_xml_find_child (entry, "encoded");
+      if(item->content == NULL)
+          item->content = virgule_xml_find_child (entry, "description");
       item->post_time = virgule_rfc3339_to_time_t (vr, virgule_xml_find_child_string (entry, "date", NULL));
       item->update_time = -1;
+
     }
 
   return result;
@@ -383,6 +408,7 @@ aggregator_normalize_feed (VirguleReq *vr, xmlDoc *feedbuffer, FeedType ft)
             result = aggregator_index_rdf_site_summary_10 (vr, feedbuffer);
             break;
       default:  // unknown
+            virgule_buffer_printf (vr->b,"<p><b>Warning:</b> Feed type unknown, skipping...</p>\n");
             break;
     }
 
@@ -404,7 +430,7 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 {
   int i;
   int post = 0;
-  char *key;
+  char *key, *fn;
   xmlDoc *feedbuffer = NULL;
   xmlError *e;
   apr_array_header_t *item_list;
@@ -415,7 +441,9 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 
   /* Open and parse the feed buffer */
   key = apr_psprintf (vr->r->pool, "acct/%s/feed.xml", (char *)user);
-  feedbuffer = virgule_db_xml_get (vr->r->pool, vr->db, key);
+  
+  fn = virgule_db_mk_filename (vr->r->pool, vr->db, key);
+  feedbuffer = xmlParseFile (fn);
   if (feedbuffer == NULL)
   {
     e = xmlGetLastError();
@@ -439,10 +467,17 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
     {
       int e;
       FeedItem *item = &((FeedItem *)(item_list->elts))[i];
+
       if (item->content == NULL)
         continue;
+
       if (item->post_time > latest)
 	{
+	  item->strcontent = extract_content (vr, item);
+          if(!item->strcontent || strlen(item->strcontent) == 0) {
+            ap_log_rerror(APLOG_MARK,APLOG_CRIT, APR_SUCCESS, vr->r,"mod_virgule aggregator.c: extract_content(): Failed for item [%s]: %s", (item->content_type ? item->content_type : "unknown"), item->id);
+            continue;
+          }	  
 	  e = virgule_diary_entry_id_exists(vr, user, item->id);
 	  /* some broken feeds alter post time on existing posts, check ID */
 	  if (e > -1)
@@ -457,9 +492,18 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
       else if ((item->update_time != -1) && (item->post_time != item->update_time))
 	{
 	  /* some broken feeds alter post time on existing posts, check ID */
+	  item->strcontent = extract_content (vr, item);
+          if(!item->strcontent || strlen(item->strcontent) == 0) {
+            ap_log_rerror(APLOG_MARK,APLOG_CRIT, APR_SUCCESS, vr->r,"mod_virgule aggregator.c: extract_content(): Failed for item [%s]: %s", (item->content_type ? item->content_type : "unknown"), item->id);
+            continue;
+          }
 	  e = virgule_diary_entry_id_exists(vr, user, item->id);
 	  virgule_diary_update_feed_item (vr, user, item, e);
 	}
+	
+      /* Free content tree and title to recover some space */
+      xmlFreeNode(item->content);
+      xmlFreeNode(item->title);
     }
 
   /* Post only one recentlog entry even if we get multiple new posts */
@@ -472,17 +516,66 @@ aggregator_post_feed (VirguleReq *vr, xmlChar *user)
 
 
 /**
+ * extract_content - attempt to identify the content type of the feed item
+ * and convert it to a string. Types that we should be able to handle:
+ * text/html - Raw HTML encoded as CDATA or XML escaped HTML
+ * html - Raw HTML encoded as CDATA or XML escaped HTML
+ * xhtml - dump a valid xml tree to a text buffer
+ * If type is NULL, assume html, this should be right 99.9% of the time.
+ *  ^^ is that safe? what if type NULL contains text with no HTML markup?
+ *     will HTML normalization wipe out the text or wrap it?
+ **/
+char *
+extract_content (VirguleReq *vr, FeedItem *i)
+{
+    char *content = NULL;
+    char *str = NULL;
+
+    if(i->content_type == NULL)
+      {
+	content = virgule_xml_get_all_string_contents (vr->r->pool, i->content);
+	if(content)
+	    str = virgule_normalize_html (vr, content, i->bloglink);
+      }
+
+    else if(!strcasecmp (i->content_type, "html") || !strcasecmp (i->content_type, "text/html"))
+      {
+	content = virgule_xml_get_all_string_contents (vr->r->pool, i->content);
+	if(content)
+	    str = virgule_normalize_html (vr, content, i->bloglink);
+      }
+
+    else if(!strcasecmp (i->content_type, "xhtml"))
+      {
+	str = virgule_normalize_html_tree (vr, i->content, i->bloglink);
+      }
+      
+    return str;
+}
+
+
+/**
  * aggregator_getfeed_serve - Open the feedlist, and attempt to retrieve
  * the feed for each entry. If successful, each user's feed buffer will
  * be updated.
+ *
+ * NOTE: xmlNanoHTTPFetch has a hard-coded timeout of 60 seconds. If the
+ * feed list is large and several feeds timeout, it's very likely the
+ * browser or agent that triggered the aggregator will timeout itself
+ * before the final report is completed and sent. This won't prevent
+ * the aggregator from successfully updating the feeds. The long-term fix
+ * for this is to break out the aggregator as a separate daemon unrelated
+ * to mod_virgule or apache.
  **/
 static int
 aggregator_getfeeds_serve(VirguleReq *vr)
 {
+  apr_pool_t *tp = NULL;
+  apr_pool_t *op = vr->r->pool;
   xmlDoc *agglist;
   xmlNode *feed;
   xmlChar *user;
-  char *feedbuffer, *feedurl;
+  char *feedbuffer, *feedurl, *contentType;
   int feed_status = 0;
   
   agglist = virgule_db_xml_get (vr->r->pool, vr->db, "feedlist");
@@ -496,16 +589,24 @@ aggregator_getfeeds_serve(VirguleReq *vr)
     
   for (feed = agglist->xmlRootNode->children; feed != NULL; feed = feed->next)
     {
+        if (tp != NULL)
+	    apr_pool_destroy (tp);    
+	apr_pool_create (&tp, op);
+	vr->r->pool = tp;
+	
         user = (xmlChar *)virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"user");
         feedurl = virgule_xml_get_prop (vr->r->pool, feed, (xmlChar *)"feedurl");
         feedbuffer = apr_psprintf (vr->r->pool, "/acct/%s/feed.xml", (char *)user);
         virgule_db_del (vr->db, feedbuffer);
 	feedbuffer = virgule_db_mk_filename (vr->r->pool, vr->db, feedbuffer);
-	feed_status = xmlNanoHTTPFetch(feedurl, feedbuffer, NULL);
+	feed_status = xmlNanoHTTPFetch(feedurl, feedbuffer, &contentType);
         virgule_buffer_printf (vr->b,
-	                       "<p><b>User:</b> %s <b>FeedURL:</b> %s <b>Retrieval:</b> %s</p>\n",
-			       user,feedurl,
+	                       "<p><b>User:</b> %s <b>FeedURL:</b> %s <b>ContentType:</b> %s <b>Retrieval:</b> %s</p>\n",
+			       user,feedurl,contentType,
 			       (feed_status ? "Error": "Ok"));
+
+	ap_log_rerror(APLOG_MARK,APLOG_CRIT,APR_SUCCESS, vr->r,"mod_virgule: aggregator: %s (%s) - %s", user, feedurl, (feed_status ? "Error": "Ok"));
+
 	if(feed_status == 0)
 	  aggregator_post_feed (vr, user);
     }
