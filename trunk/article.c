@@ -631,6 +631,9 @@ article_generic_submit_serve (VirguleReq *vr,
   return virgule_send_error_page (vr, vINFO, "Posted", str);
 }
 
+/*
+ * article_submit_serve: handle "post a new article" form submission
+ */
 static int
 article_submit_serve (VirguleReq *vr)
 {
@@ -642,6 +645,9 @@ article_submit_serve (VirguleReq *vr)
   apr_table_t *args;
   const char *title, *lead, *body, *oldkey;
   const char *topic = NULL;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   args = virgule_get_args_table (vr);
   if (args == NULL)
@@ -802,6 +808,9 @@ article_reply_form_serve (VirguleReq *vr)
   return virgule_render_in_template (vr, "/templates/default.xml", "content", "Post a reply");
 }
 
+/*
+ * article_reply_submit_serve: handles article reply form submission
+ */
 static int
 article_reply_submit_serve (VirguleReq *vr)
 {
@@ -812,6 +821,9 @@ article_reply_submit_serve (VirguleReq *vr)
   char *key_reply;
   int last_reply;
   xmlDoc *doc;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
   

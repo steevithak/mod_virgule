@@ -243,6 +243,9 @@ acct_flag_as_spam(VirguleReq *vr, const char *u)
   xmlNode *spamscore;
   virgule_auth_user (vr);
 
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
+
   if(vr->u == NULL)
     return virgule_send_error_page (vr, vERROR, "account", "You must be logged in to use the spam reporting system.\n");
 
@@ -672,6 +675,9 @@ acct_index_serve (VirguleReq *vr)
 }
 
 
+/*
+ * acct_newsub_serve: processes the new account form
+ */
 static int
 acct_newsub_serve (VirguleReq *vr)
 {
@@ -691,6 +697,9 @@ acct_newsub_serve (VirguleReq *vr)
 
   if (!vr->priv->allow_account_creation)
     return virgule_send_error_page (vr, vERROR, "forbidden", "No new accounts may be created at this time.\n");
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   args = virgule_get_args_table (vr);
 
@@ -964,7 +973,9 @@ send_email(VirguleReq *vr, const char *mail, const char *u, const char *pass)
   return 1;
 }
 
-
+/*
+ * acct_loginsub_serve: handles the account login form submission
+ */
 static int
 acct_loginsub_serve (VirguleReq *vr)
 {
@@ -973,6 +984,9 @@ acct_loginsub_serve (VirguleReq *vr)
   const char *u, *pass, *forgot;
   const char *ret1, *ret2;
   const char *cookie;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
   
   r->content_type = "text/plain; charset=UTF-8";
 
@@ -1100,6 +1114,9 @@ acct_update_serve (VirguleReq *vr)
 {
   apr_pool_t *p = vr->r->pool;
   apr_table_t *args;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
 
@@ -1952,6 +1969,9 @@ acct_certify_serve (VirguleReq *vr)
   const char *subject;
   const char *level;
   int status;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
   args = virgule_get_args_table (vr);

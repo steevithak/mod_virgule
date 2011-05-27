@@ -203,6 +203,9 @@ proj_new_serve (VirguleReq *vr)
   return virgule_render_in_template (vr, "/templates/default.xml", "content", "Create new <x>project</x>");
 }
 
+/*
+ * proj_newsub_serve: handles new project form submission
+ */
 static int
 proj_newsub_serve (VirguleReq *vr)
 {
@@ -215,6 +218,9 @@ proj_newsub_serve (VirguleReq *vr)
   xmlDoc *doc;
   xmlNode *root, *tree;
   int status;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
 
@@ -713,6 +719,9 @@ proj_edit_serve (VirguleReq *vr)
   return virgule_render_in_template (vr, "/templates/default.xml", "content", "Edit <x>project</x>");
 }
 
+/*
+ * proj_editsub_serve: handles edit project form submission
+ */
 static int
 proj_editsub_serve (VirguleReq *vr)
 {
@@ -731,6 +740,9 @@ proj_editsub_serve (VirguleReq *vr)
     proj_fields = nproj_fields;
   else if(vr->priv->projstyle == PROJSTYLE_STEVE)
     proj_fields = sproj_fields;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
     
   args = virgule_get_args_table (vr);
   name = apr_table_get (args, "name");
@@ -771,6 +783,9 @@ proj_editsub_serve (VirguleReq *vr)
 			  virgule_render_proj_name (vr, name));
 }
 
+/*
+ * proj_relsub_serve: handles project relationship form submission
+ */
 static int
 proj_relsub_serve (VirguleReq *vr)
 {
@@ -781,6 +796,9 @@ proj_relsub_serve (VirguleReq *vr)
   xmlDoc *doc;
   const char *name;
   const char *type;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   args = virgule_get_args_table (vr);
   name = apr_table_get (args, "name");
