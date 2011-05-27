@@ -521,6 +521,9 @@ virgule_diary_store_entry (VirguleReq *vr, const char *key, const char *entry)
 }
 
     
+/*
+ * diary_post_serve: handles new diary form submission
+ */
 static int
 diary_post_serve (VirguleReq *vr)
 {
@@ -529,6 +532,9 @@ diary_post_serve (VirguleReq *vr)
   const char *entry, *diary;
   const char *key;
   int status;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
   if (vr->u == NULL)
@@ -608,6 +614,9 @@ diary_index_serve (VirguleReq *vr)
 }
 
 
+/*
+ * diary_edit_serve: handle diary edit form submission
+ */
 static int
 diary_edit_serve (VirguleReq *vr)
 {
@@ -616,6 +625,9 @@ diary_edit_serve (VirguleReq *vr)
   char *str1, *str2;
   const char *key, *diary;
   xmlDoc *entry;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
   if (vr->u == NULL)

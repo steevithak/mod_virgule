@@ -49,10 +49,16 @@ virgule_rating_diary_form (VirguleReq *vr, const char *u)
 		 "</form>\n", u);
 }
 
+/*
+ * rating_rate_diary: handles the diary rate form submission
+ */
 static int
 rating_rate_diary (VirguleReq *vr)
 {
   apr_table_t *args;
+
+  if (vr->r->method_number != M_POST)
+    return HTTP_METHOD_NOT_ALLOWED;
 
   virgule_auth_user (vr);
   args = virgule_get_args_table (vr);

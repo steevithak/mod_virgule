@@ -1,3 +1,16 @@
+2011-05-27 R. Steve Rainwater <steve@ncc.com>
+
+	* acct_maint.c (acct_newsub_serve, acct_loginsub_serve):
+	* acct_maint.c (acct_flag_as_spam, acct_certify_serve):
+	* acct_maint.c ( acct_update_serve): 
+	* article.c (article_submit_serve, article_reply_submit_serve):
+	* diary.c (diary_post_serve, diary_edit_serve):
+	* proj.c (proj_newsub_serve, proj_relsub_serve, proj_editsub_serve):
+	* rating.c (rating_rate_diary):
+	Added check for POST method. Otherwise, specially crafted GET requests
+	could trigger mod_virgule actions. Props to Daniel Kahn Gillmor for 
+	spotting the need for this.
+
 2011-05-26 R. Steven Rainwater <steve@ncc.com>
 
 	* mod_virgule: Various minor code cleanup and debug code removal 
